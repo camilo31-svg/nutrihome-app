@@ -1,4 +1,4 @@
-const CACHE_NAME = 'marea-v1';
+const CACHE_NAME = 'marea-v2';
 const APP_SHELL = [
   './', './index.html', './styles.css', './app.js', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-192-maskable.png',

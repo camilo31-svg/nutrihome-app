@@ -94,8 +94,13 @@
             <button class="quick-card" data-open-log="flow" type="button"><span class="quick-icon blood">◒</span><span><strong>Flujo</strong><small id="quick-flow">Sin registrar</small></span><b>＋</b></button>
             <button class="quick-card" data-open-log="mood" type="button"><span class="quick-icon mood">☺</span><span><strong>Estado de ánimo</strong><small id="quick-mood">Sin registrar</small></span><b>＋</b></button>
             <button class="quick-card" data-open-log="symptoms" type="button"><span class="quick-icon symptom">✦</span><span><strong>Síntomas</strong><small id="quick-symptoms">Sin registrar</small></span><b>＋</b></button>
+            <button class="quick-card" data-open-log="sex" type="button"><span class="quick-icon sexual">♡</span><span><strong>Actividad sexual</strong><small id="quick-sex">Sin registrar</small></span><b>＋</b></button>
             <button class="quick-card" data-open-log="note" type="button"><span class="quick-icon note">✎</span><span><strong>Nota privada</strong><small id="quick-note">Escribe lo que quieras</small></span><b>＋</b></button>
           </div>
+          <article id="daily-risk-card" class="daily-risk-card" hidden>
+            <div><span class="risk-kicker">ESTIMACIÓN ORIENTATIVA</span><strong id="daily-risk-value">—</strong><p id="daily-risk-copy"></p></div>
+            <button class="secondary-btn" data-open-pregnancy-model type="button">Entender el cálculo</button>
+          </article>
         </section>
         </section>
 
@@ -233,6 +238,21 @@
         <section class="form-section" data-log-section="flow"><h3>Flujo</h3><div class="choice-row" data-choice="flow"><button type="button" data-value="none">Nada</button><button type="button" data-value="spotting">Manchado</button><button type="button" data-value="light">Ligero</button><button type="button" data-value="medium">Medio</button><button type="button" data-value="heavy">Abundante</button></div><label class="period-start-check"><input id="period-start" type="checkbox" /> Este es el primer día del periodo</label></section>
         <section class="form-section" data-log-section="mood"><h3>Estado de ánimo</h3><div class="choice-row emoji-row" data-choice="mood"><button type="button" data-value="great">😊<small>Genial</small></button><button type="button" data-value="calm">😌<small>En calma</small></button><button type="button" data-value="sensitive">🥹<small>Sensible</small></button><button type="button" data-value="low">😔<small>Bajo</small></button><button type="button" data-value="irritable">😤<small>Irritable</small></button></div></section>
         <section class="form-section" data-log-section="symptoms"><h3>Síntomas y señales</h3><div class="choice-row multi" data-choice="symptoms"><button type="button" data-value="cramps">Calambres</button><button type="button" data-value="headache">Dolor de cabeza</button><button type="button" data-value="bloating">Hinchazón</button><button type="button" data-value="tenderness">Pecho sensible</button><button type="button" data-value="acne">Piel / acné</button><button type="button" data-value="backache">Dolor lumbar</button><button type="button" data-value="fatigue">Cansancio</button><button type="button" data-value="cravings">Antojos</button><button type="button" data-value="insomnia">Sueño irregular</button><button type="button" data-value="nausea">Náuseas</button></div></section>
+        <section class="form-section sexual-section" data-log-section="sex">
+          <h3>Actividad sexual</h3>
+          <p class="section-help">Elige “sin protección o fallo” si hubo al menos una relación vaginal sin método eficaz o si el preservativo se rompió o salió.</p>
+          <div class="choice-row sexual-choice" data-choice="sexualActivity"><button type="button" data-value="none">Sin actividad</button><button type="button" data-value="protected">Con protección todo el tiempo</button><button type="button" data-value="unprotected">Sin protección o fallo</button></div>
+          <label id="protection-method-field" class="field conditional-field" hidden><span>Método utilizado</span><select id="protection-method"><option value="condom">Preservativo</option><option value="pill">Píldora</option><option value="iud">DIU</option><option value="implant">Implante</option><option value="ring-patch">Anillo o parche</option><option value="injection">Inyección</option><option value="other">Otro método</option></select></label>
+          <label id="emergency-method-field" class="field conditional-field" hidden><span>Anticoncepción de emergencia</span><select id="emergency-method"><option value="none">No / sin registrar</option><option value="levonorgestrel">Levonorgestrel</option><option value="ulipristal">Ulipristal</option><option value="copper-iud">DIU de cobre</option></select></label>
+          <div id="pregnancy-risk-preview" class="risk-preview" hidden>
+            <div class="risk-preview-heading"><span>Probabilidad estimada por esta relación</span><strong id="risk-preview-value">—</strong></div>
+            <div class="risk-track" aria-hidden="true"><span id="risk-track-fill"></span></div>
+            <p id="risk-preview-range"></p>
+            <p id="risk-preview-explanation"></p>
+            <aside id="emergency-guidance" class="emergency-guidance" hidden><strong>Podrías seguir dentro de la ventana de anticoncepción de emergencia.</strong><p>Si no deseas un embarazo, consulta hoy mismo en una farmacia o con un profesional sanitario. No esperes a que la app confirme una fase.</p></aside>
+            <button class="text-btn" data-open-pregnancy-model type="button">Cómo se estima y qué hacer →</button>
+          </div>
+        </section>
         <div class="form-columns">
           <section class="form-section"><h3>Energía</h3><input id="energy" type="range" min="1" max="5" value="3" /><div class="range-labels"><span>Muy baja</span><span>Muy alta</span></div></section>
           <section class="form-section"><h3>Sueño</h3><label class="inline-input"><input id="sleep" type="number" inputmode="decimal" step="0.5" min="0" max="24" placeholder="7.5" /> horas</label></section>
@@ -251,6 +271,19 @@
         <p>Marea usa un modelo probabilístico local inspirado en enfoques jerárquicos de series temporales. Aprende de tus inicios de periodo confirmados y no envía esos datos a un modelo externo.</p>
         <ol><li><strong>Centro robusto.</strong> Combina la mediana de tus ciclos con una referencia inicial, dando más peso a tu historial conforme crece.</li><li><strong>Recencia y anomalías.</strong> Los ciclos recientes pesan algo más; posibles periodos olvidados se atenúan para que no distorsionen todo.</li><li><strong>Incertidumbre real.</strong> La variación entre ciclos ensancha la ventana. La confianza baja cuando hay pocos datos o ciclos variables.</li><li><strong>Actualización diaria.</strong> Si una fecha estimada pasa sin periodo, la distribución se recalcula en lugar de fingir certeza.</li></ol>
         <div class="medical-note"><strong>No confirma ovulación.</strong><p>La ovulación y las fases se estiman desde fechas; la temperatura basal, el moco cervical o tests hormonales pueden aportar contexto, pero Marea no es un anticonceptivo ni un dispositivo médico.</p></div>
+        <button class="primary-btn" value="cancel">Entendido</button>
+      </form>
+    </dialog>
+
+    <dialog id="pregnancy-model-dialog" class="info-dialog pregnancy-info-dialog">
+      <form method="dialog">
+        <button class="close-btn" value="cancel" aria-label="Cerrar">×</button>
+        <span class="phase-pill sage"><i></i> Estimación, no diagnóstico</span>
+        <h2>Cómo estima Marea la probabilidad de embarazo</h2>
+        <p>Marea integra dos incertidumbres: cuándo podría ocurrir la ovulación según tu historial y qué probabilidad se ha observado para una relación sin protección en cada día respecto a la ovulación. Calcula una distribución completa, no se limita a marcar un día “fértil”.</p>
+        <ol><li><strong>Ovulación posible.</strong> Distribuye la fecha probable según tu ciclo, su variabilidad y los registros disponibles. Con pocos datos, el intervalo se ensancha.</li><li><strong>Curva de fecundabilidad.</strong> La evidencia sitúa la ventana biológica principalmente en los cinco días anteriores y el día de ovulación, con probabilidades observadas aproximadas de 10% a 33% en parejas sanas que buscaban embarazo.</li><li><strong>Resultado con intervalo.</strong> Combina ambas distribuciones y limita la confianza porque una app de calendario no confirma la ovulación.</li></ol>
+        <div class="medical-note urgent-note"><strong>Si han pasado 5 días o menos, el tiempo importa.</strong><p>La anticoncepción de emergencia debe usarse cuanto antes. Las píldoras y el DIU de cobre pueden ser opciones hasta 120 horas según el caso; un profesional o una farmacia puede ayudarte a elegir. Un DIU de cobre es la opción de emergencia más eficaz. Haz una prueba de embarazo si no llega el periodo o aproximadamente 3 semanas después.</p><p>La anticoncepción de emergencia no protege frente a infecciones de transmisión sexual. Si hubo exposición posible, busca asesoramiento sanitario.</p></div>
+        <p class="source-links"><a href="https://www.who.int/news-room/fact-sheets/detail/emergency-contraception" target="_blank" rel="noreferrer">OMS: anticoncepción de emergencia</a><a href="https://www.cdc.gov/contraception/hcp/usspr/emergency-contraception.html" target="_blank" rel="noreferrer">CDC: recomendaciones 2024</a><a href="https://pubmed.ncbi.nlm.nih.gov/7477165/" target="_blank" rel="noreferrer">Estudio de fecundabilidad por día</a></p>
         <button class="primary-btn" value="cancel">Entendido</button>
       </form>
     </dialog>

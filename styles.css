@@ -127,7 +127,14 @@ input:focus, select:focus, textarea:focus, button:focus-visible, a:focus-visible
 .quick-icon.blood { color: #a14a5c; background: #f8e7e6; }
 .quick-icon.mood { color: #80633f; background: #f4ead4; }
 .quick-icon.symptom { color: #557565; background: #e6eee9; }
+.quick-icon.sexual { color: #8e3b52; background: #f5e5e9; }
 .quick-icon.note { color: #6c607c; background: #ebe7f0; }
+.daily-risk-card { margin-top: 14px; padding: 18px 20px; display: flex; justify-content: space-between; align-items: center; gap: 18px; color: var(--ink); background: color-mix(in srgb, var(--accent) 7%, var(--panel)); border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--line)); border-radius: 17px; }
+.daily-risk-card[hidden] { display: none; }
+.daily-risk-card > div { display: grid; grid-template-columns: auto 1fr; align-items: baseline; gap: 4px 14px; }
+.daily-risk-card .risk-kicker { grid-column: 1 / -1; color: var(--accent); letter-spacing: .11em; font-size: 9px; font-weight: 800; }
+.daily-risk-card strong { font-family: Georgia, serif; color: var(--accent); font-size: 31px; font-weight: 500; }
+.daily-risk-card p { color: var(--muted); font-size: 11px; line-height: 1.45; margin: 0; }
 .bottom-nav { display: none; }
 
 .view { display: none; animation: view-in .25s ease both; }
@@ -260,6 +267,24 @@ dialog::backdrop { background: rgba(30, 22, 23, .45); backdrop-filter: blur(5px)
 .choice-row { display: flex; flex-wrap: wrap; gap: 7px; }
 .choice-row button { border: 1px solid var(--line); background: var(--panel-2); border-radius: 999px; padding: 9px 12px; font-size: 10px; cursor: pointer; }
 .choice-row button.selected { color: white; border-color: var(--accent); background: var(--accent); }
+.section-help { color: var(--muted); font-size: 10px; line-height: 1.55; margin: -4px 0 12px; }
+.conditional-field { max-width: 330px; margin-top: 16px; }
+.conditional-field[hidden] { display: none; }
+.sexual-choice button:last-child.selected { background: #a33f50; border-color: #a33f50; }
+.risk-preview { margin-top: 17px; padding: 17px; background: color-mix(in srgb, var(--accent) 6%, var(--panel)); border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--line)); border-radius: 15px; }
+.risk-preview[hidden] { display: none; }
+.risk-preview-heading { display: flex; justify-content: space-between; gap: 18px; align-items: baseline; }
+.risk-preview-heading span { color: var(--muted); font-size: 10px; font-weight: 700; }
+.risk-preview-heading strong { font-family: Georgia, serif; color: var(--accent); font-size: 28px; font-weight: 500; }
+.risk-track { height: 7px; margin: 10px 0; overflow: hidden; background: var(--panel-2); border-radius: 999px; }
+.risk-track span { display: block; width: 0; height: 100%; background: linear-gradient(90deg, var(--sage), #d2a65a, var(--accent)); border-radius: inherit; transition: width .3s ease; }
+.risk-preview > p { color: var(--muted); font-size: 10px; line-height: 1.55; margin: 7px 0; }
+.risk-preview .text-btn { padding: 7px 0 0; }
+.emergency-guidance { margin-top: 12px; padding: 13px 14px; background: #fff1db; border: 1px solid #e9c985; border-radius: 12px; }
+.emergency-guidance strong { color: #795318; font-size: 10px; }
+.emergency-guidance p { color: #795f37; font-size: 9px; line-height: 1.5; margin: 4px 0 0; }
+.dark .emergency-guidance { background: #40321f; border-color: #775d2f; }
+.dark .emergency-guidance strong, .dark .emergency-guidance p { color: #f1d59f; }
 .emoji-row button { display: grid; justify-items: center; gap: 3px; min-width: 67px; font-size: 20px; }
 .emoji-row button small { font-size: 8px; }
 .period-start-check { display: flex; align-items: center; gap: 8px; margin-top: 13px; font-size: 10px; color: var(--muted); }
@@ -277,6 +302,10 @@ input[type="range"] { accent-color: var(--accent); width: 100%; border: 0; backg
 .info-dialog ol { padding-left: 20px; }
 .info-dialog li { margin: 9px 0; }
 .info-dialog .primary-btn { margin-top: 20px; width: 100%; }
+.pregnancy-info-dialog .urgent-note { background: color-mix(in srgb, #d69739 10%, var(--panel)); border-color: color-mix(in srgb, #d69739 40%, var(--line)); }
+.pregnancy-info-dialog .urgent-note strong { color: #a66a13; }
+.source-links { display: flex; flex-wrap: wrap; gap: 8px 14px; }
+.source-links a { color: var(--accent); font-size: 10px; font-weight: 700; }
 .confirm-dialog { width: min(430px, calc(100% - 24px)); border-radius: 22px; padding: 27px; }
 .confirm-dialog p { color: var(--muted); font-size: 12px; line-height: 1.6; }
 .setup-banner { position: fixed; z-index: 18; left: calc(226px + 32px); right: 32px; bottom: 22px; max-width: 850px; margin: auto; display: flex; align-items: center; gap: 18px; background: var(--ink); color: var(--panel); padding: 14px 16px 14px 20px; border-radius: 17px; box-shadow: 0 18px 45px rgba(31,23,24,.3); }
@@ -344,6 +373,8 @@ input[type="range"] { accent-color: var(--accent); width: 100%; border: 0; backg
   .sheet-dialog form { padding: 21px 17px; }
   .setup-banner { align-items: flex-start; flex-wrap: wrap; }
   .setup-banner div { min-width: 200px; }
+  .daily-risk-card { align-items: flex-start; flex-direction: column; }
+  .daily-risk-card .secondary-btn { width: 100%; }
 }
 
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }

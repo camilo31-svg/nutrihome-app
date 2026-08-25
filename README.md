@@ -5,7 +5,8 @@ Marea es una PWA instalable para registrar el ciclo menstrual de forma privada, 
 ## Qué incluye
 
 - Predicción personalizada del próximo periodo y de las fases con ventana de incertidumbre.
-- Calendario interactivo y registro de flujo, ánimo, síntomas, energía, sueño, temperatura basal, flujo cervical y notas.
+- Calendario interactivo y registro de flujo, ánimo, síntomas, actividad sexual, protección, energía, sueño, temperatura basal, flujo cervical y notas.
+- Estimación probabilística de embarazo tras una relación sin protección o un fallo del método, con intervalo de incertidumbre, nivel de confianza y orientación temporal sobre anticoncepción de emergencia.
 - Tendencias de duración y señales frecuentes.
 - Informe de los últimos registros para compartir con un profesional.
 - Recordatorios discretos, exportación e importación de copias, modo oscuro y modo discreto.
@@ -20,6 +21,14 @@ No hay cuenta, analítica, publicidad ni servidor de datos. Los registros se gua
 Marea usa un estimador probabilístico local: combina una referencia inicial con la mediana y la media ponderada del historial personal, atenúa posibles valores anómalos, aumenta el peso de ciclos recientes y calcula la ventana a partir de la variabilidad observada. La estimación se actualiza si la fecha prevista pasa sin un nuevo periodo registrado.
 
 Las fases y la ovulación se infieren desde fechas; no se confirman hormonalmente. Marea no es un anticonceptivo, una prueba de fertilidad ni un dispositivo médico.
+
+### Probabilidad de embarazo
+
+Para una relación vaginal sin protección, Marea combina una distribución de la posible fecha de ovulación —más amplia cuando hay pocos ciclos o mayor variabilidad— con una curva de fecundabilidad diaria basada en estudios prospectivos. El cálculo se realiza enteramente en el dispositivo y muestra un intervalo, no una cifra pretendidamente exacta.
+
+Una app de calendario no puede confirmar la ovulación. La estimación no debe usarse para decidir si tener relaciones sin protección ni sustituye consejo sanitario. Si la relación fue hace 5 días o menos y no se desea un embarazo, la app recomienda consultar cuanto antes sobre anticoncepción de emergencia.
+
+Fuentes principales: [OMS](https://www.who.int/news-room/fact-sheets/detail/emergency-contraception), [CDC 2024](https://www.cdc.gov/contraception/hcp/usspr/emergency-contraception.html) y [Wilcox et al.](https://pubmed.ncbi.nlm.nih.gov/7477165/).
 
 ## Desarrollo local
 
