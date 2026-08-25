@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#f7f3ee" />
+    <meta name="description" content="Marea: seguimiento privado del ciclo menstrual con predicciones probabilísticas y registro diario." />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Marea" />
+    <meta property="og:title" content="Marea · Tu ciclo, con contexto" />
+    <meta property="og:description" content="Seguimiento menstrual privado, personal y probabilístico." />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="og.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Marea · Tu ciclo, con contexto" />
+    <meta name="twitter:description" content="Seguimiento menstrual privado, personal y probabilístico." />
+    <meta name="twitter:image" content="og.png" />
+    <title>Marea · Tu ciclo, con contexto</title>
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="icons/icon-192.png" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="side-nav" aria-label="Navegación principal">
+        <a class="brand" href="#hoy" aria-label="Marea, inicio">
+          <span class="brand-mark">m</span>
+          <span>Marea</span>
+        </a>
+        <nav>
+          <a class="nav-link active" data-nav="today" href="#hoy"><span>⌂</span> Hoy</a>
+          <a class="nav-link" data-nav="calendar" href="#calendario"><span>□</span> Calendario</a>
+          <a class="nav-link" data-nav="insights" href="#tendencias"><span>↗</span> Tendencias</a>
+          <a class="nav-link" data-nav="settings" href="#ajustes"><span>◇</span> Ajustes</a>
+        </nav>
+        <div class="privacy-note"><span>●</span> Tus datos se guardan en este dispositivo</div>
+      </aside>
+
+      <main class="main-view">
+        <section id="hoy" class="view active" data-view="today">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow" id="today-label">MARTES, 25 DE AGOSTO</p>
+            <h1>Buenos días</h1>
+          </div>
+          <div class="top-actions">
+            <button class="icon-btn theme-toggle" type="button" aria-label="Cambiar modo de color">☾</button>
+            <button class="avatar" type="button" aria-label="Abrir perfil">TM</button>
+          </div>
+        </header>
+
+        <section class="hero-grid" aria-label="Resumen del ciclo">
+          <article class="cycle-card">
+            <div class="cycle-copy">
+              <span class="phase-pill" id="phase-pill"><i></i> Fase folicular</span>
+              <h2>Día <strong id="cycle-day">9</strong> del ciclo</h2>
+              <p id="phase-copy">Tu energía puede empezar a subir. La ventana fértil se aproxima.</p>
+              <div class="prediction-row">
+                <div><span>Próxima fase</span><strong id="next-phase">Fértil · en 3 días</strong></div>
+                <button class="confidence" id="confidence-button" type="button">82% confianza</button>
+              </div>
+            </div>
+            <div class="cycle-orbit" aria-label="Día 9 de un ciclo estimado de 29 días">
+              <div class="orbit-dot"></div>
+              <div class="orbit-inner"><span>DÍA</span><strong id="orbit-day">9</strong><small>de <b id="orbit-length">29</b></small></div>
+            </div>
+          </article>
+
+          <article class="next-card">
+            <div class="card-heading"><span class="mini-icon">◌</span><span>PRÓXIMO PERIODO</span></div>
+            <strong class="big-date" id="next-period-date">15 sep</strong>
+            <p id="period-window">Ventana estimada: 14–17 sep</p>
+            <div class="sparkline" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+            <small id="variability-note">± 2 días según tus últimos ciclos</small>
+          </article>
+        </section>
+
+        <section class="week-card" aria-labelledby="week-title">
+          <div class="section-heading">
+            <div><p class="eyebrow">VISTA RÁPIDA</p><h2 id="week-title">Esta semana</h2></div>
+            <button class="text-btn" data-nav="calendar" type="button">Ver calendario →</button>
+          </div>
+          <div class="week-strip" id="week-strip" role="list"></div>
+          <div class="legend"><span><i class="follicular"></i> Folicular</span><span><i class="fertile"></i> Ventana fértil</span><span><i class="ovulation"></i> Ovulación estimada</span></div>
+        </section>
+
+        <section class="log-section" aria-labelledby="log-title">
+          <div class="section-heading">
+            <div><p class="eyebrow">REGISTRO DIARIO</p><h2 id="log-title">¿Cómo te sientes hoy?</h2></div>
+            <button class="primary-btn" data-open-log type="button">＋ Añadir registro</button>
+          </div>
+          <div class="quick-grid">
+            <button class="quick-card" data-open-log="flow" type="button"><span class="quick-icon blood">◒</span><span><strong>Flujo</strong><small id="quick-flow">Sin registrar</small></span><b>＋</b></button>
+            <button class="quick-card" data-open-log="mood" type="button"><span class="quick-icon mood">☺</span><span><strong>Estado de ánimo</strong><small id="quick-mood">Sin registrar</small></span><b>＋</b></button>
+            <button class="quick-card" data-open-log="symptoms" type="button"><span class="quick-icon symptom">✦</span><span><strong>Síntomas</strong><small id="quick-symptoms">Sin registrar</small></span><b>＋</b></button>
+            <button class="quick-card" data-open-log="note" type="button"><span class="quick-icon note">✎</span><span><strong>Nota privada</strong><small id="quick-note">Escribe lo que quieras</small></span><b>＋</b></button>
+          </div>
+        </section>
+        </section>
+
+        <section id="calendario" class="view" data-view="calendar" aria-labelledby="calendar-title">
+          <header class="view-header">
+            <div><p class="eyebrow">TU MAPA MENSUAL</p><h1 id="calendar-title">Calendario</h1><p>Predicciones, registros y contexto en un solo lugar.</p></div>
+            <button class="primary-btn" data-open-log type="button">＋ Añadir registro</button>
+          </header>
+          <div class="calendar-layout">
+            <article class="calendar-card">
+              <div class="calendar-toolbar">
+                <button id="previous-month" class="icon-btn" type="button" aria-label="Mes anterior">←</button>
+                <h2 id="calendar-month">Agosto 2026</h2>
+                <button id="next-month" class="icon-btn" type="button" aria-label="Mes siguiente">→</button>
+              </div>
+              <div class="weekday-row" aria-hidden="true"><span>L</span><span>M</span><span>X</span><span>J</span><span>V</span><span>S</span><span>D</span></div>
+              <div id="calendar-grid" class="calendar-grid" role="grid" aria-label="Calendario mensual"></div>
+              <div class="legend calendar-legend"><span><i class="menstrual"></i> Periodo</span><span><i class="follicular"></i> Folicular</span><span><i class="fertile"></i> Fértil</span><span><i class="ovulation"></i> Ovulación estimada</span><span><i class="luteal"></i> Lútea</span></div>
+            </article>
+            <aside class="calendar-aside">
+              <article class="phase-detail-card">
+                <span class="phase-pill" id="selected-phase-pill"><i></i> Hoy · Folicular</span>
+                <p class="eyebrow">DÍA SELECCIONADO</p>
+                <h2 id="selected-date">25 de agosto</h2>
+                <p id="selected-phase-copy">Día 9 del ciclo. La ventana fértil se aproxima.</p>
+                <button class="secondary-btn" id="log-selected-day" type="button">Registrar este día</button>
+              </article>
+              <article class="accuracy-card">
+                <div class="card-heading"><span class="mini-icon">◎</span><span>PRECISIÓN DEL MODELO</span></div>
+                <strong id="model-score">82%</strong>
+                <div class="meter"><span id="model-meter"></span></div>
+                <p id="model-data-note">Basada en 3 ciclos y una variación media de ±2 días.</p>
+                <button class="text-btn" id="open-model" type="button">Cómo se calcula →</button>
+              </article>
+            </aside>
+          </div>
+        </section>
+
+        <section id="tendencias" class="view" data-view="insights" aria-labelledby="insights-title">
+          <header class="view-header">
+            <div><p class="eyebrow">PATRONES PERSONALES</p><h1 id="insights-title">Tendencias</h1><p>Lo importante no es ser “regular”, sino conocer tu propio patrón.</p></div>
+            <button class="secondary-btn" id="export-report" type="button">↓ Informe para consulta</button>
+          </header>
+          <div class="metric-grid">
+            <article class="metric-card"><span>Ciclo medio</span><strong id="metric-cycle">29 <small>días</small></strong><p id="metric-cycle-sub">Dentro de tu patrón habitual</p></article>
+            <article class="metric-card"><span>Periodo medio</span><strong id="metric-period">5 <small>días</small></strong><p>Según los registros de flujo</p></article>
+            <article class="metric-card"><span>Variación típica</span><strong id="metric-variation">±2 <small>días</small></strong><p id="metric-variation-sub">Predicción de confianza alta</p></article>
+            <article class="metric-card"><span>Ciclos registrados</span><strong id="metric-count">3</strong><p>Mejora con cada inicio confirmado</p></article>
+          </div>
+          <div class="insight-grid">
+            <article class="insight-card cycle-history-card">
+              <div class="section-heading"><div><p class="eyebrow">ÚLTIMOS 6 CICLOS</p><h2>Duración del ciclo</h2></div><span class="average-badge" id="average-badge">media 29 d</span></div>
+              <div id="cycle-chart" class="cycle-chart" aria-label="Gráfico de duración de ciclos"></div>
+            </article>
+            <article class="insight-card">
+              <div class="section-heading"><div><p class="eyebrow">LO QUE MÁS APARECE</p><h2>Tus señales</h2></div></div>
+              <div id="symptom-list" class="symptom-list"><p class="empty-state">Registra síntomas varios días para descubrir patrones.</p></div>
+            </article>
+          </div>
+          <article class="model-card">
+            <div class="model-copy">
+              <span class="phase-pill sage"><i></i> Modelo Marea v1</span>
+              <h2>Una predicción que muestra su incertidumbre</h2>
+              <p>Combina tu historial reciente, mediana robusta, variabilidad entre ciclos y actualización diaria. Da menos peso a posibles registros olvidados y siempre muestra una ventana, no una fecha absoluta.</p>
+              <button class="secondary-btn" id="open-model-2" type="button">Ver metodología</button>
+            </div>
+            <div class="distribution" aria-label="Distribución probabilística de la próxima fecha">
+              <span style="--h:18%"></span><span style="--h:34%"></span><span style="--h:58%"></span><span style="--h:82%"></span><span class="peak" style="--h:100%"></span><span style="--h:76%"></span><span style="--h:50%"></span><span style="--h:29%"></span><span style="--h:14%"></span>
+              <i>más probable</i>
+            </div>
+          </article>
+        </section>
+
+        <section id="ajustes" class="view" data-view="settings" aria-labelledby="settings-title">
+          <header class="view-header"><div><p class="eyebrow">CONTROL Y PRIVACIDAD</p><h1 id="settings-title">Ajustes</h1><p>Marea funciona sin cuenta y guarda todo en tu dispositivo.</p></div><button class="primary-btn" id="install-app" type="button">Instalar app</button></header>
+          <div class="settings-layout">
+            <article class="settings-card">
+              <div class="settings-title"><span class="settings-icon">◉</span><div><h2>Mi ciclo</h2><p>Ajusta la base de la predicción.</p></div></div>
+              <label class="field"><span>Inicio del último periodo</span><input id="last-period-input" type="date" /></label>
+              <div class="field-row">
+                <label class="field"><span>Duración orientativa</span><input id="cycle-length-input" type="number" inputmode="numeric" min="15" max="60" value="29" /><small>días</small></label>
+                <label class="field"><span>Duración del periodo</span><input id="period-length-input" type="number" inputmode="numeric" min="1" max="14" value="5" /><small>días</small></label>
+              </div>
+              <label class="field"><span>Contexto</span><select id="cycle-context"><option value="natural">Ciclo natural</option><option value="hormonal">Anticoncepción hormonal</option><option value="trying">Buscando embarazo</option><option value="pregnant">Embarazo</option><option value="postpartum">Posparto / lactancia</option><option value="perimenopause">Perimenopausia</option></select></label>
+              <p class="field-help">Las fases hormonales no se estiman si indicas anticoncepción hormonal, embarazo o posparto.</p>
+              <button class="secondary-btn" id="save-cycle-settings" type="button">Guardar cambios</button>
+            </article>
+
+            <article class="settings-card">
+              <div class="settings-title"><span class="settings-icon">◷</span><div><h2>Recordatorios</h2><p>Discretos y bajo tu control.</p></div></div>
+              <label class="setting-row"><span><strong>Registro diario</strong><small>Un toque para anotar cómo te sientes</small></span><input class="switch" id="reminder-daily" type="checkbox" role="switch" /></label>
+              <label class="setting-row"><span><strong>Próximo periodo</strong><small>Aviso 2 días antes de la ventana estimada</small></span><input class="switch" id="reminder-period" type="checkbox" role="switch" /></label>
+              <label class="setting-row"><span><strong>Ventana fértil estimada</strong><small>Información orientativa, nunca anticonceptiva</small></span><input class="switch" id="reminder-fertile" type="checkbox" role="switch" /></label>
+              <label class="field time-field"><span>Hora preferida</span><input id="reminder-time" type="time" value="20:30" /></label>
+              <button class="secondary-btn" id="enable-notifications" type="button">Activar notificaciones</button>
+              <p class="field-help" id="notification-status">El móvil te pedirá permiso. Algunos sistemas limitan los avisos si la app está completamente cerrada.</p>
+            </article>
+
+            <article class="settings-card">
+              <div class="settings-title"><span class="settings-icon">◐</span><div><h2>Apariencia</h2><p>También sigue la preferencia del sistema.</p></div></div>
+              <div class="theme-picker" role="radiogroup" aria-label="Tema de color">
+                <button type="button" data-theme="light"><i></i> Claro</button>
+                <button type="button" data-theme="dark"><i></i> Oscuro</button>
+                <button class="active" type="button" data-theme="system"><i></i> Sistema</button>
+              </div>
+              <label class="setting-row"><span><strong>Modo discreto</strong><small>Oculta detalles sensibles en los avisos</small></span><input class="switch" id="discreet-mode" type="checkbox" role="switch" /></label>
+            </article>
+
+            <article class="settings-card">
+              <div class="settings-title"><span class="settings-icon">⌁</span><div><h2>Tus datos</h2><p>Sin cuenta, anuncios ni venta de información.</p></div></div>
+              <div class="data-actions">
+                <button class="secondary-btn" id="export-data" type="button">Exportar copia</button>
+                <label class="secondary-btn file-button">Importar copia<input id="import-data" type="file" accept="application/json" /></label>
+                <button class="danger-btn" id="delete-data" type="button">Borrar todo</button>
+              </div>
+              <p class="field-help">La copia contiene datos de salud sensibles. Guárdala en un lugar seguro.</p>
+            </article>
+          </div>
+          <aside class="medical-note"><strong>Marea informa; no diagnostica.</strong><p>Las fechas y fases son estimaciones. No uses Marea para evitar un embarazo. Ante dolor intenso, sangrado inusual, embarazo posible o cambios persistentes, consulta a un profesional sanitario.</p></aside>
+        </section>
+      </main>
+    </div>
+    <nav class="bottom-nav" aria-label="Navegación móvil">
+      <a class="active" data-nav="today" href="#hoy"><span>⌂</span>Hoy</a>
+      <a data-nav="calendar" href="#calendario"><span>□</span>Calendario</a>
+      <button data-open-log type="button" aria-label="Añadir registro">＋</button>
+      <a data-nav="insights" href="#tendencias"><span>↗</span>Tendencias</a>
+      <a data-nav="settings" href="#ajustes"><span>◇</span>Ajustes</a>
+    </nav>
+
+    <dialog id="log-dialog" class="sheet-dialog">
+      <form id="log-form" method="dialog">
+        <header class="dialog-header"><div><p class="eyebrow">REGISTRO DIARIO</p><h2>Escucha tu cuerpo</h2></div><button class="close-btn" value="cancel" aria-label="Cerrar">×</button></header>
+        <label class="field"><span>Fecha</span><input id="log-date" name="date" type="date" required /></label>
+        <section class="form-section" data-log-section="flow"><h3>Flujo</h3><div class="choice-row" data-choice="flow"><button type="button" data-value="none">Nada</button><button type="button" data-value="spotting">Manchado</button><button type="button" data-value="light">Ligero</button><button type="button" data-value="medium">Medio</button><button type="button" data-value="heavy">Abundante</button></div><label class="period-start-check"><input id="period-start" type="checkbox" /> Este es el primer día del periodo</label></section>
+        <section class="form-section" data-log-section="mood"><h3>Estado de ánimo</h3><div class="choice-row emoji-row" data-choice="mood"><button type="button" data-value="great">😊<small>Genial</small></button><button type="button" data-value="calm">😌<small>En calma</small></button><button type="button" data-value="sensitive">🥹<small>Sensible</small></button><button type="button" data-value="low">😔<small>Bajo</small></button><button type="button" data-value="irritable">😤<small>Irritable</small></button></div></section>
+        <section class="form-section" data-log-section="symptoms"><h3>Síntomas y señales</h3><div class="choice-row multi" data-choice="symptoms"><button type="button" data-value="cramps">Calambres</button><button type="button" data-value="headache">Dolor de cabeza</button><button type="button" data-value="bloating">Hinchazón</button><button type="button" data-value="tenderness">Pecho sensible</button><button type="button" data-value="acne">Piel / acné</button><button type="button" data-value="backache">Dolor lumbar</button><button type="button" data-value="fatigue">Cansancio</button><button type="button" data-value="cravings">Antojos</button><button type="button" data-value="insomnia">Sueño irregular</button><button type="button" data-value="nausea">Náuseas</button></div></section>
+        <div class="form-columns">
+          <section class="form-section"><h3>Energía</h3><input id="energy" type="range" min="1" max="5" value="3" /><div class="range-labels"><span>Muy baja</span><span>Muy alta</span></div></section>
+          <section class="form-section"><h3>Sueño</h3><label class="inline-input"><input id="sleep" type="number" inputmode="decimal" step="0.5" min="0" max="24" placeholder="7.5" /> horas</label></section>
+        </div>
+        <section class="form-section"><h3>Otras señales</h3><div class="compact-fields"><label class="field"><span>Temperatura basal</span><input id="temperature" type="number" inputmode="decimal" step="0.01" min="34" max="42" placeholder="36.45" /></label><label class="field"><span>Flujo cervical</span><select id="cervical"><option value="">Sin registrar</option><option value="dry">Seco</option><option value="sticky">Pegajoso</option><option value="creamy">Cremoso</option><option value="watery">Acuoso</option><option value="eggwhite">Clara de huevo</option></select></label></div></section>
+        <section class="form-section" data-log-section="note"><label class="field"><span>Nota privada</span><textarea id="note" rows="4" maxlength="1000" placeholder="Algo que quieras recordar…"></textarea></label></section>
+        <footer class="dialog-footer"><button class="secondary-btn" value="cancel">Cancelar</button><button class="primary-btn" id="save-log" value="default">Guardar registro</button></footer>
+      </form>
+    </dialog>
+
+    <dialog id="model-dialog" class="info-dialog">
+      <form method="dialog">
+        <button class="close-btn" value="cancel" aria-label="Cerrar">×</button>
+        <span class="phase-pill sage"><i></i> Transparencia por diseño</span>
+        <h2>Cómo predice Marea</h2>
+        <p>Marea usa un modelo probabilístico local inspirado en enfoques jerárquicos de series temporales. Aprende de tus inicios de periodo confirmados y no envía esos datos a un modelo externo.</p>
+        <ol><li><strong>Centro robusto.</strong> Combina la mediana de tus ciclos con una referencia inicial, dando más peso a tu historial conforme crece.</li><li><strong>Recencia y anomalías.</strong> Los ciclos recientes pesan algo más; posibles periodos olvidados se atenúan para que no distorsionen todo.</li><li><strong>Incertidumbre real.</strong> La variación entre ciclos ensancha la ventana. La confianza baja cuando hay pocos datos o ciclos variables.</li><li><strong>Actualización diaria.</strong> Si una fecha estimada pasa sin periodo, la distribución se recalcula en lugar de fingir certeza.</li></ol>
+        <div class="medical-note"><strong>No confirma ovulación.</strong><p>La ovulación y las fases se estiman desde fechas; la temperatura basal, el moco cervical o tests hormonales pueden aportar contexto, pero Marea no es un anticonceptivo ni un dispositivo médico.</p></div>
+        <button class="primary-btn" value="cancel">Entendido</button>
+      </form>
+    </dialog>
+
+    <dialog id="confirm-dialog" class="confirm-dialog">
+      <form method="dialog"><h2>¿Borrar todos los datos?</h2><p>Se eliminarán registros, fechas, preferencias y predicciones de este dispositivo. No se puede deshacer.</p><div class="dialog-footer"><button class="secondary-btn" value="cancel">Cancelar</button><button class="danger-btn" id="confirm-delete" value="default">Borrar definitivamente</button></div></form>
+    </dialog>
+
+    <div id="setup-banner" class="setup-banner" role="status"><div><strong>Haz tu primera predicción personal</strong><span>Confirma el inicio de tu último periodo. Hasta entonces ves una estimación de ejemplo.</span></div><button class="primary-btn" id="start-setup" type="button">Configurar</button><button class="close-banner" type="button" aria-label="Ocultar">×</button></div>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script src="app.js"></script>
+  </body>
+</html>

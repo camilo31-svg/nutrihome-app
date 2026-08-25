@@ -1,0 +1,23 @@
+{
+  "name": "Marea · Tracker del ciclo",
+  "short_name": "Marea",
+  "description": "Seguimiento menstrual privado, personal y probabilístico.",
+  "lang": "es",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f4f0ea",
+  "theme_color": "#8e3b52",
+  "categories": ["health", "lifestyle", "medical"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-192-maskable.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Registrar hoy", "short_name": "Registrar", "url": "./#hoy", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Ver calendario", "short_name": "Calendario", "url": "./#calendario", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] }
+  ]
+}

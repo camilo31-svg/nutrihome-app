@@ -1,0 +1,13 @@
+{
+  "name": "marea-cycle-tracker",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "PWA privada y local-first para el seguimiento del ciclo menstrual.",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build": "node scripts/build.mjs",
+    "check": "node --check app.js && node --check sw.js"
+  },
+  "license": "MIT"
+}
