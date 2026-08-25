@@ -1,4 +1,4 @@
-const CACHE_NAME = 'marea-v3';
+const CACHE_NAME = 'marea-v4';
 const APP_SHELL = [
   './', './index.html', './styles.css', './cycle-model.js', './app.js', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-192-maskable.png',

@@ -11,6 +11,8 @@
   };
   const finite = value => value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value));
   const gaussianScore = (day, center, deviation, strength = 1) => -0.5 * ((day - center) / deviation) ** 2 * strength;
+  const gaussian = (value, center, deviation) => Math.exp(-0.5 * ((value - center) / deviation) ** 2);
+  const logistic = value => 1 / (1 + Math.exp(-value));
 
   function weightedQuantile(days, probabilities, quantile) {
     let cumulative = 0;
@@ -19,6 +21,21 @@
       if (cumulative >= quantile) return days[index];
     }
     return days.at(-1);
+  }
+
+  function weightedValueQuantile(samples, quantile) {
+    const sorted = samples
+      .filter(sample => Number.isFinite(sample.value) && Number.isFinite(sample.weight) && sample.weight >= 0)
+      .sort((a, b) => a.value - b.value);
+    const total = sorted.reduce((sum, sample) => sum + sample.weight, 0);
+    if (!sorted.length || total <= 0) return 0;
+    const target = clamp(quantile, 0, 1) * total;
+    let cumulative = 0;
+    for (const sample of sorted) {
+      cumulative += sample.weight;
+      if (cumulative >= target) return sample.value;
+    }
+    return sorted.at(-1).value;
   }
 
   function sustainedShift(logs, valueKey, threshold, direction = 1, qualityFilter = () => true) {
@@ -152,5 +169,204 @@
     return { menstrual: 0, follicular, fertile, ovulation, luteal };
   }
 
-  root.MareaCycleModel = Object.freeze({ inferOvulation, phaseProbabilities });
+  function normalizedPosterior(posterior, cycleLength, periodLength) {
+    const days = Array.isArray(posterior?.days) ? posterior.days : [];
+    const probabilities = Array.isArray(posterior?.probabilities) ? posterior.probabilities : [];
+    const candidates = days
+      .map((day, index) => ({ day: Number(day), probability: Number(probabilities[index]) }))
+      .filter(candidate => Number.isFinite(candidate.day)
+        && candidate.day >= 1
+        && candidate.day <= cycleLength
+        && Number.isFinite(candidate.probability)
+        && candidate.probability >= 0);
+    const total = candidates.reduce((sum, candidate) => sum + candidate.probability, 0);
+    if (candidates.length && total > 0) {
+      return {
+        days: candidates.map(candidate => candidate.day),
+        probabilities: candidates.map(candidate => candidate.probability / total),
+        confidence: finite(posterior?.confidence) ? clamp(Number(posterior.confidence), 0, 100) : null
+      };
+    }
+    return inferOvulation({ cycleLength, periodLength, configured: false, historyCount: 0, logs: [] });
+  }
+
+  // These are dimensionless reference shapes, not serum or urine concentrations.
+  // Ovulation is day zero: E2 peaks just before it, LH is brief, and luteal P4 peaks later.
+  function hormoneShape(cycleDay, ovulationDay) {
+    const relativeDay = cycleDay - ovulationDay;
+    const estradiol = 12
+      + 80 * gaussian(relativeDay, -1.25, 2.45)
+      + 42 * gaussian(relativeDay, 6.5, 3.15);
+    const progesterone = 4
+      + 91 * gaussian(relativeDay, 7, 3.15) * logistic((relativeDay - 0.6) / 0.75);
+    const lh = 4 + 96 * gaussian(relativeDay, -0.35, 0.78);
+    const fsh = 10
+      + 45 * gaussian(cycleDay, 2, 2.1)
+      + 27 * gaussian(relativeDay, -0.35, 1.45);
+    return {
+      estradiol: clamp(estradiol, 0, 100),
+      progesterone: clamp(progesterone, 0, 100),
+      lh: clamp(lh, 0, 100),
+      fsh: clamp(fsh, 0, 100)
+    };
+  }
+
+  /**
+   * Mixes reference hormone shapes over the full ovulation-day posterior.
+   * Values are relative indices from 0 to 100 and must never be read as lab results.
+   */
+  function expectedHormones(options = {}) {
+    const cycleLength = clamp(Math.round(Number(options.cycleLength) || 29), 15, 90);
+    const periodLength = clamp(Math.round(Number(options.periodLength) || 5), 1, Math.min(14, cycleLength));
+    const cycleDay = clamp(Math.round(Number(options.cycleDay) || 1), 1, cycleLength);
+    const posterior = normalizedPosterior(options.posterior, cycleLength, periodLength);
+    const result = { estradiol: 0, progesterone: 0, lh: 0, fsh: 0 };
+    const samples = { estradiol: [], progesterone: [], lh: [], fsh: [] };
+    let meanOvulationDay = 0;
+    posterior.days.forEach((ovulationDay, index) => {
+      const probability = posterior.probabilities[index];
+      const shape = hormoneShape(cycleDay, ovulationDay);
+      meanOvulationDay += ovulationDay * probability;
+      Object.keys(result).forEach(hormone => {
+        result[hormone] += shape[hormone] * probability;
+        samples[hormone].push({ value: shape[hormone], weight: probability });
+      });
+    });
+    Object.keys(result).forEach(hormone => {
+      result[hormone] = Number(clamp(result[hormone], 0, 100).toFixed(1));
+      const low = weightedValueQuantile(samples[hormone], 0.1);
+      const high = weightedValueQuantile(samples[hormone], 0.9);
+      // A discrete posterior may put both quantiles on one mass point; retain
+      // the quantiles while ensuring that the reported expectation is included.
+      result[`${hormone}Low`] = Number(clamp(Math.min(low, result[hormone]), 0, 100).toFixed(1));
+      result[`${hormone}High`] = Number(clamp(Math.max(high, result[hormone]), 0, 100).toFixed(1));
+    });
+    return {
+      ...result,
+      cycleDay,
+      posteriorMeanOvulationDay: Number(meanOvulationDay.toFixed(2)),
+      scale: 'relative-0-100',
+      model: 'posterior-weighted-hormone-shapes-v1',
+      isLabMeasurement: false
+    };
+  }
+
+  const HORMONAL_STAGES = Object.freeze({
+    menstrual: {
+      label: 'Menstruación',
+      summary: 'Estradiol y progesterona suelen estar relativamente bajos; la FSH puede empezar a repuntar.',
+      dominantHormones: ['FSH']
+    },
+    earlyFollicular: {
+      label: 'Folicular temprana',
+      summary: 'La progesterona permanece baja y el estradiol suele comenzar un ascenso gradual.',
+      dominantHormones: ['FSH', 'estradiol']
+    },
+    lateFollicular: {
+      label: 'Folicular tardía',
+      summary: 'El estradiol suele ascender hacia su pico preovulatorio mientras la progesterona sigue baja.',
+      dominantHormones: ['estradiol']
+    },
+    ovulatory: {
+      label: 'Periovulatoria',
+      summary: 'Se estima un estradiol alto y un pico breve de LH alrededor de la ovulación.',
+      dominantHormones: ['LH', 'estradiol']
+    },
+    earlyLuteal: {
+      label: 'Lútea temprana',
+      summary: 'La progesterona suele subir después de la ovulación y el estradiol baja desde su primer pico.',
+      dominantHormones: ['progesterona']
+    },
+    midLuteal: {
+      label: 'Lútea media',
+      summary: 'La progesterona suele estar relativamente alta y el estradiol presenta un segundo aumento menor.',
+      dominantHormones: ['progesterona', 'estradiol']
+    },
+    lateLuteal: {
+      label: 'Lútea tardía',
+      summary: 'Si no hay embarazo, progesterona y estradiol suelen descender antes de la siguiente menstruación.',
+      dominantHormones: ['progesterona', 'estradiol']
+    }
+  });
+
+  function hormonalStage(options = {}) {
+    const cycleLength = clamp(Math.round(Number(options.cycleLength) || 29), 15, 90);
+    const periodLength = clamp(Math.round(Number(options.periodLength) || 5), 1, Math.min(14, cycleLength));
+    const cycleDay = clamp(Math.round(Number(options.cycleDay) || 1), 1, cycleLength);
+    const posterior = normalizedPosterior(options.posterior, cycleLength, periodLength);
+    const hormones = expectedHormones({ posterior, cycleDay, cycleLength, periodLength });
+    let key = 'menstrual';
+    let probability = 1;
+
+    if (cycleDay > periodLength) {
+      const stageProbabilities = {
+        earlyFollicular: 0,
+        lateFollicular: 0,
+        ovulatory: 0,
+        earlyLuteal: 0,
+        midLuteal: 0,
+        lateLuteal: 0
+      };
+      posterior.days.forEach((ovulationDay, index) => {
+        const relativeDay = cycleDay - ovulationDay;
+        const stageKey = relativeDay <= -6 ? 'earlyFollicular'
+          : relativeDay <= -2 ? 'lateFollicular'
+            : relativeDay <= 1 ? 'ovulatory'
+              : relativeDay <= 4 ? 'earlyLuteal'
+                : relativeDay <= 9 ? 'midLuteal'
+                  : 'lateLuteal';
+        stageProbabilities[stageKey] += posterior.probabilities[index];
+      });
+      [key, probability] = Object.entries(stageProbabilities)
+        .reduce((best, entry) => entry[1] > best[1] ? entry : best, ['earlyFollicular', 0]);
+    }
+
+    const definition = HORMONAL_STAGES[key];
+    return {
+      key,
+      label: definition.label,
+      summary: definition.summary,
+      dominantHormones: [...definition.dominantHormones],
+      probability: Number(clamp(probability, 0, 1).toFixed(3)),
+      confidence: posterior.confidence,
+      hormones,
+      disclaimer: 'Estimación relativa basada en el ciclo y las señales registradas; no mide hormonas ni sustituye una analítica.'
+    };
+  }
+
+  function hormoneSeries(options = {}) {
+    const cycleLength = clamp(Math.round(Number(options.cycleLength) || 29), 15, 90);
+    const periodLength = clamp(Math.round(Number(options.periodLength) || 5), 1, Math.min(14, cycleLength));
+    const posterior = normalizedPosterior(options.posterior, cycleLength, periodLength);
+    return Array.from({ length: cycleLength }, (_, index) => {
+      const cycleDay = index + 1;
+      const hormones = expectedHormones({ posterior, cycleDay, cycleLength, periodLength });
+      const stage = hormonalStage({ posterior, cycleDay, cycleLength, periodLength });
+      return {
+        day: cycleDay,
+        estradiol: hormones.estradiol,
+        estradiolLow: hormones.estradiolLow,
+        estradiolHigh: hormones.estradiolHigh,
+        progesterone: hormones.progesterone,
+        progesteroneLow: hormones.progesteroneLow,
+        progesteroneHigh: hormones.progesteroneHigh,
+        lh: hormones.lh,
+        lhLow: hormones.lhLow,
+        lhHigh: hormones.lhHigh,
+        fsh: hormones.fsh,
+        fshLow: hormones.fshLow,
+        fshHigh: hormones.fshHigh,
+        stage: stage.key,
+        stageLabel: stage.label
+      };
+    });
+  }
+
+  root.MareaCycleModel = Object.freeze({
+    inferOvulation,
+    phaseProbabilities,
+    expectedHormones,
+    hormonalStage,
+    hormoneSeries
+  });
 })(typeof window === 'undefined' ? globalThis : window);

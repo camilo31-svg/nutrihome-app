@@ -4,17 +4,17 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#f7f3ee" />
-    <meta name="description" content="Marea: seguimiento privado del ciclo menstrual con predicción probabilística multiseñal y registro diario." />
+    <meta name="description" content="Marea: seguimiento privado del ciclo, fase hormonal relativa, bienestar, alimentación y predicción probabilística multiseñal." />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Marea" />
     <meta property="og:title" content="Marea · Tu ciclo, con contexto" />
-    <meta property="og:description" content="Seguimiento menstrual privado, personal y probabilístico." />
+    <meta property="og:description" content="Ciclo, bienestar y alimentación con contexto privado, personal y probabilístico." />
     <meta property="og:type" content="website" />
     <meta property="og:image" content="og.png" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Marea · Tu ciclo, con contexto" />
-    <meta name="twitter:description" content="Seguimiento menstrual privado, personal y probabilístico." />
+    <meta name="twitter:description" content="Ciclo, bienestar y alimentación con contexto privado, personal y probabilístico." />
     <meta name="twitter:image" content="og.png" />
     <title>Marea · Tu ciclo, con contexto</title>
     <link rel="manifest" href="manifest.webmanifest" />
@@ -76,6 +76,36 @@
           </article>
         </section>
 
+        <section class="daily-context-grid" aria-label="Contexto personal de hoy">
+          <article class="context-card hormone-today-card">
+            <div class="context-card-heading"><span class="context-icon hormone">≈</span><div><p class="eyebrow">FASE REPRODUCTIVA ESTIMADA</p><h2 id="hormone-stage">Aprendiendo tu ciclo</h2></div></div>
+            <p id="hormone-stage-copy">Confirma el inicio del periodo para situar el patrón hormonal relativo.</p>
+            <div id="hormone-bars" class="hormone-bars" aria-label="Índices hormonales relativos"></div>
+            <small class="model-caveat">Patrón relativo, no niveles medidos ni análisis de sangre.</small>
+          </article>
+          <article class="context-card wellbeing-card">
+            <div class="context-card-heading"><span class="context-icon wellbeing">☼</span><div><p class="eyebrow">ÁNIMO Y ENERGÍA</p><h2 id="wellbeing-title">Aprendiendo tu patrón</h2></div></div>
+            <div class="wellbeing-values"><div><span>Ánimo probable</span><strong id="predicted-mood">Nivel habitual</strong></div><div><span>Energía probable</span><strong id="predicted-energy">Nivel habitual</strong></div></div>
+            <p id="wellbeing-copy">No asumimos que una fase determine cómo te sentirás. Registra varios días y ciclos para crear una predicción personal.</p>
+            <small id="wellbeing-confidence" class="model-caveat">0 días útiles · componente cíclico desactivado</small>
+          </article>
+          <article class="context-card nutrition-today-card">
+            <div class="context-card-heading"><span class="context-icon nutrition">⌁</span><div><p class="eyebrow">APOYO ALIMENTARIO</p><h2 id="nutrition-title">Configura tu alimentación</h2></div></div>
+            <div id="nutrition-suggestions" class="nutrition-suggestions"><p>Indica tu dieta, alergias e intolerancias para recibir opciones compatibles.</p></div>
+            <button class="text-btn" id="open-nutrition-settings" type="button">Configurar perfil →</button>
+          </article>
+        </section>
+
+        <article id="health-pattern-card" class="health-pattern-card" role="status" aria-live="polite">
+          <span class="health-pattern-icon">✓</span>
+          <div><span class="risk-kicker" id="health-pattern-kicker">SEGUIMIENTO LONGITUDINAL</span><strong id="health-pattern-title">Aún no hay suficientes datos para comparar</strong><p id="health-pattern-copy">Marea buscará cambios persistentes durante semanas; un día aislado nunca activa una recomendación médica.</p></div>
+          <button class="text-btn" id="open-health-model" type="button">Cómo funcionan las alertas →</button>
+        </article>
+
+        <article id="food-safety-card" class="food-safety-card" role="alert" hidden>
+          <span class="food-safety-icon">!</span><div><strong id="food-safety-title">Revisa lo que has registrado</strong><p id="food-safety-copy"></p><a id="food-safety-emergency" href="tel:112" hidden>Llamar al 112</a></div>
+        </article>
+
         <section class="week-card" aria-labelledby="week-title">
           <div class="section-heading">
             <div><p class="eyebrow">VISTA RÁPIDA</p><h2 id="week-title">Esta semana</h2></div>
@@ -96,6 +126,7 @@
             <button class="quick-card" data-open-log="symptoms" type="button"><span class="quick-icon symptom">✦</span><span><strong>Síntomas</strong><small id="quick-symptoms">Sin registrar</small></span><b>＋</b></button>
             <button class="quick-card" data-open-log="biomarkers" type="button"><span class="quick-icon biomarkers">◎</span><span><strong>Biomarcadores</strong><small id="quick-biomarkers">Sin registrar</small></span><b>＋</b></button>
             <button class="quick-card" data-open-log="sex" type="button"><span class="quick-icon sexual">♡</span><span><strong>Actividad sexual</strong><small id="quick-sex">Sin registrar</small></span><b>＋</b></button>
+            <button class="quick-card" data-open-log="food" type="button"><span class="quick-icon food">⌁</span><span><strong>Alimentación</strong><small id="quick-food">Sin registrar</small></span><b>＋</b></button>
             <button class="quick-card" data-open-log="note" type="button"><span class="quick-icon note">✎</span><span><strong>Nota privada</strong><small id="quick-note">Escribe lo que quieras</small></span><b>＋</b></button>
           </div>
           <article id="model-readiness-card" class="model-readiness-card">
@@ -166,9 +197,15 @@
               <div id="symptom-list" class="symptom-list"><p class="empty-state">Registra síntomas varios días para descubrir patrones.</p></div>
             </article>
           </div>
+          <article class="insight-card hormone-chart-card">
+            <div class="section-heading"><div><p class="eyebrow">PATRÓN RELATIVO ESTIMADO</p><h2>Cómo cambia el contexto hormonal</h2></div><span class="average-badge" id="hormone-chart-stage">Hoy · calculando</span></div>
+            <div class="hormone-chart-wrap"><canvas id="hormone-chart" width="960" height="340" aria-label="Curvas hormonales relativas estimadas durante el ciclo"></canvas></div>
+            <div class="hormone-legend" aria-hidden="true"><span class="estradiol">Estradiol</span><span class="progesterone">Progesterona</span><span class="lh">LH</span><span class="fsh">FSH</span><i>│ Hoy</i></div>
+            <p id="hormone-chart-copy" class="chart-explainer">Cada hormona se normaliza por separado. Las alturas entre hormonas no son comparables y no representan concentraciones personales.</p>
+          </article>
           <article class="model-card">
             <div class="model-copy">
-              <span class="phase-pill sage"><i></i> Modelo Marea v2 · multiseñal</span>
+              <span class="phase-pill sage"><i></i> Modelo Marea v3 · multiseñal</span>
               <h2>Una distribución personalizada, no un día inventado</h2>
               <p>Fusiona el historial con LH, PdG, temperatura, moco cervical y señales opcionales de wearable. Cada dato actualiza la distribución de ovulación y su incertidumbre.</p>
               <div class="model-inline-score"><strong id="insight-model-confidence">—</strong><span id="insight-model-window">Calculando ventana…</span></div>
@@ -204,9 +241,23 @@
               <label class="setting-row"><span><strong>Biomarcadores</strong><small>Recuerda LH o temperatura sin mostrar detalles sensibles</small></span><input class="switch" id="reminder-biomarkers" type="checkbox" role="switch" /></label>
               <label class="setting-row"><span><strong>Próximo periodo</strong><small>Aviso 2 días antes de la ventana estimada</small></span><input class="switch" id="reminder-period" type="checkbox" role="switch" /></label>
               <label class="setting-row"><span><strong>Ventana fértil estimada</strong><small>Información orientativa, nunca anticonceptiva</small></span><input class="switch" id="reminder-fertile" type="checkbox" role="switch" /></label>
+              <label class="setting-row"><span><strong>Cambio persistente</strong><small>Avisa si tus registros sugieren que conviene valorar el patrón</small></span><input class="switch" id="reminder-health" type="checkbox" role="switch" /></label>
               <label class="field time-field"><span>Hora preferida</span><input id="reminder-time" type="time" value="20:30" /></label>
               <button class="secondary-btn" id="enable-notifications" type="button">Activar notificaciones</button>
-              <p class="field-help" id="notification-status">El móvil te pedirá permiso. Algunos sistemas limitan los avisos si la app está completamente cerrada.</p>
+              <p class="field-help" id="notification-status">El móvil te pedirá permiso. En esta versión los avisos locales se comprueban mientras Marea está abierta; no se envían desde un servidor con la app cerrada.</p>
+            </article>
+
+            <article class="settings-card nutrition-settings-card">
+              <div class="settings-title"><span class="settings-icon">⌁</span><div><h2>Alimentación y seguridad</h2><p>Dieta, alergias e intolerancias se aplican antes de sugerir alimentos.</p></div></div>
+              <label class="field"><span>Tipo de alimentación</span><select id="diet-type"><option value="omnivore">Omnívora</option><option value="pescatarian">Pescetariana</option><option value="vegetarian">Ovolactovegetariana</option><option value="lacto-vegetarian">Lactovegetariana</option><option value="ovo-vegetarian">Ovovegetariana</option><option value="vegan">Vegana</option></select></label>
+              <fieldset class="safety-fieldset"><legend>Alergias · exclusión estricta</legend><p>Marca tanto las confirmadas como las sospechadas. Marea no puede comprobar etiquetas ni contaminación cruzada.</p><div id="allergy-options" class="checkbox-grid">
+                <label><input type="checkbox" value="gluten" /> Cereales con gluten</label><label><input type="checkbox" value="crustaceans" /> Crustáceos</label><label><input type="checkbox" value="egg" /> Huevo</label><label><input type="checkbox" value="fish" /> Pescado</label><label><input type="checkbox" value="peanut" /> Cacahuete</label><label><input type="checkbox" value="soy" /> Soja</label><label><input type="checkbox" value="milk" /> Leche</label><label><input type="checkbox" value="nuts" /> Frutos de cáscara</label><label><input type="checkbox" value="celery" /> Apio</label><label><input type="checkbox" value="mustard" /> Mostaza</label><label><input type="checkbox" value="sesame" /> Sésamo</label><label><input type="checkbox" value="sulphites" /> Sulfitos</label><label><input type="checkbox" value="lupin" /> Altramuz</label><label><input type="checkbox" value="molluscs" /> Moluscos</label>
+              </div><label class="field compact-field"><span>Otras alergias</span><input id="allergy-other" type="text" maxlength="250" placeholder="Sepáralas con comas" /></label></fieldset>
+              <fieldset class="safety-fieldset intolerance-fieldset"><legend>Intolerancias · dependen de tu tolerancia</legend><p>Se mantienen separadas de las alergias: la app sugerirá alternativas y no inventará una cantidad segura.</p><div id="intolerance-options" class="checkbox-grid">
+                <label><input type="checkbox" value="lactose" /> Lactosa</label><label><input type="checkbox" value="fructose" /> Fructosa</label><label><input type="checkbox" value="histamine" /> Histamina</label><label><input type="checkbox" value="gluten" /> Gluten (sin diagnóstico celíaco)</label><label><input type="checkbox" value="fodmap" /> FODMAP indicados</label>
+              </div><label class="field compact-field"><span>Otras intolerancias</span><input id="intolerance-other" type="text" maxlength="250" placeholder="Sepáralas con comas" /></label><label class="period-start-check"><input id="celiac-condition" type="checkbox" /> Tengo enfermedad celíaca diagnosticada (exclusión estricta de gluten)</label></fieldset>
+              <button class="secondary-btn" id="save-nutrition-settings" type="button">Guardar perfil alimentario</button>
+              <p class="source-links nutrition-sources"><a href="https://www.aesan.gob.es/AECOSAN/docs/documentos/nutricion/RECOMENDACIONES_DIETETICAS.pdf" target="_blank" rel="noreferrer">AESAN: alimentación saludable</a><a href="https://food.ec.europa.eu/food-safety/campaign-2026/allergies_en" target="_blank" rel="noreferrer">UE: 14 alérgenos</a><a href="https://www.nhs.uk/live-well/eat-well/how-to-eat-a-balanced-diet/the-vegan-diet/" target="_blank" rel="noreferrer">NHS: dieta vegana</a></p>
             </article>
 
             <article class="settings-card">
@@ -283,9 +334,11 @@
           </div>
         </section>
         <div class="form-columns">
-          <section class="form-section"><h3>Energía</h3><input id="energy" type="range" min="1" max="5" value="3" /><div class="range-labels"><span>Muy baja</span><span>Muy alta</span></div></section>
-          <section class="form-section"><h3>Sueño</h3><label class="inline-input"><input id="sleep" type="number" inputmode="decimal" step="0.5" min="0" max="24" placeholder="7.5" /> horas</label></section>
+          <section class="form-section"><label class="field"><span>Energía</span><select id="energy"><option value="">Sin registrar</option><option value="1">1 · Muy baja</option><option value="2">2 · Baja</option><option value="3">3 · Habitual</option><option value="4">4 · Alta</option><option value="5">5 · Muy alta</option></select></label></section>
+          <section class="form-section"><label class="field"><span>Estrés</span><select id="stress"><option value="">Sin registrar</option><option value="1">1 · Muy bajo</option><option value="2">2 · Bajo</option><option value="3">3 · Moderado</option><option value="4">4 · Alto</option><option value="5">5 · Muy alto</option></select></label></section>
         </div>
+        <div class="form-columns"><section class="form-section"><h3>Sueño</h3><label class="inline-input"><input id="sleep" type="number" inputmode="decimal" step="0.5" min="0" max="24" placeholder="7.5" /> horas</label></section><section class="form-section wellbeing-checks"><h3>Impacto</h3><label><input id="low-interest" type="checkbox" /> Poco interés o disfrute hoy</label><label><input id="daily-impact" type="checkbox" /> Ha dificultado mi vida diaria</label><label><input id="safety-concern" type="checkbox" /> Me preocupa poder hacerme daño</label></section></div>
+        <section class="form-section food-log-section" data-log-section="food"><h3>Alimentación</h3><p class="section-help">Marca grupos o alérgenos presentes. Comprueba siempre la etiqueta actual y la contaminación cruzada.</p><div class="choice-row multi food-choice" data-choice="foods"><button type="button" data-value="vegetables">Verduras</button><button type="button" data-value="fruit">Fruta</button><button type="button" data-value="legumes">Legumbres</button><button type="button" data-value="wholegrains">Cereales integrales</button><button type="button" data-value="meat">Carne</button><button type="button" data-value="fish">Pescado</button><button type="button" data-value="milk">Leche / lácteos</button><button type="button" data-value="egg">Huevo</button><button type="button" data-value="soy">Soja</button><button type="button" data-value="gluten">Gluten</button><button type="button" data-value="peanut">Cacahuete</button><button type="button" data-value="nuts">Frutos de cáscara</button><button type="button" data-value="sesame">Sésamo</button><button type="button" data-value="crustaceans">Crustáceos</button><button type="button" data-value="molluscs">Moluscos</button><button type="button" data-value="celery">Apio</button><button type="button" data-value="mustard">Mostaza</button><button type="button" data-value="sulphites">Sulfitos</button><button type="button" data-value="lupin">Altramuz</button><button type="button" data-value="unknown">Ingredientes desconocidos</button></div><label class="field"><span>Detalle o plato</span><input id="food-note" type="text" maxlength="500" placeholder="Ej.: lentejas con arroz, cantidad aproximada…" /></label><aside id="food-log-warning" class="food-log-warning" hidden><strong>Revisa este registro</strong><p></p></aside></section>
         <section class="form-section" data-log-section="note"><label class="field"><span>Nota privada</span><textarea id="note" rows="4" maxlength="1000" placeholder="Algo que quieras recordar…"></textarea></label></section>
         <footer class="dialog-footer"><button class="secondary-btn" value="cancel">Cancelar</button><button class="primary-btn" id="save-log" value="default">Guardar registro</button></footer>
       </form>
@@ -296,12 +349,16 @@
         <button class="close-btn" value="cancel" aria-label="Cerrar">×</button>
         <span class="phase-pill sage"><i></i> Transparencia por diseño</span>
         <h2>Cómo predice Marea</h2>
-        <p>Marea v2 usa un modelo bayesiano multiseñal inspirado en modelos de estados ocultos. Mantiene una probabilidad para cada posible día de ovulación y la actualiza en el dispositivo; tus datos nunca se envían a una IA externa.</p>
+        <p>Marea v3 usa un modelo bayesiano multiseñal inspirado en modelos de estados ocultos y duraciones de fase. Mantiene una probabilidad para cada posible día de ovulación y la actualiza en el dispositivo; tus datos nunca se envían a una IA externa.</p>
         <ol><li><strong>Prior personal.</strong> El historial, la mediana robusta, la recencia y la variabilidad forman la distribución inicial.</li><li><strong>Evidencia biológica.</strong> LH y PdG aportan las señales más directas. El modelo detecta cambios térmicos sostenidos, interpreta moco cervical y añade con menor peso temperatura nocturna, pulso y HRV.</li><li><strong>Control de calidad.</strong> Descarta la temperatura marcada como alterada y evita que mediciones repetidas finjan una certeza imposible.</li><li><strong>Ensamblado temporal.</strong> La ovulación probable actualiza la fase, la siguiente menstruación y la probabilidad asociada a una relación sin protección.</li><li><strong>Intervalos siempre.</strong> La confianza es una medida interna de información disponible, no una tasa clínica de aciertos.</li></ol>
         <div class="medical-note"><strong>Más señales no significan certeza.</strong><p>LH, temperatura y moco reducen la incertidumbre, pero ninguna combinación doméstica confirma por sí sola ovulación, embarazo o ausencia de fertilidad. Marea no es un anticonceptivo ni un dispositivo médico validado.</p></div>
-        <p class="source-links"><a href="https://www.nature.com/articles/s41746-025-02320-8" target="_blank" rel="noreferrer">Metaanálisis de wearables 2025</a><a href="https://www.nature.com/articles/s41746-019-0139-4" target="_blank" rel="noreferrer">Modelo HMM multiseñal</a><a href="https://pubmed.ncbi.nlm.nih.gov/39881571/" target="_blank" rel="noreferrer">Temperatura nocturna y LH</a></p>
+        <p class="source-links"><a href="https://pubmed.ncbi.nlm.nih.gov/16776638/" target="_blank" rel="noreferrer">Perfiles hormonales diarios</a><a href="https://www.nature.com/articles/s41746-019-0139-4" target="_blank" rel="noreferrer">Modelo HMM multiseñal</a><a href="https://www.nature.com/articles/s41597-026-06805-3" target="_blank" rel="noreferrer">Dataset mcPHASES 2026</a><a href="https://pubmed.ncbi.nlm.nih.gov/39881571/" target="_blank" rel="noreferrer">Temperatura nocturna y LH</a></p>
         <button class="primary-btn" value="cancel">Entendido</button>
       </form>
+    </dialog>
+
+    <dialog id="health-model-dialog" class="info-dialog">
+      <form method="dialog"><button class="close-btn" value="cancel" aria-label="Cerrar">×</button><span class="phase-pill sage"><i></i> Patrones, no diagnósticos</span><h2>Cómo funcionan las alertas de bienestar</h2><p>Marea compara tus registros contigo misma. No atribuye automáticamente el ánimo o la energía a las hormonas y nunca alerta por un solo día.</p><ol><li><strong>Aprendizaje prudente.</strong> El componente cíclico solo se activa tras al menos dos ciclos con cobertura suficiente y si mejora una referencia personal neutral.</li><li><strong>Cambio persistente.</strong> Un desvío estadístico repetido abre un check-in sobre sueño, estrés, dolor, enfermedad o medicación; por sí solo no diagnostica nada.</li><li><strong>Consulta sugerida.</strong> Ánimo bajo o pérdida de interés la mayoría de los días durante dos semanas —especialmente si afecta a tu vida—, o fatiga inexplicada durante varias semanas, merece valoración profesional.</li><li><strong>Ayuda inmediata.</strong> Si temes hacerte daño, llama al <a href="tel:024">024</a>; si hay peligro inmediato, llama al <a href="tel:112">112</a>.</li></ol><p class="source-links"><a href="https://www.nice.org.uk/guidance/ng222/chapter/recommendations" target="_blank" rel="noreferrer">NICE: depresión</a><a href="https://www.sanidad.gob.es/linea024/" target="_blank" rel="noreferrer">Línea 024</a><a href="https://doi.org/10.1017/S003329172400357X" target="_blank" rel="noreferrer">Hormonas, ánimo y energía 2025</a></p><button class="primary-btn" value="cancel">Entendido</button></form>
     </dialog>
 
     <dialog id="pregnancy-model-dialog" class="info-dialog pregnancy-info-dialog">
