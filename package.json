@@ -7,7 +7,8 @@
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "build": "node scripts/build.mjs",
-    "check": "node --check app.js && node --check sw.js"
+    "check": "node --check cycle-model.js && node --check app.js && node --check sw.js",
+    "test": "node tests/model.test.mjs"
   },
   "license": "MIT"
 }

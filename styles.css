@@ -127,8 +127,18 @@ input:focus, select:focus, textarea:focus, button:focus-visible, a:focus-visible
 .quick-icon.blood { color: #a14a5c; background: #f8e7e6; }
 .quick-icon.mood { color: #80633f; background: #f4ead4; }
 .quick-icon.symptom { color: #557565; background: #e6eee9; }
+.quick-icon.biomarkers { color: #315f6b; background: #e2eff1; }
 .quick-icon.sexual { color: #8e3b52; background: #f5e5e9; }
 .quick-icon.note { color: #6c607c; background: #ebe7f0; }
+.model-readiness-card { margin-top: 14px; padding: 18px 20px; border: 1px solid color-mix(in srgb, var(--sage) 34%, var(--line)); background: color-mix(in srgb, var(--sage) 7%, var(--panel)); border-radius: 17px; }
+.model-readiness-heading { display: flex; justify-content: space-between; align-items: center; gap: 18px; }
+.model-readiness-heading > div { display: flex; align-items: baseline; gap: 12px; }
+.model-readiness-heading .risk-kicker { color: #527867; letter-spacing: .11em; font-size: 9px; font-weight: 800; }
+.model-readiness-heading strong { color: #527867; font-family: Georgia, serif; font-size: 28px; font-weight: 500; }
+.model-readiness-card > p { color: var(--muted); font-size: 11px; line-height: 1.5; margin: 7px 0 12px; }
+.signal-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.signal-tags span { padding: 6px 8px; border: 1px solid var(--line); background: var(--panel); border-radius: 999px; color: var(--muted); font-size: 9px; }
+.signal-tags span.active { color: #3f705a; border-color: color-mix(in srgb, var(--sage) 55%, var(--line)); background: color-mix(in srgb, var(--sage) 11%, var(--panel)); font-weight: 750; }
 .daily-risk-card { margin-top: 14px; padding: 18px 20px; display: flex; justify-content: space-between; align-items: center; gap: 18px; color: var(--ink); background: color-mix(in srgb, var(--accent) 7%, var(--panel)); border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--line)); border-radius: 17px; }
 .daily-risk-card[hidden] { display: none; }
 .daily-risk-card > div { display: grid; grid-template-columns: auto 1fr; align-items: baseline; gap: 4px 14px; }
@@ -215,6 +225,10 @@ input:focus, select:focus, textarea:focus, button:focus-visible, a:focus-visible
 .phase-pill.sage i { background: var(--sage); }
 .model-copy h2 { font-family: Georgia, serif; font-weight: 400; font-size: 30px; margin: 18px 0 9px; }
 .model-copy p { color: var(--muted); font-size: 13px; line-height: 1.6; }
+.model-inline-score { display: flex; gap: 12px; align-items: center; margin: 15px 0 12px; }
+.model-inline-score strong { color: var(--accent); font-family: Georgia, serif; font-size: 30px; font-weight: 500; }
+.model-inline-score span { color: var(--muted); font-size: 10px; line-height: 1.45; }
+.model-copy .signal-tags { margin-bottom: 17px; }
 .distribution { min-height: 220px; display: flex; align-items: end; gap: 6px; position: relative; padding-bottom: 30px; }
 .distribution span { height: var(--h); flex: 1; background: color-mix(in srgb, var(--accent-2) 42%, transparent); border-radius: 8px 8px 0 0; }
 .distribution .peak { background: var(--accent); }
@@ -270,6 +284,16 @@ dialog::backdrop { background: rgba(30, 22, 23, .45); backdrop-filter: blur(5px)
 .section-help { color: var(--muted); font-size: 10px; line-height: 1.55; margin: -4px 0 12px; }
 .conditional-field { max-width: 330px; margin-top: 16px; }
 .conditional-field[hidden] { display: none; }
+.biomarker-section { background: color-mix(in srgb, var(--sage) 5%, transparent); margin-inline: -12px; padding-inline: 12px; border-radius: 16px; }
+.unit-input { display: grid; grid-template-columns: 1fr auto; align-items: center; border: 1px solid var(--line); background: var(--panel); border-radius: 10px; overflow: hidden; }
+.unit-input input { min-width: 0; border: 0; background: transparent; }
+.unit-input small { color: var(--muted); padding-right: 12px; font-size: 10px; }
+.measurement-quality { margin: 6px 0 16px; }
+.measurement-quality > span { display: block; color: var(--muted); font-size: 10px; font-weight: 700; margin-bottom: 8px; }
+.advanced-details { margin-top: 13px; padding: 13px 15px; border: 1px solid var(--line); background: var(--panel); border-radius: 13px; }
+.advanced-details summary { cursor: pointer; color: var(--ink); font-size: 11px; font-weight: 750; }
+.advanced-details summary span { color: var(--muted); font-size: 9px; font-weight: 500; margin-left: 5px; }
+.advanced-details[open] summary { margin-bottom: 12px; }
 .sexual-choice button:last-child.selected { background: #a33f50; border-color: #a33f50; }
 .risk-preview { margin-top: 17px; padding: 17px; background: color-mix(in srgb, var(--accent) 6%, var(--panel)); border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--line)); border-radius: 15px; }
 .risk-preview[hidden] { display: none; }
@@ -375,6 +399,7 @@ input[type="range"] { accent-color: var(--accent); width: 100%; border: 0; backg
   .setup-banner div { min-width: 200px; }
   .daily-risk-card { align-items: flex-start; flex-direction: column; }
   .daily-risk-card .secondary-btn { width: 100%; }
+  .model-readiness-heading { align-items: flex-start; flex-direction: column; gap: 6px; }
 }
 
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }

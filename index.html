@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#f7f3ee" />
-    <meta name="description" content="Marea: seguimiento privado del ciclo menstrual con predicciones probabilísticas y registro diario." />
+    <meta name="description" content="Marea: seguimiento privado del ciclo menstrual con predicción probabilística multiseñal y registro diario." />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Marea" />
@@ -94,9 +94,15 @@
             <button class="quick-card" data-open-log="flow" type="button"><span class="quick-icon blood">◒</span><span><strong>Flujo</strong><small id="quick-flow">Sin registrar</small></span><b>＋</b></button>
             <button class="quick-card" data-open-log="mood" type="button"><span class="quick-icon mood">☺</span><span><strong>Estado de ánimo</strong><small id="quick-mood">Sin registrar</small></span><b>＋</b></button>
             <button class="quick-card" data-open-log="symptoms" type="button"><span class="quick-icon symptom">✦</span><span><strong>Síntomas</strong><small id="quick-symptoms">Sin registrar</small></span><b>＋</b></button>
+            <button class="quick-card" data-open-log="biomarkers" type="button"><span class="quick-icon biomarkers">◎</span><span><strong>Biomarcadores</strong><small id="quick-biomarkers">Sin registrar</small></span><b>＋</b></button>
             <button class="quick-card" data-open-log="sex" type="button"><span class="quick-icon sexual">♡</span><span><strong>Actividad sexual</strong><small id="quick-sex">Sin registrar</small></span><b>＋</b></button>
             <button class="quick-card" data-open-log="note" type="button"><span class="quick-icon note">✎</span><span><strong>Nota privada</strong><small id="quick-note">Escribe lo que quieras</small></span><b>＋</b></button>
           </div>
+          <article id="model-readiness-card" class="model-readiness-card">
+            <div class="model-readiness-heading"><div><span class="risk-kicker">MODELO MULTISEÑAL</span><strong id="model-readiness-value">—</strong></div><button class="text-btn" id="open-model-dashboard" type="button">Ver modelo →</button></div>
+            <p id="model-readiness-copy"></p>
+            <div id="model-readiness-signals" class="signal-tags" aria-label="Señales incorporadas al modelo"></div>
+          </article>
           <article id="daily-risk-card" class="daily-risk-card" hidden>
             <div><span class="risk-kicker">ESTIMACIÓN ORIENTATIVA</span><strong id="daily-risk-value">—</strong><p id="daily-risk-copy"></p></div>
             <button class="secondary-btn" data-open-pregnancy-model type="button">Entender el cálculo</button>
@@ -129,7 +135,7 @@
                 <button class="secondary-btn" id="log-selected-day" type="button">Registrar este día</button>
               </article>
               <article class="accuracy-card">
-                <div class="card-heading"><span class="mini-icon">◎</span><span>PRECISIÓN DEL MODELO</span></div>
+                <div class="card-heading"><span class="mini-icon">◎</span><span>CONFIANZA DEL MODELO</span></div>
                 <strong id="model-score">82%</strong>
                 <div class="meter"><span id="model-meter"></span></div>
                 <p id="model-data-note">Basada en 3 ciclos y una variación media de ±2 días.</p>
@@ -162,9 +168,11 @@
           </div>
           <article class="model-card">
             <div class="model-copy">
-              <span class="phase-pill sage"><i></i> Modelo Marea v1</span>
-              <h2>Una predicción que muestra su incertidumbre</h2>
-              <p>Combina tu historial reciente, mediana robusta, variabilidad entre ciclos y actualización diaria. Da menos peso a posibles registros olvidados y siempre muestra una ventana, no una fecha absoluta.</p>
+              <span class="phase-pill sage"><i></i> Modelo Marea v2 · multiseñal</span>
+              <h2>Una distribución personalizada, no un día inventado</h2>
+              <p>Fusiona el historial con LH, PdG, temperatura, moco cervical y señales opcionales de wearable. Cada dato actualiza la distribución de ovulación y su incertidumbre.</p>
+              <div class="model-inline-score"><strong id="insight-model-confidence">—</strong><span id="insight-model-window">Calculando ventana…</span></div>
+              <div id="insight-model-signals" class="signal-tags"></div>
               <button class="secondary-btn" id="open-model-2" type="button">Ver metodología</button>
             </div>
             <div class="distribution" aria-label="Distribución probabilística de la próxima fecha">
@@ -185,6 +193,7 @@
                 <label class="field"><span>Duración del periodo</span><input id="period-length-input" type="number" inputmode="numeric" min="1" max="14" value="5" /><small>días</small></label>
               </div>
               <label class="field"><span>Contexto</span><select id="cycle-context"><option value="natural">Ciclo natural</option><option value="hormonal">Anticoncepción hormonal</option><option value="trying">Buscando embarazo</option><option value="pregnant">Embarazo</option><option value="postpartum">Posparto / lactancia</option><option value="perimenopause">Perimenopausia</option></select></label>
+              <label class="field"><span>Patrón conocido</span><select id="cycle-pattern"><option value="auto">Aprender automáticamente</option><option value="regular">Suele ser regular</option><option value="variable">Variable o irregular</option></select></label>
               <p class="field-help">Las fases hormonales no se estiman si indicas anticoncepción hormonal, embarazo o posparto.</p>
               <button class="secondary-btn" id="save-cycle-settings" type="button">Guardar cambios</button>
             </article>
@@ -192,6 +201,7 @@
             <article class="settings-card">
               <div class="settings-title"><span class="settings-icon">◷</span><div><h2>Recordatorios</h2><p>Discretos y bajo tu control.</p></div></div>
               <label class="setting-row"><span><strong>Registro diario</strong><small>Un toque para anotar cómo te sientes</small></span><input class="switch" id="reminder-daily" type="checkbox" role="switch" /></label>
+              <label class="setting-row"><span><strong>Biomarcadores</strong><small>Recuerda LH o temperatura sin mostrar detalles sensibles</small></span><input class="switch" id="reminder-biomarkers" type="checkbox" role="switch" /></label>
               <label class="setting-row"><span><strong>Próximo periodo</strong><small>Aviso 2 días antes de la ventana estimada</small></span><input class="switch" id="reminder-period" type="checkbox" role="switch" /></label>
               <label class="setting-row"><span><strong>Ventana fértil estimada</strong><small>Información orientativa, nunca anticonceptiva</small></span><input class="switch" id="reminder-fertile" type="checkbox" role="switch" /></label>
               <label class="field time-field"><span>Hora preferida</span><input id="reminder-time" type="time" value="20:30" /></label>
@@ -214,6 +224,8 @@
               <div class="data-actions">
                 <button class="secondary-btn" id="export-data" type="button">Exportar copia</button>
                 <label class="secondary-btn file-button">Importar copia<input id="import-data" type="file" accept="application/json" /></label>
+                <button class="secondary-btn" id="download-signal-template" type="button">Plantilla de señales CSV</button>
+                <label class="secondary-btn file-button">Importar wearable CSV<input id="import-signals" type="file" accept=".csv,text/csv" /></label>
                 <button class="danger-btn" id="delete-data" type="button">Borrar todo</button>
               </div>
               <p class="field-help">La copia contiene datos de salud sensibles. Guárdala en un lugar seguro.</p>
@@ -238,12 +250,29 @@
         <section class="form-section" data-log-section="flow"><h3>Flujo</h3><div class="choice-row" data-choice="flow"><button type="button" data-value="none">Nada</button><button type="button" data-value="spotting">Manchado</button><button type="button" data-value="light">Ligero</button><button type="button" data-value="medium">Medio</button><button type="button" data-value="heavy">Abundante</button></div><label class="period-start-check"><input id="period-start" type="checkbox" /> Este es el primer día del periodo</label></section>
         <section class="form-section" data-log-section="mood"><h3>Estado de ánimo</h3><div class="choice-row emoji-row" data-choice="mood"><button type="button" data-value="great">😊<small>Genial</small></button><button type="button" data-value="calm">😌<small>En calma</small></button><button type="button" data-value="sensitive">🥹<small>Sensible</small></button><button type="button" data-value="low">😔<small>Bajo</small></button><button type="button" data-value="irritable">😤<small>Irritable</small></button></div></section>
         <section class="form-section" data-log-section="symptoms"><h3>Síntomas y señales</h3><div class="choice-row multi" data-choice="symptoms"><button type="button" data-value="cramps">Calambres</button><button type="button" data-value="headache">Dolor de cabeza</button><button type="button" data-value="bloating">Hinchazón</button><button type="button" data-value="tenderness">Pecho sensible</button><button type="button" data-value="acne">Piel / acné</button><button type="button" data-value="backache">Dolor lumbar</button><button type="button" data-value="fatigue">Cansancio</button><button type="button" data-value="cravings">Antojos</button><button type="button" data-value="insomnia">Sueño irregular</button><button type="button" data-value="nausea">Náuseas</button></div></section>
+        <section class="form-section biomarker-section" data-log-section="biomarkers">
+          <h3>Biomarcadores de ovulación</h3>
+          <p class="section-help">Todos son opcionales. El modelo usa únicamente los que registres y reduce su confianza cuando faltan datos o una medición puede estar alterada.</p>
+          <div class="compact-fields">
+            <label class="field"><span>Test de LH</span><select id="lh-test"><option value="">Sin registrar</option><option value="negative">Negativo</option><option value="positive">Positivo</option><option value="peak">Pico / máximo del lector</option></select></label>
+            <label class="field"><span>Hora del test de LH</span><input id="lh-time" type="time" /></label>
+            <label class="field"><span>Test de PdG</span><select id="pdg-test"><option value="">Sin registrar</option><option value="negative">Negativo</option><option value="positive">Positivo según el test</option></select></label>
+            <label class="field"><span>Temperatura basal</span><span class="unit-input"><input id="temperature" type="number" inputmode="decimal" step="0.01" min="34" max="42" placeholder="36.45" /><small>°C</small></span></label>
+            <label class="field"><span>Hora de temperatura</span><input id="temperature-time" type="time" value="07:00" /></label>
+            <label class="field"><span>Moco cervical</span><select id="cervical"><option value="">Sin registrar</option><option value="dry">Ausente / seco</option><option value="sticky">Pegajoso</option><option value="creamy">Cremoso</option><option value="watery">Acuoso</option><option value="eggwhite">Elástico / clara de huevo</option></select></label>
+            <label class="field"><span>Sensación vulvar</span><select id="cervical-sensation"><option value="">Sin registrar</option><option value="dry">Seca</option><option value="damp">Húmeda</option><option value="wet">Mojada</option><option value="slippery">Lubricada / resbaladiza</option></select></label>
+          </div>
+          <div class="measurement-quality"><span>¿Algo puede alterar la temperatura?</span><div class="choice-row multi" data-choice="temperatureFactors"><button type="button" data-value="poor_sleep">Poco sueño</button><button type="button" data-value="illness">Fiebre o enfermedad</button><button type="button" data-value="alcohol">Alcohol</button><button type="button" data-value="late">Hora distinta</button><button type="button" data-value="travel">Viaje / cambio horario</button></div></div>
+          <details class="advanced-details"><summary>Señales de wearable o anillo <span>opcional</span></summary><div class="compact-fields"><label class="field"><span>Desviación de temperatura nocturna</span><span class="unit-input"><input id="wrist-temp-delta" type="number" inputmode="decimal" step="0.01" min="-5" max="5" placeholder="0.18" /><small>°C</small></span></label><label class="field"><span>Pulso en reposo</span><span class="unit-input"><input id="resting-heart-rate" type="number" inputmode="numeric" min="30" max="220" placeholder="63" /><small>lpm</small></span></label><label class="field"><span>HRV / variabilidad cardiaca</span><span class="unit-input"><input id="hrv" type="number" inputmode="numeric" min="1" max="300" placeholder="48" /><small>ms</small></span></label></div><p class="section-help">Introduce la desviación respecto a tu línea base, no la temperatura corporal absoluta. También puedes importar estos campos mediante CSV desde Ajustes.</p></details>
+        </section>
         <section class="form-section sexual-section" data-log-section="sex">
           <h3>Actividad sexual</h3>
           <p class="section-help">Elige “sin protección o fallo” si hubo al menos una relación vaginal sin método eficaz o si el preservativo se rompió o salió.</p>
           <div class="choice-row sexual-choice" data-choice="sexualActivity"><button type="button" data-value="none">Sin actividad</button><button type="button" data-value="protected">Con protección todo el tiempo</button><button type="button" data-value="unprotected">Sin protección o fallo</button></div>
+          <label id="sexual-time-field" class="field conditional-field" hidden><span>Hora aproximada</span><input id="sexual-time" type="time" /></label>
           <label id="protection-method-field" class="field conditional-field" hidden><span>Método utilizado</span><select id="protection-method"><option value="condom">Preservativo</option><option value="pill">Píldora</option><option value="iud">DIU</option><option value="implant">Implante</option><option value="ring-patch">Anillo o parche</option><option value="injection">Inyección</option><option value="other">Otro método</option></select></label>
           <label id="emergency-method-field" class="field conditional-field" hidden><span>Anticoncepción de emergencia</span><select id="emergency-method"><option value="none">No / sin registrar</option><option value="levonorgestrel">Levonorgestrel</option><option value="ulipristal">Ulipristal</option><option value="copper-iud">DIU de cobre</option></select></label>
+          <label id="emergency-time-field" class="field conditional-field" hidden><span>Fecha y hora de uso</span><input id="emergency-taken-at" type="datetime-local" /></label>
           <div id="pregnancy-risk-preview" class="risk-preview" hidden>
             <div class="risk-preview-heading"><span>Probabilidad estimada por esta relación</span><strong id="risk-preview-value">—</strong></div>
             <div class="risk-track" aria-hidden="true"><span id="risk-track-fill"></span></div>
@@ -257,7 +286,6 @@
           <section class="form-section"><h3>Energía</h3><input id="energy" type="range" min="1" max="5" value="3" /><div class="range-labels"><span>Muy baja</span><span>Muy alta</span></div></section>
           <section class="form-section"><h3>Sueño</h3><label class="inline-input"><input id="sleep" type="number" inputmode="decimal" step="0.5" min="0" max="24" placeholder="7.5" /> horas</label></section>
         </div>
-        <section class="form-section"><h3>Otras señales</h3><div class="compact-fields"><label class="field"><span>Temperatura basal</span><input id="temperature" type="number" inputmode="decimal" step="0.01" min="34" max="42" placeholder="36.45" /></label><label class="field"><span>Flujo cervical</span><select id="cervical"><option value="">Sin registrar</option><option value="dry">Seco</option><option value="sticky">Pegajoso</option><option value="creamy">Cremoso</option><option value="watery">Acuoso</option><option value="eggwhite">Clara de huevo</option></select></label></div></section>
         <section class="form-section" data-log-section="note"><label class="field"><span>Nota privada</span><textarea id="note" rows="4" maxlength="1000" placeholder="Algo que quieras recordar…"></textarea></label></section>
         <footer class="dialog-footer"><button class="secondary-btn" value="cancel">Cancelar</button><button class="primary-btn" id="save-log" value="default">Guardar registro</button></footer>
       </form>
@@ -268,9 +296,10 @@
         <button class="close-btn" value="cancel" aria-label="Cerrar">×</button>
         <span class="phase-pill sage"><i></i> Transparencia por diseño</span>
         <h2>Cómo predice Marea</h2>
-        <p>Marea usa un modelo probabilístico local inspirado en enfoques jerárquicos de series temporales. Aprende de tus inicios de periodo confirmados y no envía esos datos a un modelo externo.</p>
-        <ol><li><strong>Centro robusto.</strong> Combina la mediana de tus ciclos con una referencia inicial, dando más peso a tu historial conforme crece.</li><li><strong>Recencia y anomalías.</strong> Los ciclos recientes pesan algo más; posibles periodos olvidados se atenúan para que no distorsionen todo.</li><li><strong>Incertidumbre real.</strong> La variación entre ciclos ensancha la ventana. La confianza baja cuando hay pocos datos o ciclos variables.</li><li><strong>Actualización diaria.</strong> Si una fecha estimada pasa sin periodo, la distribución se recalcula en lugar de fingir certeza.</li></ol>
-        <div class="medical-note"><strong>No confirma ovulación.</strong><p>La ovulación y las fases se estiman desde fechas; la temperatura basal, el moco cervical o tests hormonales pueden aportar contexto, pero Marea no es un anticonceptivo ni un dispositivo médico.</p></div>
+        <p>Marea v2 usa un modelo bayesiano multiseñal inspirado en modelos de estados ocultos. Mantiene una probabilidad para cada posible día de ovulación y la actualiza en el dispositivo; tus datos nunca se envían a una IA externa.</p>
+        <ol><li><strong>Prior personal.</strong> El historial, la mediana robusta, la recencia y la variabilidad forman la distribución inicial.</li><li><strong>Evidencia biológica.</strong> LH y PdG aportan las señales más directas. El modelo detecta cambios térmicos sostenidos, interpreta moco cervical y añade con menor peso temperatura nocturna, pulso y HRV.</li><li><strong>Control de calidad.</strong> Descarta la temperatura marcada como alterada y evita que mediciones repetidas finjan una certeza imposible.</li><li><strong>Ensamblado temporal.</strong> La ovulación probable actualiza la fase, la siguiente menstruación y la probabilidad asociada a una relación sin protección.</li><li><strong>Intervalos siempre.</strong> La confianza es una medida interna de información disponible, no una tasa clínica de aciertos.</li></ol>
+        <div class="medical-note"><strong>Más señales no significan certeza.</strong><p>LH, temperatura y moco reducen la incertidumbre, pero ninguna combinación doméstica confirma por sí sola ovulación, embarazo o ausencia de fertilidad. Marea no es un anticonceptivo ni un dispositivo médico validado.</p></div>
+        <p class="source-links"><a href="https://www.nature.com/articles/s41746-025-02320-8" target="_blank" rel="noreferrer">Metaanálisis de wearables 2025</a><a href="https://www.nature.com/articles/s41746-019-0139-4" target="_blank" rel="noreferrer">Modelo HMM multiseñal</a><a href="https://pubmed.ncbi.nlm.nih.gov/39881571/" target="_blank" rel="noreferrer">Temperatura nocturna y LH</a></p>
         <button class="primary-btn" value="cancel">Entendido</button>
       </form>
     </dialog>
@@ -280,8 +309,8 @@
         <button class="close-btn" value="cancel" aria-label="Cerrar">×</button>
         <span class="phase-pill sage"><i></i> Estimación, no diagnóstico</span>
         <h2>Cómo estima Marea la probabilidad de embarazo</h2>
-        <p>Marea integra dos incertidumbres: cuándo podría ocurrir la ovulación según tu historial y qué probabilidad se ha observado para una relación sin protección en cada día respecto a la ovulación. Calcula una distribución completa, no se limita a marcar un día “fértil”.</p>
-        <ol><li><strong>Ovulación posible.</strong> Distribuye la fecha probable según tu ciclo, su variabilidad y los registros disponibles. Con pocos datos, el intervalo se ensancha.</li><li><strong>Curva de fecundabilidad.</strong> La evidencia sitúa la ventana biológica principalmente en los cinco días anteriores y el día de ovulación, con probabilidades observadas aproximadas de 10% a 33% en parejas sanas que buscaban embarazo.</li><li><strong>Resultado con intervalo.</strong> Combina ambas distribuciones y limita la confianza porque una app de calendario no confirma la ovulación.</li></ol>
+        <p>Marea integra dos incertidumbres: la distribución multiseñal de la ovulación y la probabilidad observada para una relación sin protección en cada día respecto a ella. No se limita a marcar un día “fértil”.</p>
+        <ol><li><strong>Ovulación posible.</strong> LH, PdG, cambios térmicos, moco cervical, historial y wearable actualizan cada posible día.</li><li><strong>Curva de fecundabilidad.</strong> La evidencia sitúa la ventana biológica principalmente en los cinco días anteriores y el día de ovulación, con probabilidades observadas aproximadas de 10% a 33% en parejas sanas que buscaban embarazo.</li><li><strong>Resultado con intervalo.</strong> Integra la curva sobre todos los días posibles y mantiene un margen amplio para factores personales que la app no puede medir.</li></ol>
         <div class="medical-note urgent-note"><strong>Si han pasado 5 días o menos, el tiempo importa.</strong><p>La anticoncepción de emergencia debe usarse cuanto antes. Las píldoras y el DIU de cobre pueden ser opciones hasta 120 horas según el caso; un profesional o una farmacia puede ayudarte a elegir. Un DIU de cobre es la opción de emergencia más eficaz. Haz una prueba de embarazo si no llega el periodo o aproximadamente 3 semanas después.</p><p>La anticoncepción de emergencia no protege frente a infecciones de transmisión sexual. Si hubo exposición posible, busca asesoramiento sanitario.</p></div>
         <p class="source-links"><a href="https://www.who.int/news-room/fact-sheets/detail/emergency-contraception" target="_blank" rel="noreferrer">OMS: anticoncepción de emergencia</a><a href="https://www.cdc.gov/contraception/hcp/usspr/emergency-contraception.html" target="_blank" rel="noreferrer">CDC: recomendaciones 2024</a><a href="https://pubmed.ncbi.nlm.nih.gov/7477165/" target="_blank" rel="noreferrer">Estudio de fecundabilidad por día</a></p>
         <button class="primary-btn" value="cancel">Entendido</button>
@@ -294,6 +323,7 @@
 
     <div id="setup-banner" class="setup-banner" role="status"><div><strong>Haz tu primera predicción personal</strong><span>Confirma el inicio de tu último periodo. Hasta entonces ves una estimación de ejemplo.</span></div><button class="primary-btn" id="start-setup" type="button">Configurar</button><button class="close-banner" type="button" aria-label="Ocultar">×</button></div>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script src="cycle-model.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

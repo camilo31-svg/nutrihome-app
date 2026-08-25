@@ -8,6 +8,7 @@
   let selectedDate = dateKey(today);
   let deferredInstallPrompt = null;
   let toastTimer;
+  const modelCache = new Map();
 
   const symptomLabels = {
     cramps: 'Calambres', headache: 'Dolor de cabeza', bloating: 'Hinchazón',
@@ -19,6 +20,9 @@
   const sexualActivityLabels = { none: 'Sin actividad', protected: 'Con protección', unprotected: 'Sin protección o fallo' };
   const protectionLabels = { condom: 'Preservativo', pill: 'Píldora', iud: 'DIU', implant: 'Implante', 'ring-patch': 'Anillo o parche', injection: 'Inyección', other: 'Otro método' };
   const emergencyLabels = { none: 'No / sin registrar', levonorgestrel: 'Levonorgestrel', ulipristal: 'Ulipristal', 'copper-iud': 'DIU de cobre' };
+  const lhLabels = { negative: 'LH negativo', positive: 'LH positivo', peak: 'Pico de LH' };
+  const pdgLabels = { negative: 'PdG negativo', positive: 'PdG positivo' };
+  const modelSignalLabels = { lh: 'LH', pdg: 'PdG', bbt: 'Temperatura basal', wrist: 'Temperatura nocturna', mucus: 'Moco cervical', vitals: 'Pulso / HRV' };
   const phaseMeta = {
     menstrual: { label: 'Menstrual', className: 'menstrual', copy: 'Prioriza el descanso y registra cualquier cambio que te llame la atención.' },
     follicular: { label: 'Fase folicular', className: 'follicular', copy: 'Tu energía puede empezar a subir. La ventana fértil se aproxima.' },
@@ -29,13 +33,13 @@
   };
 
   const defaultState = {
-    version: 1,
-    profile: { configured: false, averageCycle: 29, periodLength: 5, context: 'natural' },
+    version: 2,
+    profile: { configured: false, averageCycle: 29, periodLength: 5, context: 'natural', cyclePattern: 'auto' },
     periodStarts: [],
     logs: {},
     settings: {
       theme: 'system', discreet: false,
-      reminders: { daily: false, period: false, fertile: false, time: '20:30' }
+      reminders: { daily: false, biomarkers: false, period: false, fertile: false, time: '20:30' }
     },
     notificationHistory: {}
   };
@@ -48,6 +52,7 @@
       if (!saved || typeof saved !== 'object') return structuredClone(defaultState);
       return {
         ...structuredClone(defaultState), ...saved,
+        version: 2,
         profile: { ...defaultState.profile, ...(saved.profile || {}) },
         settings: {
           ...defaultState.settings, ...(saved.settings || {}),
@@ -63,6 +68,7 @@
   }
 
   function saveState() {
+    modelCache.clear();
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }
 
@@ -94,11 +100,54 @@
   function formatDate(date, options = { day: 'numeric', month: 'short' }) {
     return new Intl.DateTimeFormat('es-ES', options).format(date).replace('.', '');
   }
+  function formatDateTimeLocal(date = new Date()) {
+    const offset = date.getTimezoneOffset() * 60000;
+    return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+  }
   function pluralDays(days) { return `${days} ${days === 1 ? 'día' : 'días'}`; }
 
   function observedCycleLengths() {
     const starts = [...new Set(state.periodStarts)].sort();
     return starts.slice(1).map((key, index) => dayDiff(parseDate(starts[index]), parseDate(key))).filter(days => days >= 15 && days <= 90);
+  }
+
+  function ovulationModelForCycle(start, cycleLength, asOf = today) {
+    const safeLength = clamp(Math.round(cycleLength), 15, 90);
+    const effectiveAsOf = asOf > today ? today : asOf;
+    const cacheKey = `${dateKey(start)}:${safeLength}:${dateKey(effectiveAsOf)}`;
+    if (modelCache.has(cacheKey)) return modelCache.get(cacheKey);
+    const end = addDays(start, safeLength - 1);
+    const logs = Object.entries(state.logs)
+      .filter(([key]) => {
+        const date = parseDate(key);
+        return date >= start && date <= end && date <= effectiveAsOf;
+      })
+      .map(([key, log]) => ({ ...log, day: dayDiff(start, parseDate(key)) + 1 }));
+    let variability = observedCycleLengths().length >= 2 ? standardDeviation(observedCycleLengths()) : 2.8;
+    if (state.profile.cyclePattern === 'variable') variability = Math.max(variability, 5);
+    if (state.profile.context === 'perimenopause' || state.profile.context === 'postpartum') variability = Math.max(variability, 6);
+    const result = window.MareaCycleModel.inferOvulation({
+      cycleLength: safeLength,
+      periodLength: state.profile.periodLength,
+      variability,
+      historyCount: observedCycleLengths().length,
+      configured: state.profile.configured,
+      logs
+    });
+    modelCache.set(cacheKey, result);
+    return result;
+  }
+
+  function personalizedLutealLength() {
+    const starts = [...new Set(state.periodStarts)].sort().map(parseDate);
+    const estimates = [];
+    for (let index = 0; index < starts.length - 1; index += 1) {
+      const length = dayDiff(starts[index], starts[index + 1]);
+      if (length < 15 || length > 90) continue;
+      const posterior = ovulationModelForCycle(starts[index], length, starts[index + 1]);
+      if (posterior.confirmedBySignals) estimates.push(clamp(length - posterior.modeDay, 9, 18));
+    }
+    return estimates.length ? Math.round(median(estimates)) : 14;
   }
 
   function predictionModel(asOf = today) {
@@ -114,21 +163,31 @@
     const personalWeight = Math.min(.88, usable.length / (usable.length + 2.2));
     const baseLength = clamp(Math.round(prior * (1 - personalWeight) + weighted * personalWeight), 15, 60);
     let variability = observed.length >= 2 ? Math.max(1.5, standardDeviation(usable.length > 1 ? usable : observed)) : 2.8;
-    if (state.profile.context === 'perimenopause' || state.profile.context === 'postpartum') variability = Math.max(variability, 5);
+    if (state.profile.cyclePattern === 'variable') variability = Math.max(variability, 5);
+    if (state.profile.context === 'perimenopause' || state.profile.context === 'postpartum') variability = Math.max(variability, 6);
 
     const fallbackStart = addDays(today, -8);
     const starts = state.periodStarts.map(parseDate).filter(date => date <= asOf).sort((a, b) => a - b);
     const currentStart = starts.at(-1) || fallbackStart;
     const currentDay = Math.max(1, dayDiff(currentStart, asOf) + 1);
     const adjustedLength = currentDay >= baseLength ? Math.min(90, currentDay + Math.max(1, Math.ceil(variability * .7))) : baseLength;
-    const nextStart = addDays(currentStart, adjustedLength);
-    const window = clamp(Math.ceil(variability * .8), 1, 10);
+    const ovulation = ovulationModelForCycle(currentStart, adjustedLength, asOf);
+    const lutealLength = personalizedLutealLength();
+    let nextStart = addDays(currentStart, adjustedLength);
+    if (ovulation.confirmedBySignals && ovulation.modeDay <= currentDay + 1) {
+      nextStart = addDays(currentStart, ovulation.modeDay + lutealLength);
+      if (nextStart <= asOf) nextStart = addDays(asOf, Math.max(1, Math.ceil(variability * .55)));
+    }
+    const window = ovulation.confirmedBySignals
+      ? clamp(Math.ceil((ovulation.highDay - ovulation.lowDay) / 2 + 1.5), 1, 10)
+      : clamp(Math.ceil(variability * .8), 1, 10);
     let confidence = clamp(Math.round(50 + usable.length * 8 - variability * 3.2), 32, 94);
+    if (ovulation.confirmedBySignals) confidence = clamp(Math.round(confidence * .42 + ovulation.confidence * .58), 35, 92);
     if (!state.profile.configured) confidence = 36;
     if (['hormonal', 'pregnant', 'postpartum'].includes(state.profile.context)) confidence = 0;
     if (state.profile.context === 'perimenopause') confidence = Math.min(confidence, 58);
 
-    return { observed, prior, baseLength, adjustedLength, variability, currentStart, currentDay, nextStart, window, confidence };
+    return { observed, prior, baseLength, adjustedLength, variability, currentStart, currentDay, nextStart, window, confidence, ovulation, lutealLength };
   }
 
   function cyclePosition(date) {
@@ -153,13 +212,15 @@
     if (['hormonal', 'pregnant', 'postpartum'].includes(state.profile.context)) return { key: 'tracking', ...phaseMeta.tracking, day: null, length: null };
     const position = cyclePosition(date);
     const periodLength = clamp(Number(state.profile.periodLength) || 5, 1, 14);
-    const ovulationDay = clamp(position.length - 14, periodLength + 2, position.length - 7);
+    const posterior = ovulationModelForCycle(position.start, position.length, today);
+    const probabilities = window.MareaCycleModel.phaseProbabilities(posterior, position.day, periodLength);
+    const ovulationDay = posterior.modeDay;
     let key = 'luteal';
     if (position.day <= periodLength) key = 'menstrual';
-    else if (position.day === ovulationDay) key = 'ovulation';
-    else if (position.day >= ovulationDay - 5 && position.day <= ovulationDay + 1) key = 'fertile';
+    else if (position.day === ovulationDay || probabilities.ovulation >= .16) key = 'ovulation';
+    else if (probabilities.fertile >= .3 || (position.day >= posterior.lowDay - 5 && position.day <= posterior.highDay)) key = 'fertile';
     else if (position.day < ovulationDay - 5) key = 'follicular';
-    return { key, ...phaseMeta[key], ...position, ovulationDay };
+    return { key, ...phaseMeta[key], ...position, ovulationDay, posterior, phaseProbabilities: probabilities };
   }
 
   function nextPhase(date, currentKey) {
@@ -177,7 +238,7 @@
     return curve[String(offset)] || 0;
   }
 
-  function pregnancyRiskForDate(date) {
+  function pregnancyRiskForDate(date, log = {}) {
     const context = state.profile.context;
     if (['hormonal', 'pregnant', 'postpartum'].includes(context)) {
       return {
@@ -188,33 +249,26 @@
       };
     }
     const position = cyclePosition(date);
-    const model = predictionModel();
-    const periodLength = clamp(Number(state.profile.periodLength) || 5, 1, 14);
-    const estimatedOvulationDay = clamp(position.length - 14, periodLength + 2, position.length - 7);
-    const dataPenalty = model.observed.length >= 3 ? 0 : (3 - model.observed.length) * .55;
-    const ovulationSd = clamp(1.45 + model.variability * .55 + dataPenalty + (context === 'perimenopause' ? 2 : 0), 1.7, 8);
-    let weightedProbability = 0;
-    let totalWeight = 0;
-    const firstPossibleDay = Math.max(periodLength + 1, estimatedOvulationDay - 15);
-    const lastPossibleDay = Math.min(position.length - 5, estimatedOvulationDay + 15);
-    for (let ovulationDay = firstPossibleDay; ovulationDay <= lastPossibleDay; ovulationDay += 1) {
-      const z = (ovulationDay - estimatedOvulationDay) / ovulationSd;
-      const weight = Math.exp(-.5 * z * z);
+    const posterior = ovulationModelForCycle(position.start, position.length, today);
+    const weightedProbability = posterior.days.reduce((sum, ovulationDay, index) => {
       const intercourseOffset = position.day - ovulationDay;
-      weightedProbability += weight * fecundabilityForOffset(intercourseOffset);
-      totalWeight += weight;
-    }
-    const probability = clamp((weightedProbability / Math.max(totalWeight, .001)) * 100, 0, 33);
-    const uncertainty = clamp(.34 + ovulationSd * .055, .42, .82);
+      return sum + posterior.probabilities[index] * fecundabilityForOffset(intercourseOffset);
+    }, 0);
+    const probability = clamp(weightedProbability * 100, 0, 33);
+    const uncertainty = clamp(.78 - posterior.confidence * .0042, .42, .82);
     const low = clamp(probability * (1 - uncertainty), 0, 33);
     const high = clamp(probability * (1 + uncertainty) + .6, .6, 33);
-    const confidence = clamp(Math.round(model.confidence * .62 + Math.min(model.observed.length, 6) * 2), 20, 68);
+    const confidence = clamp(Math.round(posterior.confidence * .74), 20, 70);
     const daysSince = dayDiff(date, today);
+    const [hour, minute] = String(log.sexualTime || '12:00').split(':').map(Number);
+    const eventTime = new Date(date.getFullYear(), date.getMonth(), date.getDate(), hour || 0, minute || 0);
+    const hoursSince = (Date.now() - eventTime.getTime()) / 3600000;
     return {
-      calculable: true, probability, low, high, confidence, daysSince,
-      urgent: daysSince >= 0 && daysSince <= 5,
+      calculable: true, probability, low, high, confidence, daysSince, hoursSince,
+      urgent: log.sexualTime ? hoursSince >= 0 && hoursSince <= 120 : daysSince >= 0 && daysSince <= 5,
       testDate: addDays(date, 21),
-      ovulationSd,
+      posterior,
+      signals: posterior.signalTypes,
       category: probability < 2 ? 'muy baja' : probability < 8 ? 'baja' : probability < 18 ? 'moderada' : 'alta'
     };
   }
@@ -223,6 +277,17 @@
     if (value < .1) return '<0,1%';
     if (value < 10) return `${value.toFixed(1).replace('.', ',')}%`;
     return `${Math.round(value)}%`;
+  }
+
+  function signalLabelList(posterior) {
+    return posterior.signalTypes.map(type => modelSignalLabels[type] || type);
+  }
+
+  function renderSignalTags(containerSelector, posterior) {
+    const container = document.querySelector(containerSelector);
+    if (!container) return;
+    const active = new Set(posterior.signalTypes);
+    container.innerHTML = Object.entries(modelSignalLabels).map(([type, label]) => `<span class="${active.has(type) ? 'active' : ''}">${active.has(type) ? '✓' : '○'} ${label}</span>`).join('');
   }
 
   function renderAll() {
@@ -285,13 +350,24 @@
     setText('#quick-mood', log.mood ? moodLabels[log.mood] : 'Sin registrar');
     setText('#quick-symptoms', log.symptoms?.length ? `${log.symptoms.length} registrad${log.symptoms.length === 1 ? 'o' : 'os'}` : 'Sin registrar');
     setText('#quick-sex', log.sexualActivity ? sexualActivityLabels[log.sexualActivity] : 'Sin registrar');
+    const biomarkerCount = [log.lhTest, log.pdgTest, log.temperature, log.cervical, log.wristTemperatureDelta, log.restingHeartRate, log.hrv].filter(value => value !== '' && value !== null && value !== undefined).length;
+    setText('#quick-biomarkers', biomarkerCount ? `${biomarkerCount} señal${biomarkerCount === 1 ? '' : 'es'}` : 'Sin registrar');
     setText('#quick-note', log.note ? log.note.slice(0, 38) : 'Escribe lo que quieras');
+    const cycleModel = predictionModel().ovulation;
+    const phasesPaused = ['hormonal', 'pregnant', 'postpartum'].includes(state.profile.context);
+    setText('#model-readiness-value', phasesPaused ? 'Pausado' : `${cycleModel.confidence}%`);
+    setText('#model-readiness-copy', phasesPaused
+      ? 'En el contexto elegido Marea conserva tus registros, pero no asigna ovulación ni fases hormonales.'
+      : cycleModel.signalTypes.length
+        ? `Integra ${signalLabelList(cycleModel).join(', ')}. Ovulación probable entre los días ${cycleModel.lowDay} y ${cycleModel.highDay} del ciclo.`
+        : 'De momento utiliza el historial del ciclo. Añade LH, temperatura o moco cervical para reducir la incertidumbre.');
+    renderSignalTags('#model-readiness-signals', phasesPaused ? { ...cycleModel, signalTypes: [] } : cycleModel);
     const riskCard = document.querySelector('#daily-risk-card');
     if (riskCard) {
       const showRisk = log.sexualActivity === 'unprotected';
       riskCard.hidden = !showRisk;
       if (showRisk) {
-        const risk = pregnancyRiskForDate(today);
+        const risk = pregnancyRiskForDate(today, log);
         setText('#daily-risk-value', risk.calculable ? `≈ ${formatRiskPercent(risk.probability)}` : 'No calculable');
         setText('#daily-risk-copy', risk.calculable
           ? `Intervalo orientativo ${formatRiskPercent(risk.low)}–${formatRiskPercent(risk.high)}; confianza limitada al ${risk.confidence}%.`
@@ -337,11 +413,11 @@
     setText('#selected-phase-pill', `${selectedDate === dateKey(today) ? 'Hoy · ' : ''}${phase.label}`);
     setText('#selected-date', formatDate(date, { day: 'numeric', month: 'long' }));
     const dayText = phase.day ? `Día ${phase.day} del ciclo. ` : '';
-    const logCount = log ? [log.flow, log.mood, log.sexualActivity, ...(log.symptoms || [])].filter(Boolean).length : 0;
+    const logCount = log ? [log.flow, log.mood, log.sexualActivity, log.lhTest, log.pdgTest, log.temperature, log.cervical, log.wristTemperatureDelta, ...(log.symptoms || [])].filter(value => value !== '' && value !== null && value !== undefined).length : 0;
     const logText = log ? ` Hay ${logCount} señales guardadas.` : '';
     let riskText = '';
     if (log?.sexualActivity === 'unprotected') {
-      const risk = pregnancyRiskForDate(date);
+      const risk = pregnancyRiskForDate(date, log);
       riskText = risk.calculable ? ` Probabilidad orientativa por la relación: ${formatRiskPercent(risk.probability)}.` : ` ${risk.reason}`;
     }
     setText('#selected-phase-copy', dayText + phase.copy + logText + riskText);
@@ -397,15 +473,24 @@
         list.append(row);
       });
     }
+    const phasesPaused = ['hormonal', 'pregnant', 'postpartum'].includes(state.profile.context);
+    setText('#insight-model-confidence', phasesPaused ? '—' : `${model.ovulation.confidence}%`);
+    setText('#insight-model-window', phasesPaused
+      ? 'La estimación de ovulación está pausada para el contexto seleccionado.'
+      : `Ovulación probable: días ${model.ovulation.lowDay}–${model.ovulation.highDay} del ciclo · fase lútea personal ${model.lutealLength} días.`);
+    renderSignalTags('#insight-model-signals', phasesPaused ? { ...model.ovulation, signalTypes: [] } : model.ovulation);
   }
 
   function renderSettings() {
     const lastStart = [...state.periodStarts].sort().at(-1) || '';
     setValue('#last-period-input', lastStart);
+    document.querySelector('#last-period-input').max = dateKey(today);
     setValue('#cycle-length-input', state.profile.averageCycle);
     setValue('#period-length-input', state.profile.periodLength);
     setValue('#cycle-context', state.profile.context);
+    setValue('#cycle-pattern', state.profile.cyclePattern || 'auto');
     setChecked('#reminder-daily', state.settings.reminders.daily);
+    setChecked('#reminder-biomarkers', state.settings.reminders.biomarkers);
     setChecked('#reminder-period', state.settings.reminders.period);
     setChecked('#reminder-fertile', state.settings.reminders.fertile);
     setValue('#reminder-time', state.settings.reminders.time);
@@ -447,6 +532,7 @@
     selectedDate = safeKey;
     setValue('#log-date', safeKey);
     document.querySelector('#log-date').max = dateKey(today);
+    document.querySelector('#emergency-taken-at').max = formatDateTimeLocal();
     fillLogForm(safeKey);
     dialog.showModal();
     if (focusSection) setTimeout(() => dialog.querySelector(`[data-log-section="${focusSection}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80);
@@ -455,17 +541,28 @@
   function fillLogForm(key) {
     const log = state.logs[key] || {};
     document.querySelectorAll('[data-choice] button').forEach(button => {
-      const group = button.closest('[data-choice]').dataset.choice;
-      const selected = group === 'symptoms' ? (log.symptoms || []).includes(button.dataset.value) : log[group] === button.dataset.value;
+      const choice = button.closest('[data-choice]');
+      const group = choice.dataset.choice;
+      const selected = choice.classList.contains('multi') ? (log[group] || []).includes(button.dataset.value) : log[group] === button.dataset.value;
       button.classList.toggle('selected', selected);
     });
     setChecked('#period-start', state.periodStarts.includes(key));
     setValue('#energy', log.energy || 3);
     setValue('#sleep', log.sleep || '');
     setValue('#temperature', log.temperature || '');
+    setValue('#temperature-time', log.temperatureTime || '07:00');
     setValue('#cervical', log.cervical || '');
+    setValue('#cervical-sensation', log.cervicalSensation || '');
+    setValue('#lh-test', log.lhTest || '');
+    setValue('#lh-time', log.lhTime || '');
+    setValue('#pdg-test', log.pdgTest || '');
+    setValue('#wrist-temp-delta', log.wristTemperatureDelta ?? '');
+    setValue('#resting-heart-rate', log.restingHeartRate ?? '');
+    setValue('#hrv', log.hrv ?? '');
     setValue('#protection-method', log.protectionMethod || 'condom');
     setValue('#emergency-method', log.emergencyMethod || 'none');
+    setValue('#sexual-time', log.sexualTime || '');
+    setValue('#emergency-taken-at', log.emergencyTakenAt || '');
     setValue('#note', log.note || '');
     updateSexualActivityFields();
   }
@@ -474,12 +571,20 @@
     return document.querySelector(`[data-choice="${group}"] .selected`)?.dataset.value || '';
   }
 
+  function selectedChoices(group) {
+    return [...document.querySelectorAll(`[data-choice="${group}"] .selected`)].map(button => button.dataset.value);
+  }
+
   function updateSexualActivityFields() {
     const activity = selectedChoice('sexualActivity');
+    const sexualTimeField = document.querySelector('#sexual-time-field');
     const protectionField = document.querySelector('#protection-method-field');
     const emergencyField = document.querySelector('#emergency-method-field');
+    const emergencyTimeField = document.querySelector('#emergency-time-field');
+    if (sexualTimeField) sexualTimeField.hidden = !activity || activity === 'none';
     if (protectionField) protectionField.hidden = activity !== 'protected';
     if (emergencyField) emergencyField.hidden = activity !== 'unprotected';
+    if (emergencyTimeField) emergencyTimeField.hidden = activity !== 'unprotected' || document.querySelector('#emergency-method')?.value === 'none';
     renderPregnancyRiskPreview();
   }
 
@@ -491,8 +596,9 @@
     if (activity !== 'unprotected') return;
     const key = document.querySelector('#log-date').value;
     if (!isDateKey(key)) return;
-    const risk = pregnancyRiskForDate(parseDate(key));
+    const risk = pregnancyRiskForDate(parseDate(key), { sexualTime: document.querySelector('#sexual-time')?.value || '' });
     const emergencyMethod = document.querySelector('#emergency-method').value;
+    const emergencyTakenAt = document.querySelector('#emergency-taken-at')?.value;
     if (!risk.calculable) {
       setText('#risk-preview-value', 'No calculable');
       setText('#risk-preview-range', risk.reason);
@@ -504,8 +610,8 @@
     setText('#risk-preview-value', `≈ ${formatRiskPercent(risk.probability)}`);
     setText('#risk-preview-range', `Intervalo orientativo: ${formatRiskPercent(risk.low)}–${formatRiskPercent(risk.high)} · confianza limitada ${risk.confidence}%.`);
     setText('#risk-preview-explanation', emergencyMethod !== 'none'
-      ? `Estimación previa a la anticoncepción de emergencia registrada (${emergencyLabels[emergencyMethod]}). Marea no ajusta el porcentaje porque la eficacia depende del momento y del contexto clínico.`
-      : `Riesgo ${risk.category} según la distribución posible de ovulación. Prueba orientativa a partir del ${formatDate(risk.testDate, { day: 'numeric', month: 'long' })}.`);
+      ? `Estimación previa a la anticoncepción de emergencia registrada (${emergencyLabels[emergencyMethod]}${emergencyTakenAt ? ` · ${new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(emergencyTakenAt))}` : ''}). Marea no descuenta una eficacia fija porque depende del momento y del contexto clínico.`
+      : `Riesgo ${risk.category} según la distribución posible de ovulación${risk.signals.length ? ` y ${risk.signals.length} tipo${risk.signals.length === 1 ? '' : 's'} de biomarcador` : ''}. Prueba orientativa a partir del ${formatDate(risk.testDate, { day: 'numeric', month: 'long' })}.`);
     document.querySelector('#risk-track-fill').style.width = `${clamp(risk.probability / 33 * 100, 1, 100)}%`;
     document.querySelector('#emergency-guidance').hidden = !(risk.urgent && emergencyMethod === 'none');
   }
@@ -516,19 +622,32 @@
     const symptoms = [...document.querySelectorAll('[data-choice="symptoms"] .selected')].map(button => button.dataset.value);
     const existing = state.logs[key] || {};
     const sexualActivity = selectedChoice('sexualActivity');
+    const emergencyInput = document.querySelector('#emergency-taken-at').value;
+    const emergencyTakenAt = emergencyInput && new Date(emergencyInput) <= new Date() ? emergencyInput : '';
     const log = {
       flow: selectedChoice('flow'), mood: selectedChoice('mood'), symptoms,
       sexualActivity,
+      sexualTime: sexualActivity && sexualActivity !== 'none' ? document.querySelector('#sexual-time').value : '',
       protectionMethod: sexualActivity === 'protected' ? document.querySelector('#protection-method').value : '',
       emergencyMethod: sexualActivity === 'unprotected' ? document.querySelector('#emergency-method').value : '',
+      emergencyTakenAt: sexualActivity === 'unprotected' && document.querySelector('#emergency-method').value !== 'none' ? emergencyTakenAt : '',
       energy: Number(document.querySelector('#energy').value) || null,
       sleep: Number(document.querySelector('#sleep').value) || null,
       temperature: Number(document.querySelector('#temperature').value) || null,
+      temperatureTime: document.querySelector('#temperature').value ? document.querySelector('#temperature-time').value : '',
+      temperatureFactors: selectedChoices('temperatureFactors'),
       cervical: document.querySelector('#cervical').value,
+      cervicalSensation: document.querySelector('#cervical-sensation').value,
+      lhTest: document.querySelector('#lh-test').value,
+      lhTime: document.querySelector('#lh-test').value ? document.querySelector('#lh-time').value : '',
+      pdgTest: document.querySelector('#pdg-test').value,
+      wristTemperatureDelta: Number(document.querySelector('#wrist-temp-delta').value) || null,
+      restingHeartRate: Number(document.querySelector('#resting-heart-rate').value) || null,
+      hrv: Number(document.querySelector('#hrv').value) || null,
       note: document.querySelector('#note').value.trim(),
       updatedAt: new Date().toISOString()
     };
-    const meaningful = log.flow || log.mood || log.symptoms.length || log.sexualActivity || log.sleep || log.temperature || log.cervical || log.note;
+    const meaningful = log.flow || log.mood || log.symptoms.length || log.sexualActivity || log.sleep || log.temperature || log.cervical || log.cervicalSensation || log.lhTest || log.pdgTest || log.wristTemperatureDelta || log.restingHeartRate || log.hrv || log.note;
     if (meaningful) state.logs[key] = log; else delete state.logs[key];
     const isPeriodStart = document.querySelector('#period-start').checked;
     if (isPeriodStart && !state.periodStarts.includes(key)) state.periodStarts.push(key);
@@ -538,7 +657,7 @@
     saveState();
     document.querySelector('#log-dialog').close();
     renderAll();
-    const risk = sexualActivity === 'unprotected' ? pregnancyRiskForDate(parseDate(key)) : null;
+    const risk = sexualActivity === 'unprotected' ? pregnancyRiskForDate(parseDate(key), log) : null;
     showToast(risk?.urgent && log.emergencyMethod === 'none'
       ? 'Registro guardado. Si no deseas embarazo, consulta hoy sobre anticoncepción de emergencia.'
       : 'Registro guardado en este dispositivo');
@@ -546,14 +665,16 @@
 
   function saveCycleSettings() {
     const start = document.querySelector('#last-period-input').value;
+    const validStart = start && parseDate(start) <= today ? start : '';
     const averageCycle = clamp(Number(document.querySelector('#cycle-length-input').value) || 29, 15, 60);
     const periodLength = clamp(Number(document.querySelector('#period-length-input').value) || 5, 1, 14);
     state.profile = {
       ...state.profile, averageCycle, periodLength,
       context: document.querySelector('#cycle-context').value,
-      configured: Boolean(start || state.periodStarts.length)
+      cyclePattern: document.querySelector('#cycle-pattern').value,
+      configured: Boolean(validStart || state.periodStarts.length)
     };
-    if (start && !state.periodStarts.includes(start)) state.periodStarts.push(start);
+    if (validStart && !state.periodStarts.includes(validStart)) state.periodStarts.push(validStart);
     state.periodStarts = [...new Set(state.periodStarts)].sort();
     saveState();
     renderAll();
@@ -605,6 +726,8 @@
     let tag = '';
     if (state.settings.reminders.daily && !state.logs[key] && state.notificationHistory.daily !== key) {
       title = 'Un minuto para ti'; body = '¿Cómo te has sentido hoy?'; tag = 'daily';
+    } else if (state.settings.reminders.biomarkers && !state.logs[key]?.lhTest && !state.logs[key]?.temperature && state.notificationHistory.biomarkers !== key) {
+      title = 'Señales para tu modelo'; body = 'Si hoy tienes datos de LH o temperatura, puedes registrarlos en Marea.'; tag = 'biomarkers';
     } else {
       const model = predictionModel();
       const daysToPeriod = dayDiff(today, model.nextStart);
@@ -628,6 +751,7 @@
   function updateReminderSettings() {
     state.settings.reminders = {
       daily: document.querySelector('#reminder-daily').checked,
+      biomarkers: document.querySelector('#reminder-biomarkers').checked,
       period: document.querySelector('#reminder-period').checked,
       fertile: document.querySelector('#reminder-fertile').checked,
       time: document.querySelector('#reminder-time').value || '20:30'
@@ -649,6 +773,57 @@
     showToast('Copia exportada');
   }
 
+  function downloadSignalTemplate() {
+    const csv = 'date,temperature,lh_test,pdg_test,cervical,wrist_temp_delta,resting_hr,hrv,sleep_hours\n2026-08-25,36.45,negative,,creamy,0.08,63,48,7.5\n';
+    downloadBlob(csv, 'marea-plantilla-senales.csv', 'text/csv;charset=utf-8');
+  }
+
+  function parseDelimitedLine(line, delimiter) {
+    return line.split(delimiter).map(value => value.trim().replace(/^"|"$/g, ''));
+  }
+
+  async function importSignalsCsv(file) {
+    try {
+      const text = await file.text();
+      const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/).filter(line => line.trim());
+      if (lines.length < 2) throw new Error('Sin filas');
+      const delimiter = lines[0].includes(';') ? ';' : ',';
+      const headers = parseDelimitedLine(lines[0], delimiter).map(header => header.toLowerCase());
+      if (!headers.includes('date')) throw new Error('Falta date');
+      let imported = 0;
+      lines.slice(1).forEach(line => {
+        const values = parseDelimitedLine(line, delimiter);
+        const row = Object.fromEntries(headers.map((header, index) => [header, values[index] || '']));
+        if (!isDateKey(row.date) || parseDate(row.date) > today) return;
+        const log = { ...(state.logs[row.date] || {}) };
+        let touched = false;
+        const setNumber = (column, key, min, max) => {
+          if (row[column] === '') return;
+          const value = Number(String(row[column]).replace(',', '.'));
+          if (Number.isFinite(value) && value >= min && value <= max) { log[key] = value; touched = true; }
+        };
+        setNumber('temperature', 'temperature', 34, 42);
+        setNumber('wrist_temp_delta', 'wristTemperatureDelta', -5, 5);
+        setNumber('resting_hr', 'restingHeartRate', 30, 220);
+        setNumber('hrv', 'hrv', 1, 300);
+        setNumber('sleep_hours', 'sleep', 0, 24);
+        if (['negative', 'positive', 'peak'].includes(row.lh_test)) { log.lhTest = row.lh_test; touched = true; }
+        if (['negative', 'positive'].includes(row.pdg_test)) { log.pdgTest = row.pdg_test; touched = true; }
+        if (['dry', 'sticky', 'creamy', 'watery', 'eggwhite'].includes(row.cervical)) { log.cervical = row.cervical; touched = true; }
+        if (!touched) return;
+        log.updatedAt = new Date().toISOString();
+        state.logs[row.date] = log;
+        imported += 1;
+      });
+      if (!imported) throw new Error('Sin datos válidos');
+      saveState();
+      renderAll();
+      showToast(`${imported} ${imported === 1 ? 'día importado' : 'días importados'} al modelo`);
+    } catch {
+      showToast('No se pudo importar: revisa la plantilla y las fechas');
+    }
+  }
+
   function exportReport() {
     const model = predictionModel();
     const recentLogs = Object.entries(state.logs).sort(([a], [b]) => b.localeCompare(a)).slice(0, 180);
@@ -656,9 +831,22 @@
       let sexualSummary = sexualActivityLabels[log.sexualActivity] || '—';
       if (log.sexualActivity === 'protected' && log.protectionMethod) sexualSummary += ` · ${protectionLabels[log.protectionMethod] || log.protectionMethod}`;
       if (log.sexualActivity === 'unprotected' && log.emergencyMethod && log.emergencyMethod !== 'none') sexualSummary += ` · Emergencia: ${emergencyLabels[log.emergencyMethod] || log.emergencyMethod}`;
-      return `<tr><td>${escapeHtml(formatDate(parseDate(date), { day: 'numeric', month: 'short', year: 'numeric' }))}</td><td>${escapeHtml(flowLabels[log.flow] || '—')}</td><td>${escapeHtml(moodLabels[log.mood] || '—')}</td><td>${escapeHtml((log.symptoms || []).map(item => symptomLabels[item] || item).join(', ') || '—')}</td><td>${escapeHtml(sexualSummary)}</td><td>${escapeHtml(log.note || '—')}</td></tr>`;
+      if (log.sexualActivity === 'unprotected') {
+        const risk = pregnancyRiskForDate(parseDate(date), log);
+        if (risk.calculable) sexualSummary += ` · Riesgo orientativo ${formatRiskPercent(risk.probability)} (${formatRiskPercent(risk.low)}–${formatRiskPercent(risk.high)})`;
+      }
+      const biomarkers = [
+        log.lhTest ? lhLabels[log.lhTest] : '',
+        log.pdgTest ? pdgLabels[log.pdgTest] : '',
+        log.temperature ? `T basal ${log.temperature.toFixed?.(2) || log.temperature} °C` : '',
+        log.cervical ? `Moco ${log.cervical}` : '',
+        log.wristTemperatureDelta ? `T nocturna ${log.wristTemperatureDelta > 0 ? '+' : ''}${log.wristTemperatureDelta} °C` : '',
+        log.restingHeartRate ? `Pulso ${log.restingHeartRate}` : '',
+        log.hrv ? `HRV ${log.hrv}` : ''
+      ].filter(Boolean).join(' · ') || '—';
+      return `<tr><td>${escapeHtml(formatDate(parseDate(date), { day: 'numeric', month: 'short', year: 'numeric' }))}</td><td>${escapeHtml(flowLabels[log.flow] || '—')}</td><td>${escapeHtml(moodLabels[log.mood] || '—')}</td><td>${escapeHtml((log.symptoms || []).map(item => symptomLabels[item] || item).join(', ') || '—')}</td><td>${escapeHtml(biomarkers)}</td><td>${escapeHtml(sexualSummary)}</td><td>${escapeHtml(log.note || '—')}</td></tr>`;
     }).join('');
-    const html = `<!doctype html><html lang="es"><meta charset="utf-8"><title>Informe Marea</title><style>body{font:14px system-ui;color:#292324;max-width:900px;margin:40px auto;padding:0 24px}h1,h2{font-family:Georgia,serif;color:#8e3b52}header{border-bottom:2px solid #8e3b52;padding-bottom:18px}.metrics{display:flex;gap:12px;flex-wrap:wrap}.metric{border:1px solid #ddd;padding:14px;border-radius:12px;min-width:140px}.metric b{display:block;font-size:24px}table{width:100%;border-collapse:collapse;font-size:11px}th,td{padding:8px;border-bottom:1px solid #ddd;text-align:left;vertical-align:top}.note{background:#f7f3ee;padding:14px;border-radius:12px;margin:20px 0}@media print{body{margin:0}.note{break-inside:avoid}}</style><body><header><h1>Informe de ciclo · Marea</h1><p>Generado el ${escapeHtml(formatDate(today, { day: 'numeric', month: 'long', year: 'numeric' }))}. Datos registrados localmente por la persona usuaria.</p></header><h2>Resumen</h2><div class="metrics"><div class="metric">Ciclo estimado<b>${model.baseLength} días</b></div><div class="metric">Variación típica<b>±${model.window} días</b></div><div class="metric">Ciclos completos<b>${model.observed.length}</b></div><div class="metric">Periodo orientativo<b>${state.profile.periodLength} días</b></div></div><div class="note"><strong>Información, no diagnóstico.</strong> Las fases y probabilidades son estimaciones estadísticas. Este informe no confirma ovulación, embarazo ni ninguna condición médica.</div><h2>Registros recientes</h2><table><thead><tr><th>Fecha</th><th>Flujo</th><th>Ánimo</th><th>Síntomas</th><th>Actividad sexual</th><th>Nota</th></tr></thead><tbody>${rows || '<tr><td colspan="6">Aún no hay registros.</td></tr>'}</tbody></table></body></html>`;
+    const html = `<!doctype html><html lang="es"><meta charset="utf-8"><title>Informe Marea</title><style>body{font:14px system-ui;color:#292324;max-width:980px;margin:40px auto;padding:0 24px}h1,h2{font-family:Georgia,serif;color:#8e3b52}header{border-bottom:2px solid #8e3b52;padding-bottom:18px}.metrics{display:flex;gap:12px;flex-wrap:wrap}.metric{border:1px solid #ddd;padding:14px;border-radius:12px;min-width:140px}.metric b{display:block;font-size:24px}table{width:100%;border-collapse:collapse;font-size:10px}th,td{padding:8px;border-bottom:1px solid #ddd;text-align:left;vertical-align:top}.note{background:#f7f3ee;padding:14px;border-radius:12px;margin:20px 0}@media print{body{margin:0}.note{break-inside:avoid}}</style><body><header><h1>Informe de ciclo · Marea</h1><p>Generado el ${escapeHtml(formatDate(today, { day: 'numeric', month: 'long', year: 'numeric' }))}. Datos registrados localmente por la persona usuaria.</p></header><h2>Resumen</h2><div class="metrics"><div class="metric">Ciclo estimado<b>${model.baseLength} días</b></div><div class="metric">Variación típica<b>±${model.window} días</b></div><div class="metric">Ciclos completos<b>${model.observed.length}</b></div><div class="metric">Modelo multiseñal<b>${model.ovulation.confidence}%</b></div></div><div class="note"><strong>Información, no diagnóstico.</strong> Las fases y probabilidades son estimaciones estadísticas. Este informe no confirma ovulación, embarazo ni ninguna condición médica.</div><h2>Registros recientes</h2><table><thead><tr><th>Fecha</th><th>Flujo</th><th>Ánimo</th><th>Síntomas</th><th>Biomarcadores</th><th>Actividad sexual</th><th>Nota</th></tr></thead><tbody>${rows || '<tr><td colspan="7">Aún no hay registros.</td></tr>'}</tbody></table></body></html>`;
     downloadBlob(html, `marea-informe-${dateKey(today)}.html`, 'text/html;charset=utf-8');
     showToast('Informe descargado; puedes imprimirlo como PDF');
   }
@@ -670,9 +858,10 @@
   async function importData(file) {
     try {
       const parsed = JSON.parse(await file.text());
-      if (!parsed || parsed.version !== 1 || !parsed.profile || !parsed.logs || !Array.isArray(parsed.periodStarts)) throw new Error('Formato no reconocido');
+      if (!parsed || ![1, 2].includes(parsed.version) || !parsed.profile || !parsed.logs || !Array.isArray(parsed.periodStarts)) throw new Error('Formato no reconocido');
       localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
       state = loadState();
+      modelCache.clear();
       renderAll();
       showToast('Copia importada correctamente');
     } catch {
@@ -718,7 +907,9 @@
       if (group.dataset.choice === 'sexualActivity') updateSexualActivityFields();
     }));
     document.querySelector('#log-date')?.addEventListener('change', event => fillLogForm(event.target.value));
-    document.querySelector('#emergency-method')?.addEventListener('change', renderPregnancyRiskPreview);
+    document.querySelector('#emergency-method')?.addEventListener('change', updateSexualActivityFields);
+    document.querySelector('#sexual-time')?.addEventListener('change', renderPregnancyRiskPreview);
+    document.querySelector('#emergency-taken-at')?.addEventListener('change', renderPregnancyRiskPreview);
     document.querySelector('#log-form')?.addEventListener('submit', event => {
       event.preventDefault();
       if (event.submitter?.value === 'cancel') document.querySelector('#log-dialog').close(); else saveLog();
@@ -726,17 +917,19 @@
     document.querySelector('#previous-month')?.addEventListener('click', () => { calendarCursor.setMonth(calendarCursor.getMonth() - 1); renderCalendar(); });
     document.querySelector('#next-month')?.addEventListener('click', () => { calendarCursor.setMonth(calendarCursor.getMonth() + 1); renderCalendar(); });
     document.querySelector('#log-selected-day')?.addEventListener('click', () => openLog(selectedDate));
-    document.querySelectorAll('#confidence-button, #open-model, #open-model-2').forEach(button => button.addEventListener('click', () => document.querySelector('#model-dialog').showModal()));
+    document.querySelectorAll('#confidence-button, #open-model, #open-model-2, #open-model-dashboard').forEach(button => button.addEventListener('click', () => document.querySelector('#model-dialog').showModal()));
     document.querySelectorAll('[data-open-pregnancy-model]').forEach(button => button.addEventListener('click', () => document.querySelector('#pregnancy-model-dialog').showModal()));
     document.querySelector('#save-cycle-settings')?.addEventListener('click', saveCycleSettings);
-    ['#reminder-daily', '#reminder-period', '#reminder-fertile', '#reminder-time', '#discreet-mode'].forEach(selector => document.querySelector(selector)?.addEventListener('change', updateReminderSettings));
+    ['#reminder-daily', '#reminder-biomarkers', '#reminder-period', '#reminder-fertile', '#reminder-time', '#discreet-mode'].forEach(selector => document.querySelector(selector)?.addEventListener('change', updateReminderSettings));
     document.querySelector('#enable-notifications')?.addEventListener('click', enableNotifications);
     document.querySelector('#export-data')?.addEventListener('click', exportData);
+    document.querySelector('#download-signal-template')?.addEventListener('click', downloadSignalTemplate);
+    document.querySelector('#import-signals')?.addEventListener('change', event => { const file = event.target.files?.[0]; if (file) importSignalsCsv(file); event.target.value = ''; });
     document.querySelector('#export-report')?.addEventListener('click', exportReport);
     document.querySelector('#import-data')?.addEventListener('change', event => { const file = event.target.files?.[0]; if (file) importData(file); event.target.value = ''; });
     document.querySelector('#delete-data')?.addEventListener('click', () => document.querySelector('#confirm-dialog').showModal());
     document.querySelector('#confirm-delete')?.addEventListener('click', event => {
-      event.preventDefault(); localStorage.removeItem(STORAGE_KEY); state = structuredClone(defaultState); document.querySelector('#confirm-dialog').close(); renderAll(); showToast('Todos los datos se han borrado');
+      event.preventDefault(); localStorage.removeItem(STORAGE_KEY); state = structuredClone(defaultState); modelCache.clear(); document.querySelector('#confirm-dialog').close(); renderAll(); showToast('Todos los datos se han borrado');
     });
     document.querySelector('#install-app')?.addEventListener('click', installApp);
     document.querySelector('#start-setup')?.addEventListener('click', () => { navigate('settings'); setTimeout(() => document.querySelector('#last-period-input')?.focus(), 350); });
