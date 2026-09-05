@@ -71,12 +71,18 @@
               <label><span>Momento</span><select id="filter-meal"><option value="">Todos</option><option value="breakfast">Desayuno</option><option value="lunch">Comida</option><option value="snack">Merienda</option><option value="dinner">Cena</option></select></label>
               <label><span>Tiempo máximo</span><select id="filter-time"><option value="">Cualquiera</option><option>10</option><option>15</option><option>20</option><option>25</option><option>30</option><option>45</option><option>60</option></select></label>
               <label><span>Proteína mínima</span><select id="filter-protein"><option value="">Cualquiera</option><option value="20">20 g</option><option value="30">30 g</option><option value="40">40 g</option></select></label>
-              <label><span>Dieta compatible</span><select id="filter-diet"><option value="">Mi perfil</option><option value="vegan">Vegana</option><option value="vegetarian">Vegetariana</option><option value="pescetarian">Pescetariana</option><option value="omnivore">Omnívora</option></select></label>
+              <label><span>Dieta compatible</span><select id="filter-diet"><option value="">Mi perfil</option><option value="vegan">Vegana</option><option value="lacto_vegetarian">Lacto-vegetariana</option><option value="ovo_vegetarian">Ovo-vegetariana</option><option value="vegetarian">Vegetariana</option><option value="pescetarian">Pescetariana</option><option value="flexitarian">Flexitariana</option><option value="omnivore">Omnívora</option></select></label>
               <label class="check-filter"><input id="filter-pantry" type="checkbox" /><span>Solo con mi despensa</span></label>
             </div>
           </div>
+          <aside class="catalog-note">
+            <div><p class="eyebrow">BIBLIOTECA AMPLIADA</p><h2>Más de 1.000 opciones para cada dieta</h2><p>Preparaciones redactadas en castellano con pasos propios, basadas en técnicas internacionales y referencias culinarias de dominio público.</p></div>
+            <div class="diet-catalog-counts" id="diet-catalog-counts" aria-label="Recetas disponibles por dieta"></div>
+            <details><summary>Referencias consultadas</summary><p><a href="https://www.gutenberg.org/ebooks/13887" target="_blank" rel="noreferrer">Allinson’s Cookery Book</a> · <a href="https://www.gutenberg.org/ebooks/14594" target="_blank" rel="noreferrer">Cassell’s Vegetarian Cookery</a> · <a href="https://www.gutenberg.org/ebooks/27639" target="_blank" rel="noreferrer">New Vegetarian Dishes</a> · <a href="https://www.gutenberg.org/ebooks/43879" target="_blank" rel="noreferrer">Substitutes for Flesh Foods</a> · <a href="https://www.gutenberg.org/ebooks/69370" target="_blank" rel="noreferrer">Leaves from Our Tuscan Kitchen</a> · <a href="https://www.gutenberg.org/ebooks/45863" target="_blank" rel="noreferrer">The Khaki Kook Book</a> · <a href="https://www.gutenberg.org/ebooks/75027" target="_blank" rel="noreferrer">La Cuisine Creole</a> · <a href="https://www.gutenberg.org/ebooks/29728" target="_blank" rel="noreferrer">Apicius</a> · <a href="https://www.myplate.gov/myplate-kitchen" target="_blank" rel="noreferrer">USDA MyPlate Kitchen</a>.</p></details>
+          </aside>
           <div class="result-summary" id="recipe-summary"></div>
           <div class="recipe-grid" id="recipe-grid" aria-live="polite"></div>
+          <div class="recipe-load-more"><button class="secondary-btn" id="recipe-load-more" type="button" hidden>Mostrar más</button></div>
         </section>
 
         <section class="view" id="view-pantry" data-view="pantry" aria-labelledby="pantry-title">

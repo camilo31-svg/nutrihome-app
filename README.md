@@ -8,7 +8,8 @@ NutriHome es una PWA mobile-first que conecta planificación semanal, recetas, o
 - Generación multiobjetivo: equilibrada, rápida, económica, alta en proteína, aprovechamiento de despensa, prioridad a caducidades y modo sorpresa.
 - Bloqueo, regeneración, repetición e intercambio de comidas.
 - Restricciones dietéticas reales. Huevo y lácteos se comprueban de forma independiente a la etiqueta vegetariana.
-- Biblioteca inicial de 25 recetas de demostración, búsqueda por nombre/ingrediente/etiqueta y filtros de momento, tiempo máximo exacto, proteína y disponibilidad en casa.
+- Biblioteca de 1.705 recetas únicas en castellano, con más de 1.000 opciones compatibles para cada dieta disponible, búsqueda por nombre/ingrediente/etiqueta, filtros dietéticos completos y carga progresiva de resultados.
+- Cada receta incorporada tiene ingredientes cuantificados y cuatro pasos propios; las pruebas rechazan instrucciones genéricas, IDs o nombres duplicados y catálogos con menos de 1.000 opciones por dieta.
 - Recetas personales indexadas al guardarlas, escalado de raciones, favoritos, valoración personal e historial de recetas preparadas.
 - Despensa con cantidades, unidades, ubicación, stock mínimo, caducidad, precio registrado y código de barras.
 - Descuento FIFO del inventario al preparar una receta y aviso de ingredientes no registrados.
@@ -22,7 +23,7 @@ NutriHome es una PWA mobile-first que conecta planificación semanal, recetas, o
 - Persistencia local con IndexedDB, funcionamiento offline y una API de sincronización autenticada preparada para D1.
 - Importador de recetas basado exclusivamente en JSON-LD `Recipe` publicado por la fuente; no elude bloqueos ni hace scraping específico de plataformas.
 
-Todos los importes de las recetas incluidas son estimaciones de demostración. No se presentan como precios reales de ningún supermercado. Las calorías y macronutrientes también son datos de ejemplo y no sustituyen consejo médico o dietético profesional.
+Las nuevas recetas son redacciones originales de NutriHome inspiradas en técnicas culinarias internacionales y en recetarios de dominio público de Project Gutenberg, junto con la colección oficial MyPlate Kitchen del USDA. No se copian textos de libros o páginas protegidas. Todos los importes, calorías y macronutrientes son estimaciones y no sustituyen consejo médico o dietético profesional.
 
 ## Arquitectura
 
@@ -31,6 +32,7 @@ index.html / styles.css     interfaz, accesibilidad y responsive
 app.js                      coordinación de vistas y flujos
 nutrihome-core.js           unidades, dieta, menú, inventario y compra
 demo-data.js                recetas y datos iniciales identificados como demo
+recipe-library.js           catálogo internacional generado, fuentes y perfiles dietéticos
 storage.js                  IndexedDB y sincronización progresiva
 worker/index.js             assets, API autenticada y importación JSON-LD
 db/schema.ts                esquema lógico de persistencia
@@ -60,7 +62,7 @@ npm run check
 npm run build
 ```
 
-Las pruebas cubren conversiones, unidades incompatibles, sinónimos, dieta vegetariana sin huevo, alergias, escalado, resta de despensa, compra neta, generación de 28 comidas, bloqueos y estructura PWA.
+Las pruebas cubren conversiones, unidades incompatibles, sinónimos, dietas y alergias, las 1.705 recetas y sus pasos específicos, escalado, resta de despensa, compra neta, generación de 28 comidas, tamaño de la sincronización, bloqueos y estructura PWA.
 
 ## Despliegue
 

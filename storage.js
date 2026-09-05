@@ -3,6 +3,14 @@ const DB_VERSION = 1;
 const STORE = 'snapshots';
 const STATE_KEY = 'current';
 
+export function isPersonalRecipe(recipe) {
+  return recipe?.source === 'Receta personal' || String(recipe?.id || '').startsWith('rec-user-');
+}
+
+export function createStateSnapshot(state) {
+  return { ...state, recipes: (state?.recipes || []).filter(isPersonalRecipe) };
+}
+
 function openDatabase() {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);

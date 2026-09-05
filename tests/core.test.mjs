@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
 import { DEMO_RECIPES, DEFAULT_PROFILE, createDemoPantry } from '../demo-data.js';
+import { DIET_CATALOG_PROFILES, RECIPE_LIBRARY, catalogCounts } from '../recipe-library.js';
+import { createStateSnapshot } from '../storage.js';
 import {
   buildShoppingList, calculateBMI, calculateGoalProgress, classifyAdultBMI, consumeRecipe, convertQuantity, generateWeek, getExpiryStatus,
-  isRecipeCompatible, pantryCoverage, regenerateMeal, sameFood, scaleIngredients, upsertBodyMeasurement, upsertPantryItem
+  isRecipeCompatible, normalizeText, pantryCoverage, regenerateMeal, sameFood, scaleIngredients, upsertBodyMeasurement, upsertPantryItem, validateRecipe
 } from '../nutrihome-core.js';
 
 const GENERIC_RECIPE_STEPS = [
@@ -17,6 +19,26 @@ for (const recipe of DEMO_RECIPES) {
   assert.equal(recipe.steps.some(step => GENERIC_RECIPE_STEPS.includes(step)), false, `${recipe.name} conserva instrucciones genéricas`);
 }
 assert.equal(new Set(DEMO_RECIPES.map(recipe => recipe.steps.join('\n'))).size, DEMO_RECIPES.length, 'Cada receta debe tener instrucciones propias');
+
+assert.equal(RECIPE_LIBRARY.length > 1600, true, 'El catálogo debe contener más de 1.600 recetas únicas');
+assert.equal(new Set(RECIPE_LIBRARY.map(recipe => recipe.id)).size, RECIPE_LIBRARY.length, 'Los IDs del catálogo deben ser únicos');
+assert.equal(new Set(RECIPE_LIBRARY.map(recipe => recipe.name)).size, RECIPE_LIBRARY.length, 'Los nombres del catálogo deben ser únicos');
+const dietCounts = catalogCounts(isRecipeCompatible);
+for (const profile of DIET_CATALOG_PROFILES) assert.ok(dietCounts[profile.key] > 1000, `${profile.label} debe ofrecer más de 1.000 recetas`);
+for (const recipe of RECIPE_LIBRARY) {
+  assert.deepEqual(validateRecipe(recipe), [], `${recipe.name} debe tener ingredientes y cantidades válidos`);
+  assert.ok(recipe.steps.length >= 4, `${recipe.name} debe tener al menos cuatro pasos`);
+  assert.equal(recipe.steps.some(step => GENERIC_RECIPE_STEPS.includes(step)), false, `${recipe.name} no puede usar instrucciones genéricas`);
+  const stepText = normalizeText(recipe.steps.join(' '));
+  const mentionedIngredients = recipe.ingredients.filter(item => normalizeText(item.name).split(' ').filter(word => word.length >= 4).some(word => stepText.includes(word))).length;
+  assert.ok(mentionedIngredients >= 2, `${recipe.name} debe mencionar sus ingredientes concretos en los pasos`);
+}
+const compactSnapshot = createStateSnapshot({ version: 1, recipes: [...RECIPE_LIBRARY, { id: 'rec-user-test', source: 'Receta personal' }], favorites: [] });
+assert.deepEqual(compactSnapshot.recipes.map(recipe => recipe.id), ['rec-user-test'], 'La copia guarda recetas personales, no duplica el catálogo incorporado');
+assert.ok(JSON.stringify(compactSnapshot).length < 1_500_000, 'La copia sincronizable debe respetar el límite del servidor');
+const expandedMenu = generateWeek({ recipes: RECIPE_LIBRARY, profile: { ...DEFAULT_PROFILE, diet: 'vegan', eatsEgg: false, eatsDairy: false }, pantry: createDemoPantry(), exercise: [] });
+assert.equal(expandedMenu.length, 28, 'El generador semanal debe funcionar con el catálogo completo');
+assert.equal(expandedMenu.every(entry => isRecipeCompatible(RECIPE_LIBRARY.find(recipe => recipe.id === entry.recipeId), { ...DEFAULT_PROFILE, diet: 'vegan', eatsEgg: false, eatsDairy: false })), true);
 
 assert.equal(convertQuantity(1, 'kg', 'g'), 1000);
 assert.equal(convertQuantity(1.5, 'l', 'ml'), 1500);

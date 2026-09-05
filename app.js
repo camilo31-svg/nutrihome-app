@@ -1,10 +1,11 @@
-import { DEMO_RECIPES, DEFAULT_PROFILE, DEMO_EXERCISE, createDemoPantry } from './demo-data.js';
+import { DEFAULT_PROFILE, DEMO_EXERCISE, createDemoPantry } from './demo-data.js';
+import { DIET_CATALOG_PROFILES, RECIPE_LIBRARY } from './recipe-library.js';
 import {
   DAY_LABELS, MEAL_LABELS, buildShoppingList, calculateBMI, calculateGoalProgress, classifyAdultBMI, consumeRecipe, generateWeek, getExpiryStatus,
   isRecipeCompatible, menuNutrition, normalizeFoodName, normalizeText, normalizeUnit,
   pantryCoverage, regenerateMeal, roundQuantity, sameFood, scaleIngredients, upsertBodyMeasurement, upsertPantryItem, validateRecipe
 } from './nutrihome-core.js';
-import { clearLocalState, loadLocalState, newestSnapshot, pullRemoteState, pushRemoteState, saveLocalState } from './storage.js';
+import { clearLocalState, createStateSnapshot, isPersonalRecipe, loadLocalState, newestSnapshot, pullRemoteState, pushRemoteState, saveLocalState } from './storage.js';
 
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
@@ -22,6 +23,7 @@ let recipeServings = 1;
 let saveTimer = null;
 let simpleHandler = null;
 let installPrompt = null;
+let recipeVisibleLimit = 36;
 
 function defaultBodyMetrics() {
   return { age: null, heightCm: null, currentWeightKg: null, currentMuscleKg: null, goalType: 'total', goalValueKg: null, history: [] };
@@ -30,7 +32,7 @@ function defaultBodyMetrics() {
 function initialState() {
   const profile = clone(DEFAULT_PROFILE);
   const pantry = createDemoPantry();
-  const recipes = clone(DEMO_RECIPES);
+  const recipes = clone(RECIPE_LIBRARY);
   const menu = generateWeek({ recipes, profile, pantry, exercise: DEMO_EXERCISE, mode: 'balanced' });
   return {
     version: 1, updatedAt: new Date().toISOString(), profile, pantry, recipes, menu,
@@ -45,7 +47,7 @@ function normalizeState(saved) {
   const merged = { ...fresh, ...saved, profile: { ...fresh.profile, ...(saved.profile || {}) } };
   delete merged.profile.name;
   const savedRecipes = Array.isArray(saved.recipes) ? saved.recipes : [];
-  const personalRecipes = savedRecipes.filter(recipe => recipe?.source === 'Receta personal' || String(recipe?.id || '').startsWith('rec-user-'));
+  const personalRecipes = savedRecipes.filter(isPersonalRecipe);
   merged.recipes = [...fresh.recipes, ...personalRecipes];
   merged.pantry = Array.isArray(saved.pantry) ? saved.pantry : fresh.pantry;
   merged.menu = Array.isArray(saved.menu) && saved.menu.length ? saved.menu : fresh.menu;
@@ -90,8 +92,9 @@ function persist({ remote = true } = {}) {
   clearTimeout(saveTimer);
   updateSyncBadge(navigator.onLine ? 'pending' : 'offline');
   saveTimer = setTimeout(async () => {
-    state = await saveLocalState(state);
-    const status = remote ? await pushRemoteState(state) : 'local';
+    const snapshot = await saveLocalState(createStateSnapshot(state));
+    state.updatedAt = snapshot.updatedAt;
+    const status = remote ? await pushRemoteState(snapshot) : 'local';
     updateSyncBadge(status);
   }, 220);
 }
@@ -180,6 +183,13 @@ function runGenerator(mode = 'balanced') {
 
 function compatibleRecipes() { return state.recipes.filter(recipe => isRecipeCompatible(recipe, state.profile)); }
 
+function renderCatalogCounts() {
+  $('#diet-catalog-counts').innerHTML = DIET_CATALOG_PROFILES.map(profile => {
+    const count = state.recipes.filter(item => isRecipeCompatible(item, { ...profile, allergies: [], restrictions: [], dislikes: [], equipment: [] })).length;
+    return `<span><b>${number(count)}</b> ${profile.label}</span>`;
+  }).join('');
+}
+
 function renderRecipes() {
   const search = normalizeText($('#recipe-search').value);
   const meal = $('#filter-meal').value;
@@ -187,20 +197,26 @@ function renderRecipes() {
   const minProtein = Number($('#filter-protein').value) || 0;
   const diet = $('#filter-diet').value;
   const pantryOnly = $('#filter-pantry').checked;
-  const recipes = compatibleRecipes().filter(recipe => {
+  const compatible = compatibleRecipes();
+  const selectedDiet = DIET_CATALOG_PROFILES.find(profile => profile.key === diet);
+  const recipes = compatible.filter(recipe => {
     const haystack = normalizeText([recipe.name, recipe.description, ...recipe.tags, ...recipe.ingredients.map(item => item.name)].join(' '));
-    const dietMatch = !diet || isRecipeCompatible(recipe, { diet, eatsEgg: true, eatsDairy: true, allergies: [], restrictions: [], dislikes: [], equipment: [] });
+    const dietMatch = !selectedDiet || isRecipeCompatible(recipe, { ...selectedDiet, allergies: [], restrictions: [], dislikes: [], equipment: [] });
     return (!search || haystack.includes(search)) && (!meal || recipe.mealTypes.includes(meal)) && dietMatch && recipe.totalTime <= maxTime && recipe.nutrition.protein >= minProtein && (!pantryOnly || pantryCoverage(recipe, state.pantry, state.profile.people).missing === 0);
   }).sort((a, b) => Number(state.favorites.includes(b.id)) - Number(state.favorites.includes(a.id)) || b.rating - a.rating);
-  $('#recipe-count').textContent = compatibleRecipes().length;
-  $('#recipe-summary').textContent = recipes.length ? `${recipes.length} ${recipes.length === 1 ? 'resultado' : 'resultados'} · incompatibles con tu perfil ocultas` : 'No hay recetas que cumplan todos esos filtros.';
-  $('#recipe-grid').innerHTML = recipes.map(recipe => {
+  const visibleRecipes = recipes.slice(0, recipeVisibleLimit);
+  $('#recipe-count').textContent = compatible.length;
+  $('#recipe-summary').textContent = recipes.length ? `Mostrando ${visibleRecipes.length} de ${recipes.length} ${recipes.length === 1 ? 'resultado' : 'resultados'} · incompatibles con tu perfil ocultas` : 'No hay recetas que cumplan todos esos filtros.';
+  $('#recipe-grid').innerHTML = visibleRecipes.map(recipe => {
     const coverage = pantryCoverage(recipe, state.pantry, state.profile.people);
     const userRating = state.ratings[recipe.id];
     const rating = userRating || recipe.rating;
     const ratingLabel = userRating ? 'tu valoración' : recipe.ratingType === 'real' ? `${recipe.ratingCount} valoraciones` : 'estimación del sistema';
     return `<article class="recipe-card" data-open-recipe="${recipe.id}" tabindex="0" role="button" aria-label="Ver receta ${escapeHtml(recipe.name)}"><div class="recipe-art"><span aria-hidden="true">${recipe.emoji || '🍽️'}</span><button class="favorite-btn ${state.favorites.includes(recipe.id) ? 'active' : ''}" type="button" data-favorite="${recipe.id}" aria-label="${state.favorites.includes(recipe.id) ? 'Quitar de favoritos' : 'Guardar en favoritos'}">${state.favorites.includes(recipe.id) ? '♥' : '♡'}</button></div><div class="recipe-card-body"><p class="eyebrow">${recipe.mealTypes.map(type => MEAL_LABELS[type]).join(' · ')}</p><h2>${escapeHtml(recipe.name)}</h2><div class="recipe-meta"><span><b>${recipe.totalTime} min</b></span><span>${number(recipe.nutrition.kcal)} kcal</span><span>${number(recipe.nutrition.protein)} g prot.</span></div><div class="recipe-tags"><span>${coverage.missing === 0 ? 'puedo cocinar' : `faltan ${coverage.missing}`}</span>${recipe.tags.slice(0, 2).map(tag => `<span>${escapeHtml(tag)}</span>`).join('')}</div><div class="recipe-rating">★ ${number(rating)} <small>· ${ratingLabel}</small></div></div></article>`;
   }).join('');
+  $('#recipe-load-more').hidden = visibleRecipes.length >= recipes.length;
+  $('#recipe-load-more').textContent = `Mostrar ${Math.min(36, recipes.length - visibleRecipes.length)} más`;
+  renderCatalogCounts();
 }
 
 function showRecipe(id, servings) {
@@ -600,7 +616,7 @@ async function shareShopping() {
 }
 
 function exportData() {
-  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify(createStateSnapshot(state), null, 2)], { type: 'application/json' });
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob); link.download = `nutrihome-backup-${new Date().toISOString().slice(0,10)}.json`; link.click(); URL.revokeObjectURL(link.href);
 }
@@ -657,8 +673,10 @@ function bindEvents() {
   });
   $('#open-generator').addEventListener('click', () => $('#generator-dialog').showModal());
   $('#generator-form').addEventListener('submit', event => { event.preventDefault(); const mode = event.submitter.value; $('#generator-dialog').close(); runGenerator(mode); });
-  $('#recipe-search').addEventListener('input', renderRecipes); $('#filter-meal').addEventListener('change', renderRecipes); $('#filter-time').addEventListener('change', renderRecipes); $('#filter-protein').addEventListener('change', renderRecipes); $('#filter-diet').addEventListener('change', renderRecipes); $('#filter-pantry').addEventListener('change', renderRecipes);
-  $('#what-can-cook').addEventListener('click', () => { navigate('recipes'); $('#filter-pantry').checked = true; renderRecipes(); });
+  const resetRecipeResults = () => { recipeVisibleLimit = 36; renderRecipes(); };
+  $('#recipe-search').addEventListener('input', resetRecipeResults); $('#filter-meal').addEventListener('change', resetRecipeResults); $('#filter-time').addEventListener('change', resetRecipeResults); $('#filter-protein').addEventListener('change', resetRecipeResults); $('#filter-diet').addEventListener('change', resetRecipeResults); $('#filter-pantry').addEventListener('change', resetRecipeResults);
+  $('#recipe-load-more').addEventListener('click', () => { recipeVisibleLimit += 36; renderRecipes(); });
+  $('#what-can-cook').addEventListener('click', () => { navigate('recipes'); $('#filter-pantry').checked = true; resetRecipeResults(); });
   $('#pantry-search').addEventListener('input', renderPantry); $('#pantry-location').addEventListener('change', renderPantry);
   $('#add-pantry').addEventListener('click', () => openPantryForm()); $('#pantry-form').addEventListener('submit', event => { event.preventDefault(); savePantryForm(event.currentTarget); });
   $('#add-recipe').addEventListener('click', () => { $('#recipe-form').reset(); $('#recipe-form-error').textContent = ''; $('#recipe-form-dialog').showModal(); }); $('#recipe-form').addEventListener('submit', event => { event.preventDefault(); saveRecipeForm(event.currentTarget); });
@@ -687,7 +705,8 @@ async function init() {
   const local = await loadLocalState();
   const remote = await pullRemoteState();
   state = normalizeState(newestSnapshot(local, remote.state));
-  state = await saveLocalState(state);
+  const snapshot = await saveLocalState(createStateSnapshot(state));
+  state.updatedAt = snapshot.updatedAt;
   updateSyncBadge(remote.status);
   bindEvents(); renderAll();
   const route = location.hash.slice(1); if (['week','recipes','pantry','shopping','more'].includes(route)) navigate(route, false);
