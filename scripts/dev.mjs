@@ -22,4 +22,4 @@ const server = http.createServer(async (request, response) => {
   createReadStream(target).pipe(response);
 });
 
-server.listen(port, '127.0.0.1', () => console.log(`Marea available at http://127.0.0.1:${port}`));
+server.listen(port, '127.0.0.1', () => console.log(`NutriHome available at http://127.0.0.1:${port}`));

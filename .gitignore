@@ -3,6 +3,7 @@ dist/
 .DS_Store
 Thumbs.db
 node_modules/
+.pnpm-store/
 .env
 .env.*
 !.env.example

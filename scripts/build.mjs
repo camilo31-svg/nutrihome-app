@@ -11,7 +11,7 @@ await rm(dist, { recursive: true, force: true });
 await mkdir(client, { recursive: true });
 await mkdir(server, { recursive: true });
 
-for (const filename of ['index.html', 'styles.css', 'cycle-model.js', 'app.js', 'sw.js', 'manifest.webmanifest', 'og.png']) {
+for (const filename of ['index.html', 'styles.css', 'nutrihome-core.js', 'demo-data.js', 'storage.js', 'app.js', 'sw.js', 'manifest.webmanifest', 'og.png']) {
   await cp(path.join(root, filename), path.join(client, filename));
 }
 await cp(path.join(root, 'icons'), path.join(client, 'icons'), { recursive: true });
@@ -26,4 +26,4 @@ try {
   // The first local build can run before a Sites project is created.
 }
 
-console.log('Marea build ready in dist/');
+console.log('NutriHome build ready in dist/');

@@ -1,386 +1,159 @@
 <!doctype html>
 <html lang="es">
   <head>
-    <meta charset="UTF-8" />
+    <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#f7f3ee" />
-    <meta name="description" content="Marea: seguimiento privado del ciclo, fase hormonal relativa, bienestar, alimentación y predicción probabilística multiseñal." />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="Marea" />
-    <meta property="og:title" content="Marea · Tu ciclo, con contexto" />
-    <meta property="og:description" content="Ciclo, bienestar y alimentación con contexto privado, personal y probabilístico." />
+    <meta name="theme-color" content="#173f35" />
+    <meta name="description" content="NutriHome convierte tu semana, tu despensa y tus objetivos en un menú y una compra claros." />
+    <meta property="og:title" content="NutriHome · Come bien, compra justo" />
+    <meta property="og:description" content="Menús semanales, recetas, despensa y compra inteligente en un mismo lugar." />
     <meta property="og:type" content="website" />
     <meta property="og:image" content="og.png" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Marea · Tu ciclo, con contexto" />
-    <meta name="twitter:description" content="Ciclo, bienestar y alimentación con contexto privado, personal y probabilístico." />
+    <meta name="twitter:title" content="NutriHome · Come bien, compra justo" />
+    <meta name="twitter:description" content="Menús semanales, recetas, despensa y compra inteligente en un mismo lugar." />
     <meta name="twitter:image" content="og.png" />
-    <title>Marea · Tu ciclo, con contexto</title>
     <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" href="icons/icon-192.png" />
     <link rel="apple-touch-icon" href="icons/icon-192.png" />
     <link rel="stylesheet" href="styles.css" />
+    <title>NutriHome · Come bien, compra justo</title>
   </head>
   <body>
+    <a class="skip-link" href="#main-content">Saltar al contenido</a>
     <div class="app-shell">
-      <aside class="side-nav" aria-label="Navegación principal">
-        <a class="brand" href="#hoy" aria-label="Marea, inicio">
-          <span class="brand-mark">m</span>
-          <span>Marea</span>
-        </a>
-        <nav>
-          <a class="nav-link active" data-nav="today" href="#hoy"><span>⌂</span> Hoy</a>
-          <a class="nav-link" data-nav="calendar" href="#calendario"><span>□</span> Calendario</a>
-          <a class="nav-link" data-nav="insights" href="#tendencias"><span>↗</span> Tendencias</a>
-          <a class="nav-link" data-nav="settings" href="#ajustes"><span>◇</span> Ajustes</a>
-        </nav>
-        <div class="privacy-note"><span>●</span> Tus datos se guardan en este dispositivo</div>
-      </aside>
+      <header class="topbar">
+        <button class="brand" type="button" data-nav="week" aria-label="NutriHome, ir al inicio"><span class="brand-mark" aria-hidden="true">N</span><span>NutriHome</span></button>
+        <div class="topbar-actions">
+          <span class="sync-badge" id="sync-badge"><i></i><span>Guardado</span></span>
+          <button class="icon-btn" id="notifications" type="button" aria-label="Ver avisos"><span aria-hidden="true">♡</span><i></i></button>
+          <button class="icon-btn" id="install-app" type="button" aria-label="Instalar NutriHome" hidden><span aria-hidden="true">⇩</span></button>
+          <button class="avatar-btn" type="button" data-nav="more" aria-label="Abrir perfil">TM</button>
+        </div>
+      </header>
 
-      <main class="main-view">
-        <section id="hoy" class="view active" data-view="today">
-        <header class="topbar">
-          <div>
-            <p class="eyebrow" id="today-label">MARTES, 25 DE AGOSTO</p>
-            <h1>Buenos días</h1>
+      <main id="main-content">
+        <section class="view active" id="view-week" data-view="week" aria-labelledby="week-title">
+          <div class="welcome-row">
+            <div><p class="eyebrow">TU SEMANA, EN ORDEN</p><h1 id="week-title">Buenos días, <span id="profile-name">Toni</span> <span aria-hidden="true">👋</span></h1><p class="intro">Un menú compatible contigo, usando lo que ya tienes.</p></div>
+            <div class="week-cost"><span>Coste estimado</span><strong id="week-cost">—</strong><small id="budget-status">del presupuesto semanal</small></div>
           </div>
-          <div class="top-actions">
-            <button class="icon-btn theme-toggle" type="button" aria-label="Cambiar modo de color">☾</button>
-            <button class="avatar" type="button" aria-label="Abrir perfil">TM</button>
-          </div>
-        </header>
 
-        <section class="hero-grid" aria-label="Resumen del ciclo">
-          <article class="cycle-card">
-            <div class="cycle-copy">
-              <span class="phase-pill" id="phase-pill"><i></i> Fase folicular</span>
-              <h2>Día <strong id="cycle-day">9</strong> del ciclo</h2>
-              <p id="phase-copy">Tu energía puede empezar a subir. La ventana fértil se aproxima.</p>
-              <div class="prediction-row">
-                <div><span>Próxima fase</span><strong id="next-phase">Fértil · en 3 días</strong></div>
-                <button class="confidence" id="confidence-button" type="button">82% confianza</button>
-              </div>
-            </div>
-            <div class="cycle-orbit" aria-label="Día 9 de un ciclo estimado de 29 días">
-              <div class="orbit-dot"></div>
-              <div class="orbit-inner"><span>DÍA</span><strong id="orbit-day">9</strong><small>de <b id="orbit-length">29</b></small></div>
-            </div>
-          </article>
+          <section class="hero-card" id="today-card" aria-labelledby="today-title">
+            <div class="hero-copy"><span class="status-pill" id="today-pill">HOY</span><p class="hero-kicker">Siguiente comida</p><h2 id="today-title">Preparando tu semana…</h2><p id="today-reason">Buscando una opción compatible.</p><div class="macro-row" id="today-macros"></div><button class="light-btn" type="button" id="open-today">Ver receta <span aria-hidden="true">→</span></button></div>
+            <div class="hero-dish" aria-hidden="true"><span id="today-emoji">🥙</span></div>
+          </section>
 
-          <article class="next-card">
-            <div class="card-heading"><span class="mini-icon">◌</span><span>PRÓXIMO PERIODO</span></div>
-            <strong class="big-date" id="next-period-date">15 sep</strong>
-            <p id="period-window">Ventana estimada: 14–17 sep</p>
-            <div class="sparkline" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
-            <small id="variability-note">± 2 días según tus últimos ciclos</small>
-          </article>
-        </section>
-
-        <section class="daily-context-grid" aria-label="Contexto personal de hoy">
-          <article class="context-card hormone-today-card">
-            <div class="context-card-heading"><span class="context-icon hormone">≈</span><div><p class="eyebrow">FASE REPRODUCTIVA ESTIMADA</p><h2 id="hormone-stage">Aprendiendo tu ciclo</h2></div></div>
-            <p id="hormone-stage-copy">Confirma el inicio del periodo para situar el patrón hormonal relativo.</p>
-            <div id="hormone-bars" class="hormone-bars" aria-label="Índices hormonales relativos"></div>
-            <small class="model-caveat">Patrón relativo, no niveles medidos ni análisis de sangre.</small>
-          </article>
-          <article class="context-card wellbeing-card">
-            <div class="context-card-heading"><span class="context-icon wellbeing">☼</span><div><p class="eyebrow">ÁNIMO Y ENERGÍA</p><h2 id="wellbeing-title">Aprendiendo tu patrón</h2></div></div>
-            <div class="wellbeing-values"><div><span>Ánimo probable</span><strong id="predicted-mood">Nivel habitual</strong></div><div><span>Energía probable</span><strong id="predicted-energy">Nivel habitual</strong></div></div>
-            <p id="wellbeing-copy">No asumimos que una fase determine cómo te sentirás. Registra varios días y ciclos para crear una predicción personal.</p>
-            <small id="wellbeing-confidence" class="model-caveat">0 días útiles · componente cíclico desactivado</small>
-          </article>
-          <article class="context-card nutrition-today-card">
-            <div class="context-card-heading"><span class="context-icon nutrition">⌁</span><div><p class="eyebrow">APOYO ALIMENTARIO</p><h2 id="nutrition-title">Configura tu alimentación</h2></div></div>
-            <div id="nutrition-suggestions" class="nutrition-suggestions"><p>Indica tu dieta, alergias e intolerancias para recibir opciones compatibles.</p></div>
-            <button class="text-btn" id="open-nutrition-settings" type="button">Configurar perfil →</button>
-          </article>
-        </section>
-
-        <article id="health-pattern-card" class="health-pattern-card" role="status" aria-live="polite">
-          <span class="health-pattern-icon">✓</span>
-          <div><span class="risk-kicker" id="health-pattern-kicker">SEGUIMIENTO LONGITUDINAL</span><strong id="health-pattern-title">Aún no hay suficientes datos para comparar</strong><p id="health-pattern-copy">Marea buscará cambios persistentes durante semanas; un día aislado nunca activa una recomendación médica.</p></div>
-          <button class="text-btn" id="open-health-model" type="button">Cómo funcionan las alertas →</button>
-        </article>
-
-        <article id="food-safety-card" class="food-safety-card" role="alert" hidden>
-          <span class="food-safety-icon">!</span><div><strong id="food-safety-title">Revisa lo que has registrado</strong><p id="food-safety-copy"></p><a id="food-safety-emergency" href="tel:112" hidden>Llamar al 112</a></div>
-        </article>
-
-        <section class="week-card" aria-labelledby="week-title">
           <div class="section-heading">
-            <div><p class="eyebrow">VISTA RÁPIDA</p><h2 id="week-title">Esta semana</h2></div>
-            <button class="text-btn" data-nav="calendar" type="button">Ver calendario →</button>
+            <div><p class="eyebrow">PLAN SEMANAL</p><h2 id="week-range">Esta semana</h2></div>
+            <button class="ghost-btn" id="open-generator" type="button"><span aria-hidden="true">✦</span> Generar semana</button>
           </div>
-          <div class="week-strip" id="week-strip" role="list"></div>
-          <div class="legend"><span><i class="follicular"></i> Folicular</span><span><i class="fertile"></i> Ventana fértil</span><span><i class="ovulation"></i> Ovulación estimada</span></div>
+          <div class="mode-chips" aria-label="Generación rápida">
+            <button type="button" data-generate-mode="pantry">Aprovechar despensa</button><button type="button" data-generate-mode="quick">Menú rápido</button><button type="button" data-generate-mode="economic">Económico</button><button type="button" data-generate-mode="protein">Alta proteína</button><button type="button" id="what-can-cook">¿Qué puedo cocinar?</button>
+          </div>
+          <div class="day-tabs" id="day-tabs" role="tablist" aria-label="Días de la semana"></div>
+          <section class="day-summary" aria-live="polite">
+            <div><span>Objetivo del día</span><strong id="day-calories">— <small>kcal</small></strong></div><div class="progress-track"><i id="day-progress"></i></div>
+            <div class="day-macros"><span><i class="protein"></i> Proteína <b id="day-protein">—</b></span><span><i class="carbs"></i> Carbos <b id="day-carbs">—</b></span><span><i class="fat"></i> Grasas <b id="day-fat">—</b></span></div>
+            <p class="exercise-note" id="exercise-note" hidden></p>
+          </section>
+          <div class="meal-list" id="meal-list" aria-live="polite"></div>
+          <section class="waste-card" id="waste-card"><div class="waste-icon" aria-hidden="true">♻</div><div><p class="eyebrow">MENOS DESPERDICIO</p><h2>Aprovecha lo que caduca primero</h2><p id="waste-copy">Revisando tu despensa…</p></div><button class="secondary-btn" type="button" data-generate-mode="waste">Crear menú</button></section>
         </section>
 
-        <section class="log-section" aria-labelledby="log-title">
-          <div class="section-heading">
-            <div><p class="eyebrow">REGISTRO DIARIO</p><h2 id="log-title">¿Cómo te sientes hoy?</h2></div>
-            <button class="primary-btn" data-open-log type="button">＋ Añadir registro</button>
+        <section class="view" id="view-recipes" data-view="recipes" aria-labelledby="recipes-title">
+          <div class="page-heading"><div><p class="eyebrow">TU COCINA, CON IDEAS</p><h1 id="recipes-title">Recetas</h1><p class="intro"><span id="recipe-count">0</span> recetas compatibles y editables.</p></div><div class="heading-actions"><button class="secondary-btn" id="import-recipe" type="button">Importar URL</button><button class="primary-btn" id="add-recipe" type="button">＋ Añadir receta</button></div></div>
+          <div class="search-panel">
+            <label class="search-field"><span aria-hidden="true">⌕</span><span class="sr-only">Buscar recetas</span><input id="recipe-search" type="search" placeholder="Nombre, ingrediente o etiqueta…" autocomplete="off" /></label>
+            <div class="filter-grid">
+              <label><span>Momento</span><select id="filter-meal"><option value="">Todos</option><option value="breakfast">Desayuno</option><option value="lunch">Comida</option><option value="snack">Merienda</option><option value="dinner">Cena</option></select></label>
+              <label><span>Tiempo máximo</span><select id="filter-time"><option value="">Cualquiera</option><option>10</option><option>15</option><option>20</option><option>25</option><option>30</option><option>45</option><option>60</option></select></label>
+              <label><span>Proteína mínima</span><select id="filter-protein"><option value="">Cualquiera</option><option value="20">20 g</option><option value="30">30 g</option><option value="40">40 g</option></select></label>
+              <label><span>Dieta compatible</span><select id="filter-diet"><option value="">Mi perfil</option><option value="vegan">Vegana</option><option value="vegetarian">Vegetariana</option><option value="pescetarian">Pescetariana</option><option value="omnivore">Omnívora</option></select></label>
+              <label class="check-filter"><input id="filter-pantry" type="checkbox" /><span>Solo con mi despensa</span></label>
+            </div>
           </div>
-          <div class="quick-grid">
-            <button class="quick-card" data-open-log="flow" type="button"><span class="quick-icon blood">◒</span><span><strong>Flujo</strong><small id="quick-flow">Sin registrar</small></span><b>＋</b></button>
-            <button class="quick-card" data-open-log="mood" type="button"><span class="quick-icon mood">☺</span><span><strong>Estado de ánimo</strong><small id="quick-mood">Sin registrar</small></span><b>＋</b></button>
-            <button class="quick-card" data-open-log="symptoms" type="button"><span class="quick-icon symptom">✦</span><span><strong>Síntomas</strong><small id="quick-symptoms">Sin registrar</small></span><b>＋</b></button>
-            <button class="quick-card" data-open-log="biomarkers" type="button"><span class="quick-icon biomarkers">◎</span><span><strong>Biomarcadores</strong><small id="quick-biomarkers">Sin registrar</small></span><b>＋</b></button>
-            <button class="quick-card" data-open-log="sex" type="button"><span class="quick-icon sexual">♡</span><span><strong>Actividad sexual</strong><small id="quick-sex">Sin registrar</small></span><b>＋</b></button>
-            <button class="quick-card" data-open-log="food" type="button"><span class="quick-icon food">⌁</span><span><strong>Alimentación</strong><small id="quick-food">Sin registrar</small></span><b>＋</b></button>
-            <button class="quick-card" data-open-log="note" type="button"><span class="quick-icon note">✎</span><span><strong>Nota privada</strong><small id="quick-note">Escribe lo que quieras</small></span><b>＋</b></button>
-          </div>
-          <article id="model-readiness-card" class="model-readiness-card">
-            <div class="model-readiness-heading"><div><span class="risk-kicker">MODELO MULTISEÑAL</span><strong id="model-readiness-value">—</strong></div><button class="text-btn" id="open-model-dashboard" type="button">Ver modelo →</button></div>
-            <p id="model-readiness-copy"></p>
-            <div id="model-readiness-signals" class="signal-tags" aria-label="Señales incorporadas al modelo"></div>
-          </article>
-          <article id="daily-risk-card" class="daily-risk-card" hidden>
-            <div><span class="risk-kicker">ESTIMACIÓN ORIENTATIVA</span><strong id="daily-risk-value">—</strong><p id="daily-risk-copy"></p></div>
-            <button class="secondary-btn" data-open-pregnancy-model type="button">Entender el cálculo</button>
-          </article>
-        </section>
+          <div class="result-summary" id="recipe-summary"></div>
+          <div class="recipe-grid" id="recipe-grid" aria-live="polite"></div>
         </section>
 
-        <section id="calendario" class="view" data-view="calendar" aria-labelledby="calendar-title">
-          <header class="view-header">
-            <div><p class="eyebrow">TU MAPA MENSUAL</p><h1 id="calendar-title">Calendario</h1><p>Predicciones, registros y contexto en un solo lugar.</p></div>
-            <button class="primary-btn" data-open-log type="button">＋ Añadir registro</button>
-          </header>
-          <div class="calendar-layout">
-            <article class="calendar-card">
-              <div class="calendar-toolbar">
-                <button id="previous-month" class="icon-btn" type="button" aria-label="Mes anterior">←</button>
-                <h2 id="calendar-month">Agosto 2026</h2>
-                <button id="next-month" class="icon-btn" type="button" aria-label="Mes siguiente">→</button>
-              </div>
-              <div class="weekday-row" aria-hidden="true"><span>L</span><span>M</span><span>X</span><span>J</span><span>V</span><span>S</span><span>D</span></div>
-              <div id="calendar-grid" class="calendar-grid" role="grid" aria-label="Calendario mensual"></div>
-              <div class="legend calendar-legend"><span><i class="menstrual"></i> Periodo</span><span><i class="follicular"></i> Folicular</span><span><i class="fertile"></i> Fértil</span><span><i class="ovulation"></i> Ovulación estimada</span><span><i class="luteal"></i> Lútea</span></div>
-            </article>
-            <aside class="calendar-aside">
-              <article class="phase-detail-card">
-                <span class="phase-pill" id="selected-phase-pill"><i></i> Hoy · Folicular</span>
-                <p class="eyebrow">DÍA SELECCIONADO</p>
-                <h2 id="selected-date">25 de agosto</h2>
-                <p id="selected-phase-copy">Día 9 del ciclo. La ventana fértil se aproxima.</p>
-                <button class="secondary-btn" id="log-selected-day" type="button">Registrar este día</button>
-              </article>
-              <article class="accuracy-card">
-                <div class="card-heading"><span class="mini-icon">◎</span><span>CONFIANZA DEL MODELO</span></div>
-                <strong id="model-score">82%</strong>
-                <div class="meter"><span id="model-meter"></span></div>
-                <p id="model-data-note">Basada en 3 ciclos y una variación media de ±2 días.</p>
-                <button class="text-btn" id="open-model" type="button">Cómo se calcula →</button>
-              </article>
-            </aside>
-          </div>
-        </section>
-
-        <section id="tendencias" class="view" data-view="insights" aria-labelledby="insights-title">
-          <header class="view-header">
-            <div><p class="eyebrow">PATRONES PERSONALES</p><h1 id="insights-title">Tendencias</h1><p>Lo importante no es ser “regular”, sino conocer tu propio patrón.</p></div>
-            <button class="secondary-btn" id="export-report" type="button">↓ Informe para consulta</button>
-          </header>
+        <section class="view" id="view-pantry" data-view="pantry" aria-labelledby="pantry-title">
+          <div class="page-heading"><div><p class="eyebrow">INVENTARIO DEL HOGAR</p><h1 id="pantry-title">En casa</h1><p class="intro">Cantidades reales, stock mínimo y caducidades.</p></div><button class="primary-btn" id="add-pantry" type="button">＋ Añadir producto</button></div>
           <div class="metric-grid">
-            <article class="metric-card"><span>Ciclo medio</span><strong id="metric-cycle">29 <small>días</small></strong><p id="metric-cycle-sub">Dentro de tu patrón habitual</p></article>
-            <article class="metric-card"><span>Periodo medio</span><strong id="metric-period">5 <small>días</small></strong><p>Según los registros de flujo</p></article>
-            <article class="metric-card"><span>Variación típica</span><strong id="metric-variation">±2 <small>días</small></strong><p id="metric-variation-sub">Predicción de confianza alta</p></article>
-            <article class="metric-card"><span>Ciclos registrados</span><strong id="metric-count">3</strong><p>Mejora con cada inicio confirmado</p></article>
+            <article><span>Productos</span><strong id="pantry-total">0</strong><small>registrados</small></article><article class="warning"><span>Se terminan</span><strong id="low-stock-total">0</strong><small>bajo el mínimo</small></article><article class="danger"><span>Caducan pronto</span><strong id="expiry-total">0</strong><small>en 3 días</small></article>
           </div>
-          <div class="insight-grid">
-            <article class="insight-card cycle-history-card">
-              <div class="section-heading"><div><p class="eyebrow">ÚLTIMOS 6 CICLOS</p><h2>Duración del ciclo</h2></div><span class="average-badge" id="average-badge">media 29 d</span></div>
-              <div id="cycle-chart" class="cycle-chart" aria-label="Gráfico de duración de ciclos"></div>
-            </article>
-            <article class="insight-card">
-              <div class="section-heading"><div><p class="eyebrow">LO QUE MÁS APARECE</p><h2>Tus señales</h2></div></div>
-              <div id="symptom-list" class="symptom-list"><p class="empty-state">Registra síntomas varios días para descubrir patrones.</p></div>
-            </article>
-          </div>
-          <article class="insight-card hormone-chart-card">
-            <div class="section-heading"><div><p class="eyebrow">PATRÓN RELATIVO ESTIMADO</p><h2>Cómo cambia el contexto hormonal</h2></div><span class="average-badge" id="hormone-chart-stage">Hoy · calculando</span></div>
-            <div class="hormone-chart-wrap"><canvas id="hormone-chart" width="960" height="340" aria-label="Curvas hormonales relativas estimadas durante el ciclo"></canvas></div>
-            <div class="hormone-legend" aria-hidden="true"><span class="estradiol">Estradiol</span><span class="progesterone">Progesterona</span><span class="lh">LH</span><span class="fsh">FSH</span><i>│ Hoy</i></div>
-            <p id="hormone-chart-copy" class="chart-explainer">Cada hormona se normaliza por separado. Las alturas entre hormonas no son comparables y no representan concentraciones personales.</p>
-          </article>
-          <article class="model-card">
-            <div class="model-copy">
-              <span class="phase-pill sage"><i></i> Modelo Marea v3 · multiseñal</span>
-              <h2>Una distribución personalizada, no un día inventado</h2>
-              <p>Fusiona el historial con LH, PdG, temperatura, moco cervical y señales opcionales de wearable. Cada dato actualiza la distribución de ovulación y su incertidumbre.</p>
-              <div class="model-inline-score"><strong id="insight-model-confidence">—</strong><span id="insight-model-window">Calculando ventana…</span></div>
-              <div id="insight-model-signals" class="signal-tags"></div>
-              <button class="secondary-btn" id="open-model-2" type="button">Ver metodología</button>
-            </div>
-            <div class="distribution" aria-label="Distribución probabilística de la próxima fecha">
-              <span style="--h:18%"></span><span style="--h:34%"></span><span style="--h:58%"></span><span style="--h:82%"></span><span class="peak" style="--h:100%"></span><span style="--h:76%"></span><span style="--h:50%"></span><span style="--h:29%"></span><span style="--h:14%"></span>
-              <i>más probable</i>
-            </div>
-          </article>
+          <div class="inventory-toolbar"><label class="search-field"><span aria-hidden="true">⌕</span><span class="sr-only">Buscar en la despensa</span><input id="pantry-search" type="search" placeholder="Buscar producto…" /></label><label><span class="sr-only">Filtrar por ubicación</span><select id="pantry-location"><option value="">Toda la casa</option><option value="fridge">Nevera</option><option value="freezer">Congelador</option><option value="pantry">Despensa</option></select></label></div>
+          <section class="alert-strip" id="pantry-alerts" aria-live="polite"></section>
+          <div class="pantry-list" id="pantry-list" aria-live="polite"></div>
         </section>
 
-        <section id="ajustes" class="view" data-view="settings" aria-labelledby="settings-title">
-          <header class="view-header"><div><p class="eyebrow">CONTROL Y PRIVACIDAD</p><h1 id="settings-title">Ajustes</h1><p>Marea funciona sin cuenta y guarda todo en tu dispositivo.</p></div><button class="primary-btn" id="install-app" type="button">Instalar app</button></header>
-          <div class="settings-layout">
-            <article class="settings-card">
-              <div class="settings-title"><span class="settings-icon">◉</span><div><h2>Mi ciclo</h2><p>Ajusta la base de la predicción.</p></div></div>
-              <label class="field"><span>Inicio del último periodo</span><input id="last-period-input" type="date" /></label>
-              <div class="field-row">
-                <label class="field"><span>Duración orientativa</span><input id="cycle-length-input" type="number" inputmode="numeric" min="15" max="60" value="29" /><small>días</small></label>
-                <label class="field"><span>Duración del periodo</span><input id="period-length-input" type="number" inputmode="numeric" min="1" max="14" value="5" /><small>días</small></label>
-              </div>
-              <label class="field"><span>Contexto</span><select id="cycle-context"><option value="natural">Ciclo natural</option><option value="hormonal">Anticoncepción hormonal</option><option value="trying">Buscando embarazo</option><option value="pregnant">Embarazo</option><option value="postpartum">Posparto / lactancia</option><option value="perimenopause">Perimenopausia</option></select></label>
-              <label class="field"><span>Patrón conocido</span><select id="cycle-pattern"><option value="auto">Aprender automáticamente</option><option value="regular">Suele ser regular</option><option value="variable">Variable o irregular</option></select></label>
-              <p class="field-help">Las fases hormonales no se estiman si indicas anticoncepción hormonal, embarazo o posparto.</p>
-              <button class="secondary-btn" id="save-cycle-settings" type="button">Guardar cambios</button>
-            </article>
+        <section class="view" id="view-shopping" data-view="shopping" aria-labelledby="shopping-title">
+          <div class="page-heading"><div><p class="eyebrow">COMPRA SOLO LO QUE FALTA</p><h1 id="shopping-title">Lista de compra</h1><p class="intro" id="shopping-subtitle">Calculada desde tu menú y tu despensa.</p></div><div class="heading-actions"><button class="secondary-btn" id="share-shopping" type="button">Compartir</button><button class="primary-btn" id="add-shopping" type="button">＋ Añadir</button></div></div>
+          <section class="shopping-hero"><div><span>Progreso de compra</span><strong id="shopping-progress-label">0 de 0</strong></div><div class="progress-track light"><i id="shopping-progress"></i></div><p id="shopping-saving">Comprobando lo que ya tienes…</p><button class="text-btn" id="refresh-shopping" type="button">↻ Recalcular desde el menú</button></section>
+          <div class="shopping-list" id="shopping-list" aria-live="polite"></div>
+          <div class="empty-state" id="shopping-empty" hidden><span>✓</span><h2>Ya está todo</h2><p>No falta ningún ingrediente para el menú actual.</p></div>
+        </section>
 
-            <article class="settings-card">
-              <div class="settings-title"><span class="settings-icon">◷</span><div><h2>Recordatorios</h2><p>Discretos y bajo tu control.</p></div></div>
-              <label class="setting-row"><span><strong>Registro diario</strong><small>Un toque para anotar cómo te sientes</small></span><input class="switch" id="reminder-daily" type="checkbox" role="switch" /></label>
-              <label class="setting-row"><span><strong>Biomarcadores</strong><small>Recuerda LH o temperatura sin mostrar detalles sensibles</small></span><input class="switch" id="reminder-biomarkers" type="checkbox" role="switch" /></label>
-              <label class="setting-row"><span><strong>Próximo periodo</strong><small>Aviso 2 días antes de la ventana estimada</small></span><input class="switch" id="reminder-period" type="checkbox" role="switch" /></label>
-              <label class="setting-row"><span><strong>Ventana fértil estimada</strong><small>Información orientativa, nunca anticonceptiva</small></span><input class="switch" id="reminder-fertile" type="checkbox" role="switch" /></label>
-              <label class="setting-row"><span><strong>Cambio persistente</strong><small>Avisa si tus registros sugieren que conviene valorar el patrón</small></span><input class="switch" id="reminder-health" type="checkbox" role="switch" /></label>
-              <label class="field time-field"><span>Hora preferida</span><input id="reminder-time" type="time" value="20:30" /></label>
-              <button class="secondary-btn" id="enable-notifications" type="button">Activar notificaciones</button>
-              <p class="field-help" id="notification-status">El móvil te pedirá permiso. En esta versión los avisos locales se comprueban mientras Marea está abierta; no se envían desde un servidor con la app cerrada.</p>
-            </article>
-
-            <article class="settings-card nutrition-settings-card">
-              <div class="settings-title"><span class="settings-icon">⌁</span><div><h2>Alimentación y seguridad</h2><p>Dieta, alergias e intolerancias se aplican antes de sugerir alimentos.</p></div></div>
-              <label class="field"><span>Tipo de alimentación</span><select id="diet-type"><option value="omnivore">Omnívora</option><option value="pescatarian">Pescetariana</option><option value="vegetarian">Ovolactovegetariana</option><option value="lacto-vegetarian">Lactovegetariana</option><option value="ovo-vegetarian">Ovovegetariana</option><option value="vegan">Vegana</option></select></label>
-              <fieldset class="safety-fieldset"><legend>Alergias · exclusión estricta</legend><p>Marca tanto las confirmadas como las sospechadas. Marea no puede comprobar etiquetas ni contaminación cruzada.</p><div id="allergy-options" class="checkbox-grid">
-                <label><input type="checkbox" value="gluten" /> Cereales con gluten</label><label><input type="checkbox" value="crustaceans" /> Crustáceos</label><label><input type="checkbox" value="egg" /> Huevo</label><label><input type="checkbox" value="fish" /> Pescado</label><label><input type="checkbox" value="peanut" /> Cacahuete</label><label><input type="checkbox" value="soy" /> Soja</label><label><input type="checkbox" value="milk" /> Leche</label><label><input type="checkbox" value="nuts" /> Frutos de cáscara</label><label><input type="checkbox" value="celery" /> Apio</label><label><input type="checkbox" value="mustard" /> Mostaza</label><label><input type="checkbox" value="sesame" /> Sésamo</label><label><input type="checkbox" value="sulphites" /> Sulfitos</label><label><input type="checkbox" value="lupin" /> Altramuz</label><label><input type="checkbox" value="molluscs" /> Moluscos</label>
-              </div><label class="field compact-field"><span>Otras alergias</span><input id="allergy-other" type="text" maxlength="250" placeholder="Sepáralas con comas" /></label></fieldset>
-              <fieldset class="safety-fieldset intolerance-fieldset"><legend>Intolerancias · dependen de tu tolerancia</legend><p>Se mantienen separadas de las alergias: la app sugerirá alternativas y no inventará una cantidad segura.</p><div id="intolerance-options" class="checkbox-grid">
-                <label><input type="checkbox" value="lactose" /> Lactosa</label><label><input type="checkbox" value="fructose" /> Fructosa</label><label><input type="checkbox" value="histamine" /> Histamina</label><label><input type="checkbox" value="gluten" /> Gluten (sin diagnóstico celíaco)</label><label><input type="checkbox" value="fodmap" /> FODMAP indicados</label>
-              </div><label class="field compact-field"><span>Otras intolerancias</span><input id="intolerance-other" type="text" maxlength="250" placeholder="Sepáralas con comas" /></label><label class="period-start-check"><input id="celiac-condition" type="checkbox" /> Tengo enfermedad celíaca diagnosticada (exclusión estricta de gluten)</label></fieldset>
-              <button class="secondary-btn" id="save-nutrition-settings" type="button">Guardar perfil alimentario</button>
-              <p class="source-links nutrition-sources"><a href="https://www.aesan.gob.es/AECOSAN/docs/documentos/nutricion/RECOMENDACIONES_DIETETICAS.pdf" target="_blank" rel="noreferrer">AESAN: alimentación saludable</a><a href="https://food.ec.europa.eu/food-safety/campaign-2026/allergies_en" target="_blank" rel="noreferrer">UE: 14 alérgenos</a><a href="https://www.nhs.uk/live-well/eat-well/how-to-eat-a-balanced-diet/the-vegan-diet/" target="_blank" rel="noreferrer">NHS: dieta vegana</a></p>
-            </article>
-
-            <article class="settings-card">
-              <div class="settings-title"><span class="settings-icon">◐</span><div><h2>Apariencia</h2><p>También sigue la preferencia del sistema.</p></div></div>
-              <div class="theme-picker" role="radiogroup" aria-label="Tema de color">
-                <button type="button" data-theme="light"><i></i> Claro</button>
-                <button type="button" data-theme="dark"><i></i> Oscuro</button>
-                <button class="active" type="button" data-theme="system"><i></i> Sistema</button>
-              </div>
-              <label class="setting-row"><span><strong>Modo discreto</strong><small>Oculta detalles sensibles en los avisos</small></span><input class="switch" id="discreet-mode" type="checkbox" role="switch" /></label>
-            </article>
-
-            <article class="settings-card">
-              <div class="settings-title"><span class="settings-icon">⌁</span><div><h2>Tus datos</h2><p>Sin cuenta, anuncios ni venta de información.</p></div></div>
-              <div class="data-actions">
-                <button class="secondary-btn" id="export-data" type="button">Exportar copia</button>
-                <label class="secondary-btn file-button">Importar copia<input id="import-data" type="file" accept="application/json" /></label>
-                <button class="secondary-btn" id="download-signal-template" type="button">Plantilla de señales CSV</button>
-                <label class="secondary-btn file-button">Importar wearable CSV<input id="import-signals" type="file" accept=".csv,text/csv" /></label>
-                <button class="danger-btn" id="delete-data" type="button">Borrar todo</button>
-              </div>
-              <p class="field-help">La copia contiene datos de salud sensibles. Guárdala en un lugar seguro.</p>
-            </article>
+        <section class="view" id="view-more" data-view="more" aria-labelledby="more-title">
+          <div class="page-heading"><div><p class="eyebrow">TU NUTRIHOME</p><h1 id="more-title">Perfil y progreso</h1><p class="intro">Objetivos editables, actividad y control de tus datos.</p></div><button class="primary-btn" id="edit-profile" type="button">Editar perfil</button></div>
+          <div class="profile-layout">
+            <section class="profile-card"><div class="profile-avatar">TM</div><div><h2 id="profile-card-name">Toni</h2><p id="profile-diet">Vegetariana · sin huevo</p><div class="tag-row" id="profile-tags"></div></div></section>
+            <section class="goal-card"><div><span>Objetivo diario</span><strong id="goal-calories">— kcal</strong></div><div><span>Proteína</span><strong id="goal-protein">— g</strong></div><div><span>Presupuesto semanal</span><strong id="goal-budget">— €</strong></div></section>
           </div>
-          <aside class="medical-note"><strong>Marea informa; no diagnostica.</strong><p>Las fechas y fases son estimaciones. No uses Marea para evitar un embarazo. Ante dolor intenso, sangrado inusual, embarazo posible o cambios persistentes, consulta a un profesional sanitario.</p></aside>
+          <div class="section-heading"><div><p class="eyebrow">ACTIVIDAD</p><h2>Plan de ejercicio</h2></div><button class="ghost-btn" id="add-exercise" type="button">＋ Añadir</button></div>
+          <div class="exercise-grid" id="exercise-list"></div>
+          <div class="section-heading"><div><p class="eyebrow">ESTADÍSTICAS</p><h2>Tu semana de un vistazo</h2></div></div>
+          <div class="stats-grid" id="stats-grid"></div>
+          <div class="settings-grid">
+            <section class="settings-card"><h2>Datos y copia de seguridad</h2><p>Exporta una copia JSON completa o restaura una anterior.</p><div class="button-row"><button class="secondary-btn" id="export-data" type="button">Exportar JSON</button><label class="secondary-btn file-label">Importar JSON<input id="import-data" type="file" accept="application/json" /></label></div></section>
+            <section class="settings-card"><h2>Preferencias</h2><button class="setting-row" id="reset-preferences" type="button"><span><b>Reiniciar aprendizaje</b><small>Borra favoritos, valoraciones e historial.</small></span><span>→</span></button><button class="setting-row danger-text" id="delete-data" type="button"><span><b>Eliminar mis datos</b><small>Restablece NutriHome en este dispositivo.</small></span><span>→</span></button></section>
+            <section class="settings-card"><h2>Sincronización</h2><p id="sync-detail">Tus cambios se guardan offline en este dispositivo.</p><div class="privacy-note"><span aria-hidden="true">⌾</span><span>Los datos del hogar se envían al servidor solo cuando hay una sesión autenticada disponible.</span></div></section>
+          </div>
         </section>
       </main>
+
+      <nav class="bottom-nav" aria-label="Navegación principal">
+        <button class="active" type="button" data-nav="week"><span aria-hidden="true">⌂</span><b>Semana</b></button><button type="button" data-nav="recipes"><span aria-hidden="true">⌕</span><b>Recetas</b></button><button class="center-action" type="button" data-nav="pantry"><span aria-hidden="true">＋</span><b>En casa</b></button><button type="button" data-nav="shopping"><span aria-hidden="true">✓</span><b>Compra</b><i class="nav-count" id="nav-count">0</i></button><button type="button" data-nav="more"><span aria-hidden="true">•••</span><b>Más</b></button>
+      </nav>
     </div>
-    <nav class="bottom-nav" aria-label="Navegación móvil">
-      <a class="active" data-nav="today" href="#hoy"><span>⌂</span>Hoy</a>
-      <a data-nav="calendar" href="#calendario"><span>□</span>Calendario</a>
-      <button data-open-log type="button" aria-label="Añadir registro">＋</button>
-      <a data-nav="insights" href="#tendencias"><span>↗</span>Tendencias</a>
-      <a data-nav="settings" href="#ajustes"><span>◇</span>Ajustes</a>
-    </nav>
 
-    <dialog id="log-dialog" class="sheet-dialog">
-      <form id="log-form" method="dialog">
-        <header class="dialog-header"><div><p class="eyebrow">REGISTRO DIARIO</p><h2>Escucha tu cuerpo</h2></div><button class="close-btn" value="cancel" aria-label="Cerrar">×</button></header>
-        <label class="field"><span>Fecha</span><input id="log-date" name="date" type="date" required /></label>
-        <section class="form-section" data-log-section="flow"><h3>Flujo</h3><div class="choice-row" data-choice="flow"><button type="button" data-value="none">Nada</button><button type="button" data-value="spotting">Manchado</button><button type="button" data-value="light">Ligero</button><button type="button" data-value="medium">Medio</button><button type="button" data-value="heavy">Abundante</button></div><label class="period-start-check"><input id="period-start" type="checkbox" /> Este es el primer día del periodo</label></section>
-        <section class="form-section" data-log-section="mood"><h3>Estado de ánimo</h3><div class="choice-row emoji-row" data-choice="mood"><button type="button" data-value="great">😊<small>Genial</small></button><button type="button" data-value="calm">😌<small>En calma</small></button><button type="button" data-value="sensitive">🥹<small>Sensible</small></button><button type="button" data-value="low">😔<small>Bajo</small></button><button type="button" data-value="irritable">😤<small>Irritable</small></button></div></section>
-        <section class="form-section" data-log-section="symptoms"><h3>Síntomas y señales</h3><div class="choice-row multi" data-choice="symptoms"><button type="button" data-value="cramps">Calambres</button><button type="button" data-value="headache">Dolor de cabeza</button><button type="button" data-value="bloating">Hinchazón</button><button type="button" data-value="tenderness">Pecho sensible</button><button type="button" data-value="acne">Piel / acné</button><button type="button" data-value="backache">Dolor lumbar</button><button type="button" data-value="fatigue">Cansancio</button><button type="button" data-value="cravings">Antojos</button><button type="button" data-value="insomnia">Sueño irregular</button><button type="button" data-value="nausea">Náuseas</button></div></section>
-        <section class="form-section biomarker-section" data-log-section="biomarkers">
-          <h3>Biomarcadores de ovulación</h3>
-          <p class="section-help">Todos son opcionales. El modelo usa únicamente los que registres y reduce su confianza cuando faltan datos o una medición puede estar alterada.</p>
-          <div class="compact-fields">
-            <label class="field"><span>Test de LH</span><select id="lh-test"><option value="">Sin registrar</option><option value="negative">Negativo</option><option value="positive">Positivo</option><option value="peak">Pico / máximo del lector</option></select></label>
-            <label class="field"><span>Hora del test de LH</span><input id="lh-time" type="time" /></label>
-            <label class="field"><span>Test de PdG</span><select id="pdg-test"><option value="">Sin registrar</option><option value="negative">Negativo</option><option value="positive">Positivo según el test</option></select></label>
-            <label class="field"><span>Temperatura basal</span><span class="unit-input"><input id="temperature" type="number" inputmode="decimal" step="0.01" min="34" max="42" placeholder="36.45" /><small>°C</small></span></label>
-            <label class="field"><span>Hora de temperatura</span><input id="temperature-time" type="time" value="07:00" /></label>
-            <label class="field"><span>Moco cervical</span><select id="cervical"><option value="">Sin registrar</option><option value="dry">Ausente / seco</option><option value="sticky">Pegajoso</option><option value="creamy">Cremoso</option><option value="watery">Acuoso</option><option value="eggwhite">Elástico / clara de huevo</option></select></label>
-            <label class="field"><span>Sensación vulvar</span><select id="cervical-sensation"><option value="">Sin registrar</option><option value="dry">Seca</option><option value="damp">Húmeda</option><option value="wet">Mojada</option><option value="slippery">Lubricada / resbaladiza</option></select></label>
-          </div>
-          <div class="measurement-quality"><span>¿Algo puede alterar la temperatura?</span><div class="choice-row multi" data-choice="temperatureFactors"><button type="button" data-value="poor_sleep">Poco sueño</button><button type="button" data-value="illness">Fiebre o enfermedad</button><button type="button" data-value="alcohol">Alcohol</button><button type="button" data-value="late">Hora distinta</button><button type="button" data-value="travel">Viaje / cambio horario</button></div></div>
-          <details class="advanced-details"><summary>Señales de wearable o anillo <span>opcional</span></summary><div class="compact-fields"><label class="field"><span>Desviación de temperatura nocturna</span><span class="unit-input"><input id="wrist-temp-delta" type="number" inputmode="decimal" step="0.01" min="-5" max="5" placeholder="0.18" /><small>°C</small></span></label><label class="field"><span>Pulso en reposo</span><span class="unit-input"><input id="resting-heart-rate" type="number" inputmode="numeric" min="30" max="220" placeholder="63" /><small>lpm</small></span></label><label class="field"><span>HRV / variabilidad cardiaca</span><span class="unit-input"><input id="hrv" type="number" inputmode="numeric" min="1" max="300" placeholder="48" /><small>ms</small></span></label></div><p class="section-help">Introduce la desviación respecto a tu línea base, no la temperatura corporal absoluta. También puedes importar estos campos mediante CSV desde Ajustes.</p></details>
-        </section>
-        <section class="form-section sexual-section" data-log-section="sex">
-          <h3>Actividad sexual</h3>
-          <p class="section-help">Elige “sin protección o fallo” si hubo al menos una relación vaginal sin método eficaz o si el preservativo se rompió o salió.</p>
-          <div class="choice-row sexual-choice" data-choice="sexualActivity"><button type="button" data-value="none">Sin actividad</button><button type="button" data-value="protected">Con protección todo el tiempo</button><button type="button" data-value="unprotected">Sin protección o fallo</button></div>
-          <label id="sexual-time-field" class="field conditional-field" hidden><span>Hora aproximada</span><input id="sexual-time" type="time" /></label>
-          <label id="protection-method-field" class="field conditional-field" hidden><span>Método utilizado</span><select id="protection-method"><option value="condom">Preservativo</option><option value="pill">Píldora</option><option value="iud">DIU</option><option value="implant">Implante</option><option value="ring-patch">Anillo o parche</option><option value="injection">Inyección</option><option value="other">Otro método</option></select></label>
-          <label id="emergency-method-field" class="field conditional-field" hidden><span>Anticoncepción de emergencia</span><select id="emergency-method"><option value="none">No / sin registrar</option><option value="levonorgestrel">Levonorgestrel</option><option value="ulipristal">Ulipristal</option><option value="copper-iud">DIU de cobre</option></select></label>
-          <label id="emergency-time-field" class="field conditional-field" hidden><span>Fecha y hora de uso</span><input id="emergency-taken-at" type="datetime-local" /></label>
-          <div id="pregnancy-risk-preview" class="risk-preview" hidden>
-            <div class="risk-preview-heading"><span>Probabilidad estimada por esta relación</span><strong id="risk-preview-value">—</strong></div>
-            <div class="risk-track" aria-hidden="true"><span id="risk-track-fill"></span></div>
-            <p id="risk-preview-range"></p>
-            <p id="risk-preview-explanation"></p>
-            <aside id="emergency-guidance" class="emergency-guidance" hidden><strong>Podrías seguir dentro de la ventana de anticoncepción de emergencia.</strong><p>Si no deseas un embarazo, consulta hoy mismo en una farmacia o con un profesional sanitario. No esperes a que la app confirme una fase.</p></aside>
-            <button class="text-btn" data-open-pregnancy-model type="button">Cómo se estima y qué hacer →</button>
-          </div>
-        </section>
-        <div class="form-columns">
-          <section class="form-section"><label class="field"><span>Energía</span><select id="energy"><option value="">Sin registrar</option><option value="1">1 · Muy baja</option><option value="2">2 · Baja</option><option value="3">3 · Habitual</option><option value="4">4 · Alta</option><option value="5">5 · Muy alta</option></select></label></section>
-          <section class="form-section"><label class="field"><span>Estrés</span><select id="stress"><option value="">Sin registrar</option><option value="1">1 · Muy bajo</option><option value="2">2 · Bajo</option><option value="3">3 · Moderado</option><option value="4">4 · Alto</option><option value="5">5 · Muy alto</option></select></label></section>
+    <dialog class="sheet-dialog" id="onboarding-dialog" aria-labelledby="onboarding-title">
+      <form method="dialog" id="onboarding-form">
+        <div class="dialog-progress"><i id="onboarding-progress"></i></div>
+        <button class="close-btn" type="button" data-close-dialog="onboarding-dialog" aria-label="Cerrar configuración">×</button>
+        <p class="eyebrow">BIENVENIDA A NUTRIHOME</p><h2 id="onboarding-title">Tu alimentación, sin complicaciones</h2><p class="dialog-intro">Cuéntanos lo esencial para no proponerte platos incompatibles.</p>
+        <div class="form-grid">
+          <label><span>Tu nombre</span><input name="name" required maxlength="40" value="Toni" /></label>
+          <label><span>Dieta</span><select name="diet" required><option value="omnivore">Omnívora</option><option value="flexitarian">Flexitariana</option><option value="pescetarian">Pescetariana</option><option value="vegetarian" selected>Vegetariana</option><option value="vegan">Vegana</option><option value="lacto_vegetarian">Lacto-vegetariana</option><option value="ovo_vegetarian">Ovo-vegetariana</option></select></label>
+          <fieldset class="full-field"><legend>Exclusiones independientes</legend><label class="check-card"><input name="eatsEgg" type="checkbox" /><span><b>Consumo huevo</b><small>Desmarcado: nunca aparecerá en recetas ni menús.</small></span></label><label class="check-card"><input name="eatsDairy" type="checkbox" checked /><span><b>Consumo lácteos</b><small>Se comprueba aparte de la etiqueta vegetariana.</small></span></label></fieldset>
+          <label><span>Alergias e intolerancias</span><input name="allergies" placeholder="gluten, soja, frutos secos…" /></label><label><span>Alimentos que no te gustan</span><input name="dislikes" placeholder="champiñones, aceitunas…" /></label>
+          <label><span>Objetivo calórico</span><input name="calorieTarget" type="number" inputmode="numeric" min="1000" max="5000" value="2050" required /><small>kcal / día · es una estimación, no consejo médico</small></label><label><span>Objetivo de proteína</span><input name="proteinTarget" type="number" inputmode="numeric" min="20" max="300" value="110" required /><small>gramos / día</small></label>
+          <label><span>Presupuesto semanal</span><input name="weeklyBudget" type="number" inputmode="decimal" min="1" step="1" value="65" required /><small>euros</small></label><label><span>Personas</span><input name="people" type="number" inputmode="numeric" min="1" max="12" value="2" required /></label>
+          <label><span>Tiempo habitual para cocinar</span><select name="maxCookingTime"><option value="15">15 min</option><option value="20">20 min</option><option value="30" selected>30 min</option><option value="45">45 min</option><option value="60">60 min</option></select></label><label><span>Supermercado habitual</span><input name="supermarket" placeholder="Opcional" /></label>
+          <fieldset class="full-field"><legend>Equipamiento disponible</legend><div class="check-row"><label><input name="equipment" value="oven" type="checkbox" checked /> Horno</label><label><input name="equipment" value="microwave" type="checkbox" checked /> Microondas</label><label><input name="equipment" value="airfryer" type="checkbox" /> Air fryer</label><label><input name="equipment" value="blender" type="checkbox" checked /> Batidora</label></div></fieldset>
         </div>
-        <div class="form-columns"><section class="form-section"><h3>Sueño</h3><label class="inline-input"><input id="sleep" type="number" inputmode="decimal" step="0.5" min="0" max="24" placeholder="7.5" /> horas</label></section><section class="form-section wellbeing-checks"><h3>Impacto</h3><label><input id="low-interest" type="checkbox" /> Poco interés o disfrute hoy</label><label><input id="daily-impact" type="checkbox" /> Ha dificultado mi vida diaria</label><label><input id="safety-concern" type="checkbox" /> Me preocupa poder hacerme daño</label></section></div>
-        <section class="form-section food-log-section" data-log-section="food"><h3>Alimentación</h3><p class="section-help">Marca grupos o alérgenos presentes. Comprueba siempre la etiqueta actual y la contaminación cruzada.</p><div class="choice-row multi food-choice" data-choice="foods"><button type="button" data-value="vegetables">Verduras</button><button type="button" data-value="fruit">Fruta</button><button type="button" data-value="legumes">Legumbres</button><button type="button" data-value="wholegrains">Cereales integrales</button><button type="button" data-value="meat">Carne</button><button type="button" data-value="fish">Pescado</button><button type="button" data-value="milk">Leche / lácteos</button><button type="button" data-value="egg">Huevo</button><button type="button" data-value="soy">Soja</button><button type="button" data-value="gluten">Gluten</button><button type="button" data-value="peanut">Cacahuete</button><button type="button" data-value="nuts">Frutos de cáscara</button><button type="button" data-value="sesame">Sésamo</button><button type="button" data-value="crustaceans">Crustáceos</button><button type="button" data-value="molluscs">Moluscos</button><button type="button" data-value="celery">Apio</button><button type="button" data-value="mustard">Mostaza</button><button type="button" data-value="sulphites">Sulfitos</button><button type="button" data-value="lupin">Altramuz</button><button type="button" data-value="unknown">Ingredientes desconocidos</button></div><label class="field"><span>Detalle o plato</span><input id="food-note" type="text" maxlength="500" placeholder="Ej.: lentejas con arroz, cantidad aproximada…" /></label><aside id="food-log-warning" class="food-log-warning" hidden><strong>Revisa este registro</strong><p></p></aside></section>
-        <section class="form-section" data-log-section="note"><label class="field"><span>Nota privada</span><textarea id="note" rows="4" maxlength="1000" placeholder="Algo que quieras recordar…"></textarea></label></section>
-        <footer class="dialog-footer"><button class="secondary-btn" value="cancel">Cancelar</button><button class="primary-btn" id="save-log" value="default">Guardar registro</button></footer>
+        <div class="dialog-actions"><button class="primary-btn wide" value="default" type="submit">Crear mi primera semana</button></div>
       </form>
     </dialog>
 
-    <dialog id="model-dialog" class="info-dialog">
-      <form method="dialog">
-        <button class="close-btn" value="cancel" aria-label="Cerrar">×</button>
-        <span class="phase-pill sage"><i></i> Transparencia por diseño</span>
-        <h2>Cómo predice Marea</h2>
-        <p>Marea v3 usa un modelo bayesiano multiseñal inspirado en modelos de estados ocultos y duraciones de fase. Mantiene una probabilidad para cada posible día de ovulación y la actualiza en el dispositivo; tus datos nunca se envían a una IA externa.</p>
-        <ol><li><strong>Prior personal.</strong> El historial, la mediana robusta, la recencia y la variabilidad forman la distribución inicial.</li><li><strong>Evidencia biológica.</strong> LH y PdG aportan las señales más directas. El modelo detecta cambios térmicos sostenidos, interpreta moco cervical y añade con menor peso temperatura nocturna, pulso y HRV.</li><li><strong>Control de calidad.</strong> Descarta la temperatura marcada como alterada y evita que mediciones repetidas finjan una certeza imposible.</li><li><strong>Ensamblado temporal.</strong> La ovulación probable actualiza la fase, la siguiente menstruación y la probabilidad asociada a una relación sin protección.</li><li><strong>Intervalos siempre.</strong> La confianza es una medida interna de información disponible, no una tasa clínica de aciertos.</li></ol>
-        <div class="medical-note"><strong>Más señales no significan certeza.</strong><p>LH, temperatura y moco reducen la incertidumbre, pero ninguna combinación doméstica confirma por sí sola ovulación, embarazo o ausencia de fertilidad. Marea no es un anticonceptivo ni un dispositivo médico validado.</p></div>
-        <p class="source-links"><a href="https://pubmed.ncbi.nlm.nih.gov/16776638/" target="_blank" rel="noreferrer">Perfiles hormonales diarios</a><a href="https://www.nature.com/articles/s41746-019-0139-4" target="_blank" rel="noreferrer">Modelo HMM multiseñal</a><a href="https://www.nature.com/articles/s41597-026-06805-3" target="_blank" rel="noreferrer">Dataset mcPHASES 2026</a><a href="https://pubmed.ncbi.nlm.nih.gov/39881571/" target="_blank" rel="noreferrer">Temperatura nocturna y LH</a></p>
-        <button class="primary-btn" value="cancel">Entendido</button>
-      </form>
+    <dialog class="sheet-dialog recipe-dialog" id="recipe-dialog" aria-labelledby="recipe-dialog-title"><div id="recipe-dialog-content"></div></dialog>
+
+    <dialog class="sheet-dialog" id="pantry-dialog" aria-labelledby="pantry-dialog-title">
+      <form method="dialog" id="pantry-form"><button class="close-btn" type="button" data-close-dialog="pantry-dialog" aria-label="Cerrar">×</button><p class="eyebrow">EN CASA</p><h2 id="pantry-dialog-title">Añadir producto</h2><input name="id" type="hidden" />
+        <div class="form-grid"><label class="full-field"><span>Producto</span><input name="name" required maxlength="80" placeholder="Ej. arroz integral" /></label><label><span>Cantidad</span><input name="quantity" type="number" inputmode="decimal" min="0.01" step="0.01" required /></label><label><span>Unidad</span><select name="unit"><option>g</option><option>kg</option><option>ml</option><option>cl</option><option>l</option><option>unidad</option><option>paquete</option><option>lata</option><option>botella</option></select></label><label><span>Cantidad mínima</span><input name="minQuantity" type="number" inputmode="decimal" min="0" step="0.01" value="0" /></label><label><span>Categoría</span><select name="category"><option>verduras</option><option>frutas</option><option>refrigerados</option><option>congelados</option><option>cereales</option><option>legumbres</option><option>conservas</option><option>bebidas</option><option>otros</option></select></label><label><span>Ubicación</span><select name="location"><option value="fridge">Nevera</option><option value="freezer">Congelador</option><option value="pantry">Despensa</option></select></label><label><span>Caducidad / consumo preferente</span><input name="expiry" type="date" /></label><label><span>Precio pagado</span><input name="price" type="number" inputmode="decimal" min="0" step="0.01" placeholder="Opcional" /></label><label><span>Código de barras</span><input name="barcode" inputmode="numeric" maxlength="30" placeholder="Opcional" /></label></div>
+        <div class="dialog-actions"><button class="secondary-btn" type="button" data-close-dialog="pantry-dialog">Cancelar</button><button class="primary-btn" value="default" type="submit">Guardar producto</button></div></form>
     </dialog>
 
-    <dialog id="health-model-dialog" class="info-dialog">
-      <form method="dialog"><button class="close-btn" value="cancel" aria-label="Cerrar">×</button><span class="phase-pill sage"><i></i> Patrones, no diagnósticos</span><h2>Cómo funcionan las alertas de bienestar</h2><p>Marea compara tus registros contigo misma. No atribuye automáticamente el ánimo o la energía a las hormonas y nunca alerta por un solo día.</p><ol><li><strong>Aprendizaje prudente.</strong> El componente cíclico solo se activa tras al menos dos ciclos con cobertura suficiente y si mejora una referencia personal neutral.</li><li><strong>Cambio persistente.</strong> Un desvío estadístico repetido abre un check-in sobre sueño, estrés, dolor, enfermedad o medicación; por sí solo no diagnostica nada.</li><li><strong>Consulta sugerida.</strong> Ánimo bajo o pérdida de interés la mayoría de los días durante dos semanas —especialmente si afecta a tu vida—, o fatiga inexplicada durante varias semanas, merece valoración profesional.</li><li><strong>Ayuda inmediata.</strong> Si temes hacerte daño, llama al <a href="tel:024">024</a>; si hay peligro inmediato, llama al <a href="tel:112">112</a>.</li></ol><p class="source-links"><a href="https://www.nice.org.uk/guidance/ng222/chapter/recommendations" target="_blank" rel="noreferrer">NICE: depresión</a><a href="https://www.sanidad.gob.es/linea024/" target="_blank" rel="noreferrer">Línea 024</a><a href="https://doi.org/10.1017/S003329172400357X" target="_blank" rel="noreferrer">Hormonas, ánimo y energía 2025</a></p><button class="primary-btn" value="cancel">Entendido</button></form>
+    <dialog class="sheet-dialog" id="recipe-form-dialog" aria-labelledby="recipe-form-title">
+      <form method="dialog" id="recipe-form"><button class="close-btn" type="button" data-close-dialog="recipe-form-dialog" aria-label="Cerrar">×</button><p class="eyebrow">BIBLIOTECA PERSONAL</p><h2 id="recipe-form-title">Añadir receta</h2><p class="dialog-intro">Quedará disponible de inmediato en búsquedas, menús y compra.</p>
+        <div class="form-grid"><label class="full-field"><span>Nombre</span><input name="name" required maxlength="100" /></label><label><span>Tipo de comida</span><select name="mealType"><option value="breakfast">Desayuno</option><option value="lunch">Comida</option><option value="snack">Merienda</option><option value="dinner">Cena</option></select></label><label><span>Raciones</span><input name="servings" type="number" min="1" max="24" value="2" required /></label><label><span>Tiempo total</span><input name="totalTime" type="number" min="1" value="25" required /><small>minutos</small></label><label><span>Coste estimado total</span><input name="estimatedCost" type="number" min="0" step="0.01" value="4" /><small>euros · se mostrará como estimación</small></label><label><span>Calorías por ración</span><input name="kcal" type="number" min="0" value="500" /></label><label><span>Proteína por ración</span><input name="protein" type="number" min="0" value="25" /></label><label><span>Carbohidratos</span><input name="carbs" type="number" min="0" value="60" /></label><label><span>Grasas</span><input name="fat" type="number" min="0" value="18" /></label><label class="full-field"><span>Ingredientes</span><textarea name="ingredients" rows="5" required placeholder="Uno por línea: 200 g garbanzos cocidos"></textarea><small>Unidades admitidas: mg, g, kg, ml, cl, l, unidad, paquete, lata y botella.</small></label><label class="full-field"><span>Pasos</span><textarea name="steps" rows="5" required placeholder="Un paso por línea"></textarea></label><label class="full-field"><span>Etiquetas</span><input name="tags" placeholder="vegana, rápida, económica" /></label><fieldset class="full-field"><legend>Contiene</legend><div class="check-row"><label><input type="checkbox" name="traits" value="meat" /> Carne</label><label><input type="checkbox" name="traits" value="fish" /> Pescado</label><label><input type="checkbox" name="traits" value="egg" /> Huevo</label><label><input type="checkbox" name="traits" value="dairy" /> Lácteos</label><label><input type="checkbox" name="traits" value="soy" /> Soja</label><label><input type="checkbox" name="traits" value="gluten" /> Gluten</label><label><input type="checkbox" name="traits" value="nuts" /> Frutos secos</label></div></fieldset></div>
+        <div class="form-error" id="recipe-form-error" role="alert"></div><div class="dialog-actions"><button class="secondary-btn" type="button" data-close-dialog="recipe-form-dialog">Cancelar</button><button class="primary-btn" value="default" type="submit">Guardar receta</button></div></form>
     </dialog>
 
-    <dialog id="pregnancy-model-dialog" class="info-dialog pregnancy-info-dialog">
-      <form method="dialog">
-        <button class="close-btn" value="cancel" aria-label="Cerrar">×</button>
-        <span class="phase-pill sage"><i></i> Estimación, no diagnóstico</span>
-        <h2>Cómo estima Marea la probabilidad de embarazo</h2>
-        <p>Marea integra dos incertidumbres: la distribución multiseñal de la ovulación y la probabilidad observada para una relación sin protección en cada día respecto a ella. No se limita a marcar un día “fértil”.</p>
-        <ol><li><strong>Ovulación posible.</strong> LH, PdG, cambios térmicos, moco cervical, historial y wearable actualizan cada posible día.</li><li><strong>Curva de fecundabilidad.</strong> La evidencia sitúa la ventana biológica principalmente en los cinco días anteriores y el día de ovulación, con probabilidades observadas aproximadas de 10% a 33% en parejas sanas que buscaban embarazo.</li><li><strong>Resultado con intervalo.</strong> Integra la curva sobre todos los días posibles y mantiene un margen amplio para factores personales que la app no puede medir.</li></ol>
-        <div class="medical-note urgent-note"><strong>Si han pasado 5 días o menos, el tiempo importa.</strong><p>La anticoncepción de emergencia debe usarse cuanto antes. Las píldoras y el DIU de cobre pueden ser opciones hasta 120 horas según el caso; un profesional o una farmacia puede ayudarte a elegir. Un DIU de cobre es la opción de emergencia más eficaz. Haz una prueba de embarazo si no llega el periodo o aproximadamente 3 semanas después.</p><p>La anticoncepción de emergencia no protege frente a infecciones de transmisión sexual. Si hubo exposición posible, busca asesoramiento sanitario.</p></div>
-        <p class="source-links"><a href="https://www.who.int/news-room/fact-sheets/detail/emergency-contraception" target="_blank" rel="noreferrer">OMS: anticoncepción de emergencia</a><a href="https://www.cdc.gov/contraception/hcp/usspr/emergency-contraception.html" target="_blank" rel="noreferrer">CDC: recomendaciones 2024</a><a href="https://pubmed.ncbi.nlm.nih.gov/7477165/" target="_blank" rel="noreferrer">Estudio de fecundabilidad por día</a></p>
-        <button class="primary-btn" value="cancel">Entendido</button>
-      </form>
-    </dialog>
+    <dialog class="sheet-dialog compact-dialog" id="generator-dialog" aria-labelledby="generator-title"><form method="dialog" id="generator-form"><button class="close-btn" type="button" data-close-dialog="generator-dialog" aria-label="Cerrar">×</button><p class="eyebrow">PLANIFICACIÓN INTELIGENTE</p><h2 id="generator-title">¿Qué quieres priorizar?</h2><div class="generator-options"><button value="balanced" type="submit"><span>⚖</span><b>Equilibrado</b><small>Nutrición, coste, variedad y tiempo</small></button><button value="pantry" type="submit"><span>▦</span><b>Aprovechar despensa</b><small>Prioriza lo que ya tienes</small></button><button value="waste" type="submit"><span>♻</span><b>Caduca pronto</b><small>Reduce desperdicio</small></button><button value="economic" type="submit"><span>€</span><b>Económico</b><small>Cuida tu presupuesto</small></button><button value="quick" type="submit"><span>ϟ</span><b>Rápido</b><small>Menos tiempo en cocina</small></button><button value="protein" type="submit"><span>↑</span><b>Alta proteína</b><small>Acerca el menú a tu objetivo</small></button><button value="surprise" type="submit"><span>✦</span><b>Sorpréndeme</b><small>Variedad con tus restricciones</small></button></div></form></dialog>
 
-    <dialog id="confirm-dialog" class="confirm-dialog">
-      <form method="dialog"><h2>¿Borrar todos los datos?</h2><p>Se eliminarán registros, fechas, preferencias y predicciones de este dispositivo. No se puede deshacer.</p><div class="dialog-footer"><button class="secondary-btn" value="cancel">Cancelar</button><button class="danger-btn" id="confirm-delete" value="default">Borrar definitivamente</button></div></form>
-    </dialog>
-
-    <div id="setup-banner" class="setup-banner" role="status"><div><strong>Haz tu primera predicción personal</strong><span>Confirma el inicio de tu último periodo. Hasta entonces ves una estimación de ejemplo.</span></div><button class="primary-btn" id="start-setup" type="button">Configurar</button><button class="close-banner" type="button" aria-label="Ocultar">×</button></div>
-    <div id="toast" class="toast" role="status" aria-live="polite"></div>
-    <script src="cycle-model.js"></script>
-    <script src="app.js"></script>
+    <dialog class="sheet-dialog compact-dialog" id="simple-dialog"><form method="dialog" id="simple-form"><button class="close-btn" type="button" data-close-dialog="simple-dialog" aria-label="Cerrar">×</button><div id="simple-dialog-content"></div></form></dialog>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script type="module" src="app.js"></script>
   </body>
 </html>

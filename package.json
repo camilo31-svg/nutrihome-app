@@ -1,14 +1,14 @@
 {
-  "name": "marea-cycle-tracker",
-  "version": "1.1.0",
+  "name": "nutrihome-pwa",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "PWA privada y local-first para ciclo, hormonas relativas, bienestar y alimentación segura.",
+  "description": "PWA mobile-first para menús, recetas, despensa y compra inteligente.",
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "build": "node scripts/build.mjs",
-    "check": "node --check cycle-model.js && node --check app.js && node --check sw.js",
-    "test": "node tests/model.test.mjs"
+    "check": "node --check nutrihome-core.js && node --check demo-data.js && node --check storage.js && node --check app.js && node --check sw.js && node --check worker/index.js",
+    "test": "node tests/core.test.mjs && node tests/ui.test.mjs && node tests/worker.test.mjs"
   },
   "license": "MIT"
 }

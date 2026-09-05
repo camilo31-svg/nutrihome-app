@@ -1,6 +1,6 @@
-const CACHE_NAME = 'marea-v4';
+const CACHE_NAME = 'nutrihome-v1';
 const APP_SHELL = [
-  './', './index.html', './styles.css', './cycle-model.js', './app.js', './manifest.webmanifest',
+  './', './index.html', './styles.css', './nutrihome-core.js', './demo-data.js', './storage.js', './app.js', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-192-maskable.png',
   './icons/icon-512.png', './icons/icon-512-maskable.png', './og.png'
 ];
@@ -19,6 +19,7 @@ self.addEventListener('activate', event => {
 
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
+  if (new URL(event.request.url).pathname.includes('/api/')) return;
   if (event.request.mode === 'navigate') {
     event.respondWith(fetch(event.request).catch(() => caches.match('./index.html')));
     return;
