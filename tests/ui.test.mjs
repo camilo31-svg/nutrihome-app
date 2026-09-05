@@ -16,6 +16,12 @@ for (const view of ['week', 'recipes', 'pantry', 'shopping', 'more']) {
 assert.match(html, /id="onboarding-form"/);
 assert.match(html, /id="recipe-form"/);
 assert.match(html, /id="pantry-form"/);
+assert.match(html, /id="body-metrics-form"/);
+assert.match(html, /id="body-goal-form"/);
+assert.match(html, /id="weight-log-form"/);
+assert.match(html, /id="weight-chart"/);
+assert.match(html, /name="age"/);
+assert.match(html, /name="muscleKg"/);
 assert.match(html, /aria-live="polite"/);
 assert.match(html, /class="skip-link"/);
 assert.doesNotMatch(`${html}\n${app}\n${demoData}`, />TM<|Tu nombre|profile-name|profile-card-name/i);

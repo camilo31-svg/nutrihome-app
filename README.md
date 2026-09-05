@@ -15,6 +15,9 @@ NutriHome es una PWA mobile-first que conecta planificación semanal, recetas, o
 - Lista de compra que agrega ingredientes, normaliza unidades compatibles y resta existencias.
 - Productos manuales, marcado comprados, traspaso opcional a despensa y reversión coherente al desmarcar.
 - Perfil editable, onboarding, objetivos, presupuesto, equipamiento y planificación de ejercicio.
+- Calculadora de IMC para adultos con edad, altura y peso corporal, además de contexto sobre sus limitaciones.
+- Metas diferenciadas de peso corporal total o masa muscular, sin derivar la masa muscular del IMC.
+- Tracker corporal con registros fechados, actualización por día, gráfica de evolución y masa muscular opcional.
 - Estadísticas semanales, exportación e importación JSON y reinicio/eliminación de datos.
 - Persistencia local con IndexedDB, funcionamiento offline y una API de sincronización autenticada preparada para D1.
 - Importador de recetas basado exclusivamente en JSON-LD `Recipe` publicado por la fuente; no elude bloqueos ni hace scraping específico de plataformas.
@@ -47,6 +50,8 @@ npm run dev
 
 La aplicación queda disponible en `http://127.0.0.1:4173/`.
 
+Las medidas corporales forman parte del estado privado de NutriHome. Se guardan en IndexedDB y, cuando existe una sesión autenticada en Sites, se incluyen en el snapshot protegido del usuario en D1.
+
 ## Validación
 
 ```bash
@@ -66,6 +71,8 @@ Las pruebas cubren conversiones, unidades incompatibles, sinónimos, dieta veget
 - `dist/.openai/hosting.json` con el proyecto Sites y el binding lógico `DB`.
 
 La carpeta `drizzle/` contiene la migración de D1 y se empaqueta al crear una versión de Sites. No se necesitan claves en el frontend. Para otro proveedor compatible, configura un binding D1 llamado `DB` y sirve `dist/client` mediante el Worker.
+
+El workflow `.github/workflows/pages.yml` compila `dist/client` y publica esa versión estática en GitHub Pages. En Pages, la aplicación conserva el guardado local y el modo offline; las rutas de servidor y la sincronización D1 siguen disponibles únicamente en el despliegue de Sites.
 
 ## Privacidad y seguridad
 

@@ -1,8 +1,8 @@
 import { DEMO_RECIPES, DEFAULT_PROFILE, DEMO_EXERCISE, createDemoPantry } from './demo-data.js';
 import {
-  DAY_LABELS, MEAL_LABELS, buildShoppingList, consumeRecipe, generateWeek, getExpiryStatus,
+  DAY_LABELS, MEAL_LABELS, buildShoppingList, calculateBMI, calculateGoalProgress, classifyAdultBMI, consumeRecipe, generateWeek, getExpiryStatus,
   isRecipeCompatible, menuNutrition, normalizeFoodName, normalizeText, normalizeUnit,
-  pantryCoverage, regenerateMeal, roundQuantity, sameFood, scaleIngredients, upsertPantryItem, validateRecipe
+  pantryCoverage, regenerateMeal, roundQuantity, sameFood, scaleIngredients, upsertBodyMeasurement, upsertPantryItem, validateRecipe
 } from './nutrihome-core.js';
 import { clearLocalState, loadLocalState, newestSnapshot, pullRemoteState, pushRemoteState, saveLocalState } from './storage.js';
 
@@ -23,6 +23,10 @@ let saveTimer = null;
 let simpleHandler = null;
 let installPrompt = null;
 
+function defaultBodyMetrics() {
+  return { age: null, heightCm: null, currentWeightKg: null, currentMuscleKg: null, goalType: 'total', goalValueKg: null, history: [] };
+}
+
 function initialState() {
   const profile = clone(DEFAULT_PROFILE);
   const pantry = createDemoPantry();
@@ -31,7 +35,7 @@ function initialState() {
   return {
     version: 1, updatedAt: new Date().toISOString(), profile, pantry, recipes, menu,
     exercise: clone(DEMO_EXERCISE), favorites: [], ratings: {}, cookedHistory: [], dismissedRecipes: [],
-    shopping: buildShoppingList(menu, recipes, pantry), manualShopping: [], generationMode: 'balanced'
+    shopping: buildShoppingList(menu, recipes, pantry), manualShopping: [], generationMode: 'balanced', bodyMetrics: defaultBodyMetrics()
   };
 }
 
@@ -44,6 +48,8 @@ function normalizeState(saved) {
   merged.pantry = Array.isArray(saved.pantry) ? saved.pantry : fresh.pantry;
   merged.menu = Array.isArray(saved.menu) && saved.menu.length ? saved.menu : fresh.menu;
   merged.shopping = Array.isArray(saved.shopping) ? saved.shopping : buildShoppingList(merged.menu, merged.recipes, merged.pantry);
+  merged.bodyMetrics = { ...fresh.bodyMetrics, ...(saved.bodyMetrics || {}) };
+  merged.bodyMetrics.history = Array.isArray(saved.bodyMetrics?.history) ? saved.bodyMetrics.history.filter(item => item?.date && Number(item.weightKg) > 0).sort((a, b) => a.date.localeCompare(b.date)) : [];
   return merged;
 }
 
@@ -271,7 +277,204 @@ function renderProfile() {
   $('#stats-grid').innerHTML = `<article class="stat-card"><span>Media diaria</span><strong>${number(week.kcal / 7)}</strong><small>kcal</small></article><article class="stat-card"><span>Proteína media</span><strong>${number(week.protein / 7)} g</strong><small>al día</small></article><article class="stat-card"><span>Coste estimado</span><strong>${euro(week.cost)}</strong><small>semana</small></article><article class="stat-card"><span>Variedad</span><strong>${unique}</strong><small>recetas distintas</small></article><article class="stat-card"><span>Despensa útil</span><strong>${usedPantry}</strong><small>productos disponibles</small></article><article class="stat-card"><span>Cocinadas</span><strong>${state.cookedHistory.length}</strong><small>en el historial</small></article>`;
 }
 
-function renderAll() { renderWeek(); renderRecipes(); renderPantry(); renderShopping(); renderProfile(); }
+function localDateKey(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function formatMetricDate(value) {
+  return new Date(`${value}T12:00:00`).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function setMetricInput(form, name, value) {
+  const input = form.elements[name];
+  if (input && document.activeElement !== input) input.value = value ?? '';
+}
+
+function updateGoalFormCopy() {
+  const form = $('#body-goal-form');
+  const muscle = form.elements.goalType.value === 'muscle';
+  $('#body-goal-label').textContent = muscle ? 'Masa muscular deseada' : 'Peso corporal deseado';
+  form.elements.goalValueKg.min = muscle ? '5' : '25';
+  form.elements.goalValueKg.max = muscle ? '200' : '400';
+  $('#muscle-goal-note').hidden = !muscle;
+}
+
+function drawWeightChart() {
+  const canvas = $('#weight-chart');
+  const empty = $('#weight-chart-empty');
+  const history = state.bodyMetrics.history;
+  const hasChart = history.length >= 2;
+  canvas.hidden = !hasChart;
+  empty.hidden = hasChart;
+  if (!hasChart) return;
+
+  const width = Math.max(320, Math.floor(canvas.clientWidth || 720));
+  const height = 230;
+  const ratio = Math.max(1, window.devicePixelRatio || 1);
+  canvas.width = Math.floor(width * ratio);
+  canvas.height = Math.floor(height * ratio);
+  const context = canvas.getContext('2d');
+  context.scale(ratio, ratio);
+  const padding = { left: 46, right: 18, top: 24, bottom: 36 };
+  const chartWidth = width - padding.left - padding.right;
+  const chartHeight = height - padding.top - padding.bottom;
+  const values = history.map(item => Number(item.weightKg));
+  const min = Math.floor(Math.min(...values) - 1);
+  const max = Math.ceil(Math.max(...values) + 1);
+  const range = Math.max(2, max - min);
+  const x = index => padding.left + (history.length === 1 ? chartWidth / 2 : index / (history.length - 1) * chartWidth);
+  const y = value => padding.top + (max - value) / range * chartHeight;
+
+  context.clearRect(0, 0, width, height);
+  context.font = '11px system-ui, sans-serif';
+  context.fillStyle = '#66756f';
+  context.strokeStyle = '#e2e5df';
+  context.lineWidth = 1;
+  for (let index = 0; index <= 4; index += 1) {
+    const value = max - range * index / 4;
+    const lineY = padding.top + chartHeight * index / 4;
+    context.beginPath(); context.moveTo(padding.left, lineY); context.lineTo(width - padding.right, lineY); context.stroke();
+    context.fillText(`${number(value)} kg`, 2, lineY + 4);
+  }
+
+  context.strokeStyle = '#e97862';
+  context.lineWidth = 3;
+  context.lineJoin = 'round';
+  context.lineCap = 'round';
+  context.beginPath();
+  history.forEach((item, index) => index ? context.lineTo(x(index), y(item.weightKg)) : context.moveTo(x(index), y(item.weightKg)));
+  context.stroke();
+  history.forEach((item, index) => {
+    context.beginPath(); context.arc(x(index), y(item.weightKg), 4.5, 0, Math.PI * 2); context.fillStyle = '#173f35'; context.fill();
+  });
+  context.fillStyle = '#66756f';
+  const firstLabel = formatMetricDate(history[0].date).replace(/ de /g, ' ');
+  const lastLabel = formatMetricDate(history.at(-1).date).replace(/ de /g, ' ');
+  context.fillText(firstLabel, padding.left, height - 10);
+  const lastWidth = context.measureText(lastLabel).width;
+  context.fillText(lastLabel, width - padding.right - lastWidth, height - 10);
+}
+
+function renderBodyMetrics() {
+  const metrics = state.bodyMetrics;
+  const metricsForm = $('#body-metrics-form');
+  setMetricInput(metricsForm, 'age', metrics.age);
+  setMetricInput(metricsForm, 'heightCm', metrics.heightCm);
+  setMetricInput(metricsForm, 'weightKg', metrics.currentWeightKg);
+  setMetricInput(metricsForm, 'muscleKg', metrics.currentMuscleKg);
+
+  const result = $('#bmi-result');
+  if (metrics.age >= 18 && metrics.heightCm && metrics.currentWeightKg) {
+    const bmi = calculateBMI(metrics.currentWeightKg, metrics.heightCm);
+    const category = classifyAdultBMI(bmi);
+    result.className = `bmi-result ${category.key}`;
+    result.innerHTML = `<span>Tu IMC actual</span><strong>${number(bmi)}</strong><p>${category.label} · referencia para población adulta</p>`;
+  } else {
+    result.className = 'bmi-result empty';
+    result.innerHTML = '<span>IMC</span><strong>—</strong><p>Añade edad, altura y peso para calcularlo.</p>';
+  }
+
+  const goalForm = $('#body-goal-form');
+  if (document.activeElement !== goalForm.elements.goalType) goalForm.elements.goalType.value = metrics.goalType || 'total';
+  setMetricInput(goalForm, 'goalValueKg', metrics.goalValueKg);
+  updateGoalFormCopy();
+  const isMuscleGoal = metrics.goalType === 'muscle';
+  const usableHistory = metrics.history.filter(item => Number(isMuscleGoal ? item.muscleKg : item.weightKg) > 0);
+  const currentValue = usableHistory.length ? Number(isMuscleGoal ? usableHistory.at(-1).muscleKg : usableHistory.at(-1).weightKg) : Number(isMuscleGoal ? metrics.currentMuscleKg : metrics.currentWeightKg);
+  const startValue = usableHistory.length ? Number(isMuscleGoal ? usableHistory[0].muscleKg : usableHistory[0].weightKg) : currentValue;
+  const target = Number(metrics.goalValueKg);
+  const goalStatus = $('#body-goal-status');
+  if (target > 0) {
+    const progress = calculateGoalProgress(startValue, currentValue, target);
+    const kind = isMuscleGoal ? 'masa muscular' : 'peso corporal';
+    const detail = progress ? (progress.reached ? 'Meta alcanzada' : `${number(progress.remaining)} kg separan tu medida actual de la meta`) : 'Añade una medición actual para ver el progreso';
+    goalStatus.innerHTML = `<span>Meta de ${kind}</span><strong>${number(target)} kg</strong><div class="progress-track"><i style="width:${progress?.percent || 0}%"></i></div><small>${detail}${progress ? ` · ${progress.percent}% del recorrido` : ''}</small>`;
+  } else {
+    goalStatus.innerHTML = '<span>Sin meta activa</span><strong>Elige peso total o masa muscular</strong><div class="progress-track"><i></i></div><small>Podrás cambiarla cuando quieras.</small>';
+  }
+
+  const today = localDateKey();
+  const logForm = $('#weight-log-form');
+  logForm.elements.date.max = today;
+  if (!logForm.elements.date.value) logForm.elements.date.value = today;
+  const latest = metrics.history.at(-1);
+  if (latest) {
+    $('#latest-weight').textContent = `${number(latest.weightKg)} kg`;
+    const first = metrics.history[0];
+    const change = roundQuantity(latest.weightKg - first.weightKg);
+    $('#weight-change').textContent = metrics.history.length > 1 ? `${change > 0 ? '+' : change < 0 ? '−' : ''}${number(Math.abs(change))} kg desde el primer registro` : `Registrado el ${formatMetricDate(latest.date)}`;
+  } else if (metrics.currentWeightKg) {
+    $('#latest-weight').textContent = `${number(metrics.currentWeightKg)} kg`;
+    $('#weight-change').textContent = 'Guardado en la calculadora';
+  } else {
+    $('#latest-weight').textContent = '—';
+    $('#weight-change').textContent = 'Sin registros';
+  }
+
+  $('#weight-history').innerHTML = metrics.history.length ? [...metrics.history].reverse().map(item => {
+    const bmi = metrics.heightCm ? calculateBMI(item.weightKg, metrics.heightCm) : null;
+    return `<article class="weight-entry"><time datetime="${item.date}">${formatMetricDate(item.date)}</time><div><b>${number(item.weightKg)} kg</b><small>${bmi ? `IMC ${number(bmi)}` : 'Añade altura para calcular IMC'}${item.muscleKg ? ` · músculo ${number(item.muscleKg)} kg` : ''}</small></div><button type="button" data-delete-weight-entry="${item.id}" aria-label="Eliminar registro del ${formatMetricDate(item.date)}">×</button></article>`;
+  }).join('') : '<div class="tracker-empty"><span>↗</span><p>Tu evolución aparecerá aquí cuando guardes el primer registro.</p></div>';
+  canvasLabel(metrics.history);
+  requestAnimationFrame(drawWeightChart);
+}
+
+function canvasLabel(history) {
+  const canvas = $('#weight-chart');
+  if (!history.length) canvas.setAttribute('aria-label', 'Evolución del peso corporal sin registros todavía');
+  else canvas.setAttribute('aria-label', `Evolución del peso corporal con ${history.length} registros, desde ${number(history[0].weightKg)} hasta ${number(history.at(-1).weightKg)} kilogramos`);
+}
+
+function saveBodyMetrics(form) {
+  const data = new FormData(form);
+  const age = Number(data.get('age'));
+  const heightCm = Number(data.get('heightCm'));
+  const weightKg = Number(data.get('weightKg'));
+  const muscleKg = data.get('muscleKg') === '' ? null : Number(data.get('muscleKg'));
+  const error = $('#body-metrics-error');
+  error.textContent = '';
+  try {
+    if (!Number.isInteger(age) || age < 18 || age > 120) throw new TypeError('Esta calculadora usa la referencia adulta: indica una edad entre 18 y 120 años.');
+    calculateBMI(weightKg, heightCm);
+    if (weightKg < 25 || weightKg > 400) throw new TypeError('El peso debe estar entre 25 y 400 kg.');
+    if (muscleKg != null && (!Number.isFinite(muscleKg) || muscleKg < 5 || muscleKg > weightKg)) throw new TypeError('La masa muscular debe estar entre 5 kg y tu peso corporal.');
+  } catch (problem) { error.textContent = problem.message; return; }
+  state.bodyMetrics = { ...state.bodyMetrics, age, heightCm: roundQuantity(heightCm), currentWeightKg: roundQuantity(weightKg), currentMuscleKg: muscleKg == null ? null : roundQuantity(muscleKg) };
+  persist(); renderBodyMetrics(); showToast('Medidas guardadas y IMC actualizado');
+}
+
+function saveBodyGoal(form) {
+  const data = new FormData(form);
+  const goalType = data.get('goalType');
+  const goalValueKg = Number(data.get('goalValueKg'));
+  const error = $('#body-goal-error');
+  error.textContent = '';
+  const valid = goalType === 'muscle' ? goalValueKg >= 5 && goalValueKg <= 200 : goalValueKg >= 25 && goalValueKg <= 400;
+  if (!valid) { error.textContent = goalType === 'muscle' ? 'La meta muscular debe estar entre 5 y 200 kg.' : 'La meta de peso debe estar entre 25 y 400 kg.'; return; }
+  state.bodyMetrics.goalType = goalType;
+  state.bodyMetrics.goalValueKg = roundQuantity(goalValueKg);
+  persist(); renderBodyMetrics(); showToast('Meta corporal guardada');
+}
+
+function saveWeightLog(form) {
+  const data = new FormData(form);
+  const error = $('#weight-log-error');
+  error.textContent = '';
+  const date = data.get('date');
+  if (date > localDateKey()) { error.textContent = 'La fecha no puede estar en el futuro.'; return; }
+  try {
+    state.bodyMetrics.history = upsertBodyMeasurement(state.bodyMetrics.history, { date, weightKg: data.get('weightKg'), muscleKg: data.get('muscleKg') });
+  } catch (problem) { error.textContent = problem.message; return; }
+  const latest = state.bodyMetrics.history.at(-1);
+  state.bodyMetrics.currentWeightKg = latest.weightKg;
+  if (latest.muscleKg != null) state.bodyMetrics.currentMuscleKg = latest.muscleKg;
+  persist(); form.elements.weightKg.value = ''; form.elements.muscleKg.value = ''; renderBodyMetrics(); showToast('Registro corporal guardado');
+}
+
+function renderAll() { renderWeek(); renderRecipes(); renderPantry(); renderShopping(); renderProfile(); renderBodyMetrics(); }
 
 function openPantryForm(item) {
   const form = $('#pantry-form');
@@ -440,6 +643,7 @@ function bindEvents() {
     const edit = event.target.closest('[data-edit-pantry]'); if (edit) { openPantryForm(state.pantry.find(item => item.id === edit.dataset.editPantry)); return; }
     const check = event.target.closest('[data-check-shopping]'); if (check) { toggleShopping(check.dataset.checkShopping); return; }
     const removeShopping = event.target.closest('[data-delete-shopping]'); if (removeShopping) { state.shopping = state.shopping.filter(item => item.id !== removeShopping.dataset.deleteShopping); state.manualShopping = state.manualShopping.filter(item => item.id !== removeShopping.dataset.deleteShopping); persist(); renderShopping(); return; }
+    const removeWeight = event.target.closest('[data-delete-weight-entry]'); if (removeWeight) { if (!confirm('¿Eliminar este registro corporal?')) return; state.bodyMetrics.history = state.bodyMetrics.history.filter(item => item.id !== removeWeight.dataset.deleteWeightEntry); const latest = state.bodyMetrics.history.at(-1); state.bodyMetrics.currentWeightKg = latest?.weightKg || null; state.bodyMetrics.currentMuscleKg = latest?.muscleKg || null; persist(); renderBodyMetrics(); showToast('Registro eliminado'); return; }
     const close = event.target.closest('[data-close-dialog]'); if (close) { $(`#${close.dataset.closeDialog}`).close(); return; }
     const addLow = event.target.closest('[data-add-low-stock]'); if (addLow) { const low = state.pantry.filter(item => item.minQuantity > 0 && item.quantity <= item.minQuantity); for (const item of low) { if (state.shopping.some(row => sameFood(row.name, item.name) && !row.checked)) continue; const quantity = roundQuantity(Math.max(pantryStep(item), item.minQuantity - item.quantity)); const manual = { id: `manual-${crypto.randomUUID()}`, name: item.name, quantity, unit: item.unit, category: item.category, source: 'manual', checked: false }; state.manualShopping.push(manual); state.shopping.push(manual); } persist(); renderAll(); navigate('shopping'); showToast('Faltantes añadidos a la compra'); return; }
     const rate = event.target.closest('[data-rate]'); if (rate) { state.ratings[activeRecipeId] = Number(rate.dataset.rate); persist(); showRecipe(activeRecipeId, recipeServings); return; }
@@ -458,6 +662,10 @@ function bindEvents() {
   $('#add-recipe').addEventListener('click', () => { $('#recipe-form').reset(); $('#recipe-form-error').textContent = ''; $('#recipe-form-dialog').showModal(); }); $('#recipe-form').addEventListener('submit', event => { event.preventDefault(); saveRecipeForm(event.currentTarget); });
   $('#import-recipe').addEventListener('click', openImportRecipe); $('#add-shopping').addEventListener('click', openAddShopping); $('#share-shopping').addEventListener('click', shareShopping); $('#refresh-shopping').addEventListener('click', () => { recalculateShopping(); persist(); renderShopping(); showToast('Lista recalculada'); });
   $('#onboarding-form').addEventListener('submit', event => { event.preventDefault(); saveProfile(event.currentTarget); }); $('#edit-profile').addEventListener('click', () => { prefillProfileForm(); $('#onboarding-dialog').showModal(); });
+  $('#body-metrics-form').addEventListener('submit', event => { event.preventDefault(); saveBodyMetrics(event.currentTarget); });
+  $('#body-goal-form').addEventListener('submit', event => { event.preventDefault(); saveBodyGoal(event.currentTarget); });
+  $('#body-goal-type').addEventListener('change', updateGoalFormCopy);
+  $('#weight-log-form').addEventListener('submit', event => { event.preventDefault(); saveWeightLog(event.currentTarget); });
   $('#simple-form').addEventListener('submit', event => { event.preventDefault(); const data = new FormData(event.currentTarget); const handler = simpleHandler; $('#simple-dialog').close(); simpleHandler = null; handler?.(data); });
   $('#recipe-dialog').addEventListener('change', event => { if (event.target.id === 'recipe-servings') showRecipe(activeRecipeId, event.target.value); });
   $('#add-exercise').addEventListener('click', openExerciseForm); $('#export-data').addEventListener('click', exportData); $('#import-data').addEventListener('change', event => { if (event.target.files[0]) importData(event.target.files[0]); event.target.value = ''; });
@@ -469,6 +677,7 @@ function bindEvents() {
   $('#reset-preferences').addEventListener('click', () => { if (!confirm('¿Reiniciar favoritos, valoraciones e historial?')) return; state.favorites = []; state.ratings = {}; state.cookedHistory = []; state.dismissedRecipes = []; persist(); renderAll(); showToast('Preferencias reiniciadas'); });
   $('#delete-data').addEventListener('click', async () => { if (!confirm('¿Eliminar todos los datos de NutriHome en este dispositivo?')) return; await clearLocalState(); state = initialState(); renderAll(); persist({ remote: false }); prefillProfileForm(); $('#onboarding-dialog').showModal(); });
   window.addEventListener('online', () => { updateSyncBadge('pending'); persist(); }); window.addEventListener('offline', () => updateSyncBadge('offline'));
+  window.addEventListener('resize', () => requestAnimationFrame(drawWeightChart));
   window.addEventListener('beforeinstallprompt', event => { event.preventDefault(); installPrompt = event; $('#install-app').hidden = false; }); $('#install-app').addEventListener('click', async () => { if (!installPrompt) return; installPrompt.prompt(); await installPrompt.userChoice; installPrompt = null; $('#install-app').hidden = true; });
 }
 

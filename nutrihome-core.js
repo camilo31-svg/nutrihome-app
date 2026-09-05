@@ -93,6 +93,51 @@ export function roundQuantity(value) {
   return Math.round((Number(value) + Number.EPSILON) * 100) / 100;
 }
 
+export function calculateBMI(weightKg, heightCm) {
+  const weight = Number(weightKg);
+  const height = Number(heightCm);
+  if (!Number.isFinite(weight) || weight <= 0) throw new TypeError('El peso debe ser mayor que cero.');
+  if (!Number.isFinite(height) || height < 100 || height > 250) throw new TypeError('La altura debe estar entre 100 y 250 cm.');
+  return Math.round((weight / ((height / 100) ** 2)) * 10) / 10;
+}
+
+export function classifyAdultBMI(value) {
+  const bmi = Number(value);
+  if (!Number.isFinite(bmi) || bmi <= 0) throw new TypeError('El IMC debe ser un número positivo.');
+  if (bmi < 18.5) return { key: 'below', label: 'Bajo peso' };
+  if (bmi < 25) return { key: 'reference', label: 'Peso saludable' };
+  if (bmi < 30) return { key: 'above', label: 'Sobrepeso' };
+  return { key: 'high', label: 'Obesidad' };
+}
+
+export function calculateGoalProgress(startValue, currentValue, targetValue) {
+  const start = Number(startValue);
+  const current = Number(currentValue);
+  const target = Number(targetValue);
+  if (![start, current, target].every(value => Number.isFinite(value) && value > 0)) return null;
+  const distance = Math.abs(target - start);
+  if (distance < 0.01) return { percent: 100, remaining: 0, reached: true };
+  const rising = target > start;
+  const movement = rising ? current - start : start - current;
+  const reached = rising ? current >= target : current <= target;
+  return {
+    percent: Math.round(Math.max(0, Math.min(100, movement / distance * 100))),
+    remaining: reached ? 0 : roundQuantity(Math.abs(target - current)),
+    reached
+  };
+}
+
+export function upsertBodyMeasurement(history = [], measurement = {}) {
+  const date = String(measurement.date || '');
+  const weightKg = Number(measurement.weightKg);
+  const muscleKg = measurement.muscleKg === '' || measurement.muscleKg == null ? null : Number(measurement.muscleKg);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new TypeError('Indica una fecha válida.');
+  if (!Number.isFinite(weightKg) || weightKg < 25 || weightKg > 400) throw new TypeError('El peso debe estar entre 25 y 400 kg.');
+  if (muscleKg != null && (!Number.isFinite(muscleKg) || muscleKg < 5 || muscleKg > weightKg)) throw new TypeError('La masa muscular debe estar entre 5 kg y el peso corporal.');
+  const entry = { id: measurement.id || `body-${date}`, date, weightKg: roundQuantity(weightKg), muscleKg: muscleKg == null ? null : roundQuantity(muscleKg) };
+  return [...history.filter(item => item.date !== date), entry].sort((a, b) => a.date.localeCompare(b.date));
+}
+
 export function scaleIngredients(recipe, servings) {
   const target = Math.max(1, Number(servings) || recipe.servings || 1);
   const factor = target / (Number(recipe.servings) || 1);

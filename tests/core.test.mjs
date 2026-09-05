@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { DEMO_RECIPES, DEFAULT_PROFILE, createDemoPantry } from '../demo-data.js';
 import {
-  buildShoppingList, consumeRecipe, convertQuantity, generateWeek, getExpiryStatus,
-  isRecipeCompatible, pantryCoverage, regenerateMeal, sameFood, scaleIngredients, upsertPantryItem
+  buildShoppingList, calculateBMI, calculateGoalProgress, classifyAdultBMI, consumeRecipe, convertQuantity, generateWeek, getExpiryStatus,
+  isRecipeCompatible, pantryCoverage, regenerateMeal, sameFood, scaleIngredients, upsertBodyMeasurement, upsertPantryItem
 } from '../nutrihome-core.js';
 
 assert.equal(convertQuantity(1, 'kg', 'g'), 1000);
@@ -13,6 +13,16 @@ assert.throws(() => convertQuantity(1, 'l', 'g'), /familias/);
 assert.equal(sameFood('garbanzos cocidos', 'garbanzo cocido'), true);
 assert.equal(sameFood('garbanzos cocidos', 'garbanzos secos'), false);
 assert.equal(sameFood('tomates cherry', 'tomate'), true);
+assert.equal(calculateBMI(70, 175), 22.9);
+assert.deepEqual(classifyAdultBMI(18.4), { key: 'below', label: 'Bajo peso' });
+assert.deepEqual(classifyAdultBMI(24.9), { key: 'reference', label: 'Peso saludable' });
+assert.deepEqual(classifyAdultBMI(25), { key: 'above', label: 'Sobrepeso' });
+assert.deepEqual(classifyAdultBMI(30), { key: 'high', label: 'Obesidad' });
+assert.deepEqual(calculateGoalProgress(80, 75, 70), { percent: 50, remaining: 5, reached: false });
+assert.deepEqual(calculateGoalProgress(30, 33, 32), { percent: 100, remaining: 0, reached: true });
+const bodyHistory = upsertBodyMeasurement([], { date: '2026-09-05', weightKg: 72.4, muscleKg: 31.2 });
+assert.deepEqual(upsertBodyMeasurement(bodyHistory, { date: '2026-09-05', weightKg: 72.1, muscleKg: 31.4 })[0], { id: 'body-2026-09-05', date: '2026-09-05', weightKg: 72.1, muscleKg: 31.4 });
+assert.throws(() => upsertBodyMeasurement([], { date: '2026-09-05', weightKg: 70, muscleKg: 75 }), /masa muscular/);
 
 const eggRecipe = DEMO_RECIPES.find(recipe => recipe.id === 'rec-tortilla-patata');
 const dairyRecipe = DEMO_RECIPES.find(recipe => recipe.id === 'rec-yogur-nueces');

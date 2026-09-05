@@ -102,6 +102,48 @@
             <section class="profile-card"><div class="profile-avatar">NH</div><div><h2>Mi perfil alimentario</h2><p id="profile-diet">Vegetariana · sin huevo</p><div class="tag-row" id="profile-tags"></div></div></section>
             <section class="goal-card"><div><span>Objetivo diario</span><strong id="goal-calories">— kcal</strong></div><div><span>Proteína</span><strong id="goal-protein">— g</strong></div><div><span>Presupuesto semanal</span><strong id="goal-budget">— €</strong></div></section>
           </div>
+          <div class="section-heading"><div><p class="eyebrow">COMPOSICIÓN CORPORAL</p><h2>IMC, metas y evolución</h2><p class="section-copy">Registra tus medidas sin mezclar el peso corporal con la masa muscular.</p></div></div>
+          <div class="body-metrics-grid">
+            <section class="metrics-card" aria-labelledby="bmi-card-title">
+              <div class="card-heading"><div><span class="card-icon" aria-hidden="true">↕</span><div><p class="eyebrow">CALCULADORA PARA ADULTOS</p><h3 id="bmi-card-title">Calcula tu IMC</h3></div></div><span class="local-badge">Dato privado</span></div>
+              <form id="body-metrics-form" class="metric-form">
+                <label><span>Edad</span><div class="input-unit"><input name="age" type="number" inputmode="numeric" min="18" max="120" required /><small>años</small></div></label>
+                <label><span>Altura</span><div class="input-unit"><input name="heightCm" type="number" inputmode="decimal" min="100" max="250" step="0.1" required /><small>cm</small></div></label>
+                <label><span>Peso corporal</span><div class="input-unit"><input name="weightKg" type="number" inputmode="decimal" min="25" max="400" step="0.1" required /><small>kg</small></div></label>
+                <label><span>Masa muscular <i>opcional</i></span><div class="input-unit"><input name="muscleKg" type="number" inputmode="decimal" min="5" max="200" step="0.1" /><small>kg</small></div></label>
+                <button class="primary-btn full-field" type="submit">Calcular y guardar</button>
+                <p class="form-error full-field" id="body-metrics-error" role="alert"></p>
+              </form>
+              <div class="bmi-result empty" id="bmi-result" aria-live="polite"><span>IMC</span><strong>—</strong><p>Añade edad, altura y peso para calcularlo.</p></div>
+              <p class="medical-note">El IMC relaciona peso total y altura: no distingue grasa, músculo ni hueso. Es una referencia de cribado, no un diagnóstico.</p>
+            </section>
+
+            <section class="metrics-card goal-builder" aria-labelledby="body-goal-title">
+              <div class="card-heading"><div><span class="card-icon coral" aria-hidden="true">◎</span><div><p class="eyebrow">TU OBJETIVO</p><h3 id="body-goal-title">Define una meta medible</h3></div></div></div>
+              <form id="body-goal-form" class="metric-form goal-form">
+                <label class="full-field"><span>Quiero fijar una meta de</span><select name="goalType" id="body-goal-type"><option value="total">Peso corporal total</option><option value="muscle">Masa muscular</option></select></label>
+                <label class="full-field"><span id="body-goal-label">Peso corporal deseado</span><div class="input-unit"><input name="goalValueKg" type="number" inputmode="decimal" min="5" max="400" step="0.1" required /><small>kg</small></div></label>
+                <button class="secondary-btn full-field" type="submit">Guardar mi meta</button>
+                <p class="form-error full-field" id="body-goal-error" role="alert"></p>
+              </form>
+              <div class="goal-status" id="body-goal-status" aria-live="polite"><span>Sin meta activa</span><strong>Elige peso total o masa muscular</strong><div class="progress-track"><i></i></div><small>Podrás cambiarla cuando quieras.</small></div>
+              <p class="medical-note" id="muscle-goal-note">La masa muscular debe venir de una báscula o medición corporal consistente; NutriHome no la estima a partir del IMC.</p>
+            </section>
+
+            <section class="tracker-card" aria-labelledby="weight-tracker-title">
+              <div class="tracker-heading"><div><p class="eyebrow">HISTORIAL PERSONAL</p><h3 id="weight-tracker-title">Tracker de peso corporal</h3><p>Registra una medida por fecha. Si repites la fecha, se actualiza ese registro.</p></div><div class="tracker-current"><span>Último peso</span><strong id="latest-weight">—</strong><small id="weight-change">Sin registros</small></div></div>
+              <form id="weight-log-form" class="tracker-form">
+                <label><span>Fecha</span><input name="date" type="date" required /></label>
+                <label><span>Peso corporal</span><div class="input-unit"><input name="weightKg" type="number" inputmode="decimal" min="25" max="400" step="0.1" required /><small>kg</small></div></label>
+                <label><span>Masa muscular <i>opcional</i></span><div class="input-unit"><input name="muscleKg" type="number" inputmode="decimal" min="5" max="200" step="0.1" /><small>kg</small></div></label>
+                <button class="primary-btn" type="submit">Guardar registro</button>
+                <p class="form-error" id="weight-log-error" role="alert"></p>
+              </form>
+              <div class="weight-chart-wrap"><canvas id="weight-chart" height="230" role="img" aria-label="Evolución del peso corporal"></canvas><div class="chart-empty" id="weight-chart-empty">Añade dos registros para ver la evolución.</div></div>
+              <div class="weight-history" id="weight-history" aria-live="polite"></div>
+              <div class="metrics-footer"><span>⌾ Tus medidas se guardan en el almacenamiento privado de esta aplicación en el dispositivo y solo se sincronizan cuando existe una sesión autenticada.</span><span>Referencia: <a href="https://www.who.int/news-room/fact-sheets/detail/obesity-and-overweight" target="_blank" rel="noopener noreferrer">OMS</a> · <a href="https://www.cdc.gov/bmi/about/index.html" target="_blank" rel="noopener noreferrer">límites del IMC</a></span></div>
+            </section>
+          </div>
           <div class="section-heading"><div><p class="eyebrow">ACTIVIDAD</p><h2>Plan de ejercicio</h2></div><button class="ghost-btn" id="add-exercise" type="button">＋ Añadir</button></div>
           <div class="exercise-grid" id="exercise-list"></div>
           <div class="section-heading"><div><p class="eyebrow">ESTADÍSTICAS</p><h2>Tu semana de un vistazo</h2></div></div>
