@@ -44,7 +44,9 @@ function normalizeState(saved) {
   if (!saved || saved.version !== 1) return fresh;
   const merged = { ...fresh, ...saved, profile: { ...fresh.profile, ...(saved.profile || {}) } };
   delete merged.profile.name;
-  merged.recipes = Array.isArray(saved.recipes) && saved.recipes.length ? saved.recipes : fresh.recipes;
+  const savedRecipes = Array.isArray(saved.recipes) ? saved.recipes : [];
+  const personalRecipes = savedRecipes.filter(recipe => recipe?.source === 'Receta personal' || String(recipe?.id || '').startsWith('rec-user-'));
+  merged.recipes = [...fresh.recipes, ...personalRecipes];
   merged.pantry = Array.isArray(saved.pantry) ? saved.pantry : fresh.pantry;
   merged.menu = Array.isArray(saved.menu) && saved.menu.length ? saved.menu : fresh.menu;
   merged.shopping = Array.isArray(saved.shopping) ? saved.shopping : buildShoppingList(merged.menu, merged.recipes, merged.pantry);

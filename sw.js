@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nutrihome-v2';
+const CACHE_NAME = 'nutrihome-v3';
 const APP_SHELL = [
   './', './index.html', './styles.css', './nutrihome-core.js', './demo-data.js', './storage.js', './app.js', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-192-maskable.png',

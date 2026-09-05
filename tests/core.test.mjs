@@ -5,6 +5,19 @@ import {
   isRecipeCompatible, pantryCoverage, regenerateMeal, sameFood, scaleIngredients, upsertBodyMeasurement, upsertPantryItem
 } from '../nutrihome-core.js';
 
+const GENERIC_RECIPE_STEPS = [
+  'Prepara y mide todos los ingredientes.',
+  'Cocina siguiendo el orden indicado hasta que todo esté en su punto.',
+  'Ajusta el aliño, sirve y disfruta.'
+];
+
+assert.equal(DEMO_RECIPES.length, 25);
+for (const recipe of DEMO_RECIPES) {
+  assert.ok(recipe.steps.length >= 4, `${recipe.name} debe tener al menos cuatro pasos específicos`);
+  assert.equal(recipe.steps.some(step => GENERIC_RECIPE_STEPS.includes(step)), false, `${recipe.name} conserva instrucciones genéricas`);
+}
+assert.equal(new Set(DEMO_RECIPES.map(recipe => recipe.steps.join('\n'))).size, DEMO_RECIPES.length, 'Cada receta debe tener instrucciones propias');
+
 assert.equal(convertQuantity(1, 'kg', 'g'), 1000);
 assert.equal(convertQuantity(1.5, 'l', 'ml'), 1500);
 assert.equal(convertQuantity(250, 'g', 'kg'), 0.25);
