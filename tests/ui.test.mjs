@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { access, readFile } from 'node:fs/promises';
 
 const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+const app = await readFile(new URL('../app.js', import.meta.url), 'utf8');
+const demoData = await readFile(new URL('../demo-data.js', import.meta.url), 'utf8');
 const manifest = JSON.parse(await readFile(new URL('../manifest.webmanifest', import.meta.url), 'utf8'));
 const worker = await readFile(new URL('../sw.js', import.meta.url), 'utf8');
 const ids = [...html.matchAll(/id="([^"]+)"/g)].map(match => match[1]);
@@ -16,6 +18,8 @@ assert.match(html, /id="recipe-form"/);
 assert.match(html, /id="pantry-form"/);
 assert.match(html, /aria-live="polite"/);
 assert.match(html, /class="skip-link"/);
+assert.doesNotMatch(`${html}\n${app}\n${demoData}`, />TM<|Tu nombre|profile-name|profile-card-name/i);
+assert.match(app, /getHours\(\) < 14 \? 'Buenos días' : 'Buenas tardes'/);
 assert.equal(manifest.name.startsWith('NutriHome'), true);
 assert.equal(manifest.icons.some(icon => icon.sizes === '192x192'), true);
 assert.equal(manifest.icons.some(icon => icon.sizes === '512x512'), true);

@@ -8,11 +8,13 @@
     <meta property="og:title" content="NutriHome · Come bien, compra justo" />
     <meta property="og:description" content="Menús semanales, recetas, despensa y compra inteligente en un mismo lugar." />
     <meta property="og:type" content="website" />
-    <meta property="og:image" content="og.png" />
+    <meta property="og:url" content="https://nutrihome.fond-cocoa-6528.chatgpt.site" />
+    <meta property="og:image" content="https://nutrihome.fond-cocoa-6528.chatgpt.site/og.png" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="NutriHome · Come bien, compra justo" />
     <meta name="twitter:description" content="Menús semanales, recetas, despensa y compra inteligente en un mismo lugar." />
-    <meta name="twitter:image" content="og.png" />
+    <meta name="twitter:image" content="https://nutrihome.fond-cocoa-6528.chatgpt.site/og.png" />
+    <link rel="canonical" href="https://nutrihome.fond-cocoa-6528.chatgpt.site" />
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="icons/icon-192.png" />
     <link rel="apple-touch-icon" href="icons/icon-192.png" />
@@ -28,14 +30,14 @@
           <span class="sync-badge" id="sync-badge"><i></i><span>Guardado</span></span>
           <button class="icon-btn" id="notifications" type="button" aria-label="Ver avisos"><span aria-hidden="true">♡</span><i></i></button>
           <button class="icon-btn" id="install-app" type="button" aria-label="Instalar NutriHome" hidden><span aria-hidden="true">⇩</span></button>
-          <button class="avatar-btn" type="button" data-nav="more" aria-label="Abrir perfil">TM</button>
+          <button class="avatar-btn" type="button" data-nav="more" aria-label="Abrir perfil">NH</button>
         </div>
       </header>
 
       <main id="main-content">
         <section class="view active" id="view-week" data-view="week" aria-labelledby="week-title">
           <div class="welcome-row">
-            <div><p class="eyebrow">TU SEMANA, EN ORDEN</p><h1 id="week-title">Buenos días, <span id="profile-name">Toni</span> <span aria-hidden="true">👋</span></h1><p class="intro">Un menú compatible contigo, usando lo que ya tienes.</p></div>
+            <div><p class="eyebrow">TU SEMANA, EN ORDEN</p><h1 id="week-title">Buenos días</h1><p class="intro">Un menú compatible contigo, usando lo que ya tienes.</p></div>
             <div class="week-cost"><span>Coste estimado</span><strong id="week-cost">—</strong><small id="budget-status">del presupuesto semanal</small></div>
           </div>
 
@@ -97,7 +99,7 @@
         <section class="view" id="view-more" data-view="more" aria-labelledby="more-title">
           <div class="page-heading"><div><p class="eyebrow">TU NUTRIHOME</p><h1 id="more-title">Perfil y progreso</h1><p class="intro">Objetivos editables, actividad y control de tus datos.</p></div><button class="primary-btn" id="edit-profile" type="button">Editar perfil</button></div>
           <div class="profile-layout">
-            <section class="profile-card"><div class="profile-avatar">TM</div><div><h2 id="profile-card-name">Toni</h2><p id="profile-diet">Vegetariana · sin huevo</p><div class="tag-row" id="profile-tags"></div></div></section>
+            <section class="profile-card"><div class="profile-avatar">NH</div><div><h2>Mi perfil alimentario</h2><p id="profile-diet">Vegetariana · sin huevo</p><div class="tag-row" id="profile-tags"></div></div></section>
             <section class="goal-card"><div><span>Objetivo diario</span><strong id="goal-calories">— kcal</strong></div><div><span>Proteína</span><strong id="goal-protein">— g</strong></div><div><span>Presupuesto semanal</span><strong id="goal-budget">— €</strong></div></section>
           </div>
           <div class="section-heading"><div><p class="eyebrow">ACTIVIDAD</p><h2>Plan de ejercicio</h2></div><button class="ghost-btn" id="add-exercise" type="button">＋ Añadir</button></div>
@@ -123,7 +125,6 @@
         <button class="close-btn" type="button" data-close-dialog="onboarding-dialog" aria-label="Cerrar configuración">×</button>
         <p class="eyebrow">BIENVENIDA A NUTRIHOME</p><h2 id="onboarding-title">Tu alimentación, sin complicaciones</h2><p class="dialog-intro">Cuéntanos lo esencial para no proponerte platos incompatibles.</p>
         <div class="form-grid">
-          <label><span>Tu nombre</span><input name="name" required maxlength="40" value="Toni" /></label>
           <label><span>Dieta</span><select name="diet" required><option value="omnivore">Omnívora</option><option value="flexitarian">Flexitariana</option><option value="pescetarian">Pescetariana</option><option value="vegetarian" selected>Vegetariana</option><option value="vegan">Vegana</option><option value="lacto_vegetarian">Lacto-vegetariana</option><option value="ovo_vegetarian">Ovo-vegetariana</option></select></label>
           <fieldset class="full-field"><legend>Exclusiones independientes</legend><label class="check-card"><input name="eatsEgg" type="checkbox" /><span><b>Consumo huevo</b><small>Desmarcado: nunca aparecerá en recetas ni menús.</small></span></label><label class="check-card"><input name="eatsDairy" type="checkbox" checked /><span><b>Consumo lácteos</b><small>Se comprueba aparte de la etiqueta vegetariana.</small></span></label></fieldset>
           <label><span>Alergias e intolerancias</span><input name="allergies" placeholder="gluten, soja, frutos secos…" /></label><label><span>Alimentos que no te gustan</span><input name="dislikes" placeholder="champiñones, aceitunas…" /></label>

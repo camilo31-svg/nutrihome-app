@@ -39,6 +39,7 @@ function normalizeState(saved) {
   const fresh = initialState();
   if (!saved || saved.version !== 1) return fresh;
   const merged = { ...fresh, ...saved, profile: { ...fresh.profile, ...(saved.profile || {}) } };
+  delete merged.profile.name;
   merged.recipes = Array.isArray(saved.recipes) && saved.recipes.length ? saved.recipes : fresh.recipes;
   merged.pantry = Array.isArray(saved.pantry) ? saved.pantry : fresh.pantry;
   merged.menu = Array.isArray(saved.menu) && saved.menu.length ? saved.menu : fresh.menu;
@@ -48,6 +49,10 @@ function normalizeState(saved) {
 
 function escapeHtml(value = '') {
   return String(value).replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char]);
+}
+
+function timeGreeting(date = new Date()) {
+  return date.getHours() < 14 ? 'Buenos días' : 'Buenas tardes';
 }
 
 function weekDates() {
@@ -102,9 +107,7 @@ function renderWeek() {
   const first = dates[0].toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
   const last = dates[6].toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
   $('#week-range').textContent = `Del ${first} al ${last}`;
-  $('#profile-name').textContent = state.profile.name || 'Toni';
-  const initials = (state.profile.name || 'Toni').split(/\s+/).map(item => item[0]).join('').slice(0, 2).toUpperCase();
-  $('.avatar-btn').textContent = initials;
+  $('#week-title').textContent = timeGreeting();
   const weekTotals = menuNutrition(state.menu, state.recipes);
   $('#week-cost').textContent = euro(weekTotals.cost);
   const budgetDifference = (state.profile.weeklyBudget || 0) - weekTotals.cost;
@@ -256,9 +259,6 @@ function renderShopping() {
 
 function renderProfile() {
   const profile = state.profile;
-  const initials = (profile.name || 'Toni').split(/\s+/).map(item => item[0]).join('').slice(0,2).toUpperCase();
-  $('.profile-avatar').textContent = initials;
-  $('#profile-card-name').textContent = profile.name;
   $('#profile-diet').textContent = `${DIET_LABELS[profile.diet] || profile.diet}${profile.eatsEgg === false ? ' · sin huevo' : ''}${profile.eatsDairy === false ? ' · sin lácteos' : ''}`;
   $('#profile-tags').innerHTML = [...profile.allergies, ...profile.dislikes.map(item => `evita ${item}`)].map(item => `<span>${escapeHtml(item)}</span>`).join('') || '<span>sin exclusiones adicionales</span>';
   $('#goal-calories').textContent = `${number(profile.calorieTarget)} kcal`;
@@ -311,7 +311,7 @@ function saveRecipeForm(form) {
 function prefillProfileForm() {
   const form = $('#onboarding-form');
   const profile = state.profile;
-  for (const key of ['name','diet','calorieTarget','proteinTarget','weeklyBudget','people','maxCookingTime','supermarket']) if (form.elements[key]) form.elements[key].value = profile[key] ?? '';
+  for (const key of ['diet','calorieTarget','proteinTarget','weeklyBudget','people','maxCookingTime','supermarket']) if (form.elements[key]) form.elements[key].value = profile[key] ?? '';
   form.elements.eatsEgg.checked = profile.eatsEgg !== false;
   form.elements.eatsDairy.checked = profile.eatsDairy !== false;
   form.elements.allergies.value = (profile.allergies || []).join(', ');
@@ -321,7 +321,8 @@ function prefillProfileForm() {
 
 function saveProfile(form) {
   const data = new FormData(form);
-  state.profile = { ...state.profile, configured: true, name: data.get('name').trim(), diet: data.get('diet'), eatsEgg: data.get('eatsEgg') === 'on', eatsDairy: data.get('eatsDairy') === 'on', allergies: data.get('allergies').split(',').map(item => normalizeText(item)).filter(Boolean), dislikes: data.get('dislikes').split(',').map(item => item.trim()).filter(Boolean), calorieTarget: Number(data.get('calorieTarget')), proteinTarget: Number(data.get('proteinTarget')), weeklyBudget: Number(data.get('weeklyBudget')), monthlyBudget: Number(data.get('weeklyBudget')) * 4, people: Number(data.get('people')), maxCookingTime: Number(data.get('maxCookingTime')), supermarket: data.get('supermarket').trim(), equipment: data.getAll('equipment') };
+  state.profile = { ...state.profile, configured: true, diet: data.get('diet'), eatsEgg: data.get('eatsEgg') === 'on', eatsDairy: data.get('eatsDairy') === 'on', allergies: data.get('allergies').split(',').map(item => normalizeText(item)).filter(Boolean), dislikes: data.get('dislikes').split(',').map(item => item.trim()).filter(Boolean), calorieTarget: Number(data.get('calorieTarget')), proteinTarget: Number(data.get('proteinTarget')), weeklyBudget: Number(data.get('weeklyBudget')), monthlyBudget: Number(data.get('weeklyBudget')) * 4, people: Number(data.get('people')), maxCookingTime: Number(data.get('maxCookingTime')), supermarket: data.get('supermarket').trim(), equipment: data.getAll('equipment') };
+  delete state.profile.name;
   state.menu = state.menu.filter(entry => isRecipeCompatible(findRecipe(entry.recipeId), state.profile));
   runGenerator(state.generationMode || 'balanced');
   $('#onboarding-dialog').close();

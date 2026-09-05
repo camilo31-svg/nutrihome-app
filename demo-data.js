@@ -64,7 +64,7 @@ export function createDemoPantry() {
 }
 
 export const DEFAULT_PROFILE = {
-  configured: false, name: 'Toni', diet: 'vegetarian', eatsEgg: false, eatsDairy: true,
+  configured: false, diet: 'vegetarian', eatsEgg: false, eatsDairy: true,
   allergies: [], restrictions: [], dislikes: [], calorieTarget: 2050, proteinTarget: 110,
   carbTarget: 245, fatTarget: 68, weeklyBudget: 65, monthlyBudget: 260, people: 2,
   maxCookingTime: 30, supermarket: '', equipment: ['oven', 'microwave', 'blender'], notifications: { expiry: true, lowStock: true, planning: false }
