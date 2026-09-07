@@ -11,7 +11,7 @@ NutriHome es una PWA mobile-first que conecta planificación semanal, recetas, o
 - Biblioteca de 1.705 recetas únicas en castellano, con más de 1.000 opciones compatibles para cada dieta disponible, búsqueda por nombre/ingrediente/etiqueta, filtros dietéticos completos y carga progresiva de resultados.
 - Cada receta incorporada tiene ingredientes cuantificados y cuatro pasos propios; las pruebas rechazan instrucciones genéricas, IDs o nombres duplicados y catálogos con menos de 1.000 opciones por dieta.
 - Recetas personales con ingredientes escritos libremente: se infieren cantidades y se calculan automáticamente coste, calorías, proteína, carbohidratos, grasas y fibra.
-- Carátulas gastronómicas generadas con IA para toda la biblioteca y carga opcional de una foto propia, persistida en IndexedDB y R2 cuando hay sesión.
+- Carátulas únicas construidas con los ingredientes reales de cada receta sobre vajilla generada con IA, sin mostrar alimentos ajenos; carga opcional de una foto propia persistida en IndexedDB y R2 cuando hay sesión.
 - Pestaña independiente de favoritos, asignación directa a un día y comida concretos, escalado de raciones, valoración personal e historial de recetas preparadas.
 - Despensa con cantidades, unidades, ubicación, stock mínimo, caducidad, precio registrado y código de barras.
 - Descuento FIFO del inventario al preparar una receta y aviso de ingredientes no registrados.

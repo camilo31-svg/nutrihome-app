@@ -92,29 +92,48 @@ function escapeHtml(value = '') {
   return String(value).replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char]);
 }
 
-function recipeCoverSlot(recipe = {}) {
-  const text = normalizeText(`${recipe.id || ''} ${recipe.name || ''} ${recipe.tags?.join(' ') || ''}`);
-  const slots = [
-    [/avena|porridge|desayuno dulce/, 0], [/smoothie|batido/, 1], [/ensalada/, 2], [/mediterr|quinoa|bowl/, 3],
-    [/curry|indio|dal/, 4], [/taco|mexic|tortilla/, 5], [/thai|tailand|fideo|noodle/, 6], [/japon|sushi|teriyaki/, 7],
-    [/ital|pasta|espagu|macarr/, 8], [/patata|papa|espan/, 9], [/cuscus|magreb|marro/, 10], [/sopa|crema|guiso|lenteja/, 11],
-    [/huevo|tortilla|revuelto/, 12], [/queso|gratin|lasana/, 13], [/salmon|atun|merluza|pescado/, 14], [/pollo|pavo|ternera|carne/, 15]
-  ];
-  const match = slots.find(([pattern]) => pattern.test(text));
-  if (match) return match[1];
+function recipeHash(recipe = {}) {
   let hash = 0;
   for (const char of String(recipe.id || recipe.name || 'nutrihome')) hash = (Math.imul(hash, 31) + char.charCodeAt(0)) | 0;
-  return Math.abs(hash) % 16;
+  return Math.abs(hash);
 }
 
 function coverPosition(recipe) {
-  const slot = recipeCoverSlot(recipe);
+  const slot = recipeHash(recipe) % 16;
   return { x: `${(slot % 4) * 33.333}%`, y: `${Math.floor(slot / 4) * 33.333}%` };
 }
 
 function coverAttributes(recipe) {
   const position = coverPosition(recipe);
-  return `style="--cover-x:${position.x};--cover-y:${position.y}"${recipe.hasCustomCover ? ` data-cover-recipe="${escapeHtml(recipe.id)}"` : ''}`;
+  const hash = recipeHash(recipe);
+  const turn = hash % 7 - 3;
+  return `style="--cover-x:${position.x};--cover-y:${position.y};--visual-hue:${hash % 38 - 19};--visual-turn:${turn}deg;--visual-turn-reverse:${-turn}deg"${recipe.hasCustomCover ? ` data-cover-recipe="${escapeHtml(recipe.id)}"` : ''}`;
+}
+
+function ingredientSymbol(ingredient = {}) {
+  const name = normalizeText(ingredient.name);
+  const symbols = [
+    [/tomate/, '🍅'], [/zanahoria/, '🥕'], [/patata|papa/, '🥔'], [/boniato|batata/, '🍠'], [/berenjena/, '🍆'], [/aguacate/, '🥑'],
+    [/brocoli/, '🥦'], [/pepino/, '🥒'], [/pimiento/, '🫑'], [/cebolla|ajo/, '🧅'], [/maiz/, '🌽'], [/seta|champinon/, '🍄'],
+    [/arroz/, '🍚'], [/pasta|espagueti|macarron/, '🍝'], [/pan|tostada/, '🍞'], [/avena|cereal|quinoa|cuscus/, '🌾'],
+    [/garbanzo|lenteja|alubia|frijol|guisante/, '🫘'], [/huevo/, '🥚'], [/queso|yogur|leche/, '🥛'], [/tofu|tempeh|soja/, '◇'],
+    [/salmon|atun|merluza|bacalao|pescado/, '🐟'], [/gamba|langostino|marisco/, '🦐'], [/pollo|pavo/, '🍗'], [/carne|ternera|cerdo/, '🥩'],
+    [/platano|banana/, '🍌'], [/manzana/, '🍎'], [/pera/, '🍐'], [/naranja|mandarina/, '🍊'], [/limon|lima/, '🍋'], [/fresa|frutos rojos|arandano/, '🍓'],
+    [/nuez|almendra|anacardo|cacahuete|pistacho/, '🥜'], [/aceite/, '◒'], [/agua|caldo/, '◌']
+  ];
+  return symbols.find(([pattern]) => pattern.test(name))?.[1] || ({ verduras: '🥬', frutas: '●', cereales: '🌾', legumbres: '🫘', refrigerados: '❄', congelados: '◆', bebidas: '◌' }[ingredient.category] || '•');
+}
+
+function coverIngredients(recipe, limit = 5) {
+  const secondary = /^(sal|agua|aceite|pimienta|oregano|comino|perejil|cilantro)/;
+  return [...(recipe.ingredients || [])]
+    .sort((a, b) => Number(secondary.test(normalizeText(a.name))) - Number(secondary.test(normalizeText(b.name))))
+    .slice(0, limit);
+}
+
+function recipeVisualInner(recipe, compact = false) {
+  const ingredients = coverIngredients(recipe, compact ? 3 : 5);
+  return `<span class="ingredient-cloud" aria-hidden="true">${ingredients.map((ingredient, index) => `<span class="ingredient-chip ingredient-${index}"><i>${ingredientSymbol(ingredient)}</i><b>${escapeHtml(ingredient.name)}</b></span>`).join('')}</span><span class="visual-recipe-name">${escapeHtml(recipe.name)}</span>`;
 }
 
 async function hydrateUploadedCovers(root = document) {
@@ -131,12 +150,27 @@ async function hydrateUploadedCovers(root = document) {
       node.style.backgroundImage = `url("${objectUrl}")`;
       node.style.backgroundSize = 'cover';
       node.style.backgroundPosition = 'center';
+      node.classList.add('photo-cover');
       return;
     }
     const position = coverPosition(recipe);
-    node.style.backgroundImage = `url("./api/recipe-images/${encodeURIComponent(recipeId)}?v=${recipe?.coverRevision || 1}"), url("./recipe-cover-atlas.jpg")`;
-    node.style.backgroundSize = 'cover, 400% 400%';
-    node.style.backgroundPosition = `center, ${position.x} ${position.y}`;
+    await new Promise(resolve => {
+      const remote = new Image();
+      remote.onload = () => {
+        node.style.backgroundImage = `url("${remote.src}")`;
+        node.style.backgroundSize = 'cover';
+        node.style.backgroundPosition = 'center';
+        node.classList.add('photo-cover');
+        resolve();
+      };
+      remote.onerror = resolve;
+      remote.src = `./api/recipe-images/${encodeURIComponent(recipeId)}?v=${recipe?.coverRevision || 1}`;
+    });
+    if (!node.classList.contains('photo-cover')) {
+      node.style.backgroundImage = 'url("./recipe-plate-atlas-v2.jpg")';
+      node.style.backgroundSize = '400% 400%';
+      node.style.backgroundPosition = `${position.x} ${position.y}`;
+    }
   }));
 }
 
@@ -224,7 +258,7 @@ function renderWeek() {
     const recipe = findRecipe(entry.recipeId);
     if (!recipe) return '';
     return `<article class="meal-card" data-recipe-card="${recipe.id}">
-      <button class="meal-emoji recipe-cover" type="button" data-open-recipe="${recipe.id}" aria-label="Ver ${escapeHtml(recipe.name)}" style="--cover-x:${coverPosition(recipe).x};--cover-y:${coverPosition(recipe).y}"${recipe.hasCustomCover ? ` data-cover-recipe="${escapeHtml(recipe.id)}"` : ''}></button>
+      <button class="meal-emoji recipe-cover" type="button" data-open-recipe="${recipe.id}" aria-label="Ver ${escapeHtml(recipe.name)}" ${coverAttributes(recipe)}>${recipeVisualInner(recipe, true)}</button>
       <div class="meal-copy"><span>${MEAL_LABELS[entry.mealType]}</span><button class="meal-title" type="button" data-open-recipe="${recipe.id}">${escapeHtml(recipe.name)}</button><p>${number(recipe.nutrition.kcal)} kcal · ${number(recipe.nutrition.protein)} g prot. · ${recipe.totalTime} min · ${euro(recipe.estimatedCost / recipe.servings * entry.servings)} est.</p></div>
       <div class="meal-controls"><button class="meal-action" type="button" data-regenerate="${entry.id}" aria-label="Regenerar ${MEAL_LABELS[entry.mealType]}">↻</button><button class="meal-action" type="button" data-move-meal="${entry.id}" aria-label="Mover o sustituir comida">⋯</button><button class="meal-action" type="button" data-lock="${entry.id}" aria-pressed="${entry.locked}" aria-label="${entry.locked ? 'Desbloquear' : 'Bloquear'} ${escapeHtml(recipe.name)}">${entry.locked ? '●' : '○'}</button></div>
     </article>`;
@@ -243,6 +277,7 @@ function renderWeek() {
     const position = coverPosition(currentRecipe);
     hero.className = 'hero-dish recipe-cover';
     hero.style.cssText = `--cover-x:${position.x};--cover-y:${position.y}`;
+    hero.innerHTML = recipeVisualInner(currentRecipe, true);
     if (currentRecipe.hasCustomCover) hero.dataset.coverRecipe = currentRecipe.id; else delete hero.dataset.coverRecipe;
     $('#open-today').dataset.openRecipe = currentRecipe.id;
   }
@@ -311,7 +346,7 @@ function renderRecipes() {
     const userRating = state.ratings[recipe.id];
     const rating = userRating || recipe.rating;
     const ratingLabel = userRating ? 'tu valoración' : recipe.ratingType === 'real' ? `${recipe.ratingCount} valoraciones` : 'estimación del sistema';
-    return `<article class="recipe-card" data-open-recipe="${recipe.id}" tabindex="0" role="button" aria-label="Ver receta ${escapeHtml(recipe.name)}"><div class="recipe-art recipe-cover" ${coverAttributes(recipe)}><button class="favorite-btn ${state.favorites.includes(recipe.id) ? 'active' : ''}" type="button" data-favorite="${recipe.id}" aria-label="${state.favorites.includes(recipe.id) ? 'Quitar de favoritos' : 'Guardar en favoritos'}">${state.favorites.includes(recipe.id) ? '♥' : '♡'}</button></div><div class="recipe-card-body"><p class="eyebrow">${recipe.mealTypes.map(type => MEAL_LABELS[type]).join(' · ')}</p><h2>${escapeHtml(recipe.name)}</h2><div class="recipe-meta"><span><b>${recipe.totalTime} min</b></span><span>${number(recipe.nutrition.kcal)} kcal</span><span>${number(recipe.nutrition.protein)} g prot.</span></div><div class="recipe-tags"><span>${coverage.missing === 0 ? 'puedo cocinar' : `faltan ${coverage.missing}`}</span>${recipe.tags.slice(0, 2).map(tag => `<span>${escapeHtml(tag)}</span>`).join('')}</div><div class="recipe-rating">★ ${number(rating)} <small>· ${ratingLabel}</small></div></div></article>`;
+    return `<article class="recipe-card" data-open-recipe="${recipe.id}" tabindex="0" role="button" aria-label="Ver receta ${escapeHtml(recipe.name)}"><div class="recipe-art recipe-cover" ${coverAttributes(recipe)}>${recipeVisualInner(recipe)}<button class="favorite-btn ${state.favorites.includes(recipe.id) ? 'active' : ''}" type="button" data-favorite="${recipe.id}" aria-label="${state.favorites.includes(recipe.id) ? 'Quitar de favoritos' : 'Guardar en favoritos'}">${state.favorites.includes(recipe.id) ? '♥' : '♡'}</button></div><div class="recipe-card-body"><p class="eyebrow">${recipe.mealTypes.map(type => MEAL_LABELS[type]).join(' · ')}</p><h2>${escapeHtml(recipe.name)}</h2><div class="recipe-meta"><span><b>${recipe.totalTime} min</b></span><span>${number(recipe.nutrition.kcal)} kcal</span><span>${number(recipe.nutrition.protein)} g prot.</span></div><div class="recipe-tags"><span>${coverage.missing === 0 ? 'puedo cocinar' : `faltan ${coverage.missing}`}</span>${recipe.tags.slice(0, 2).map(tag => `<span>${escapeHtml(tag)}</span>`).join('')}</div><div class="recipe-rating">★ ${number(rating)} <small>· ${ratingLabel}</small></div></div></article>`;
   }).join('');
   $('#recipe-load-more').hidden = visibleRecipes.length >= recipes.length;
   $('#recipe-load-more').textContent = `Mostrar ${Math.min(36, recipes.length - visibleRecipes.length)} más`;
@@ -323,7 +358,7 @@ function renderFavorites() {
   const recipes = state.favorites.map(findRecipe).filter(Boolean);
   $('#favorite-count').textContent = recipes.length;
   $('#favorites-empty').hidden = recipes.length > 0;
-  $('#favorite-grid').innerHTML = recipes.map(recipe => `<article class="recipe-card" data-open-recipe="${recipe.id}" tabindex="0" role="button" aria-label="Ver receta ${escapeHtml(recipe.name)}"><div class="recipe-art recipe-cover" ${coverAttributes(recipe)}><button class="favorite-btn active" type="button" data-favorite="${recipe.id}" aria-label="Quitar de favoritos">♥</button></div><div class="recipe-card-body"><p class="eyebrow">${recipe.mealTypes.map(type => MEAL_LABELS[type]).join(' · ')}</p><h2>${escapeHtml(recipe.name)}</h2><div class="recipe-meta"><span><b>${recipe.totalTime} min</b></span><span>${number(recipe.nutrition.kcal)} kcal</span><span>${number(recipe.nutrition.protein)} g prot.</span></div></div><button class="favorite-plan" type="button" data-plan-favorite="${recipe.id}">＋ Añadir a mi planificación</button></article>`).join('');
+  $('#favorite-grid').innerHTML = recipes.map(recipe => `<article class="recipe-card" data-open-recipe="${recipe.id}" tabindex="0" role="button" aria-label="Ver receta ${escapeHtml(recipe.name)}"><div class="recipe-art recipe-cover" ${coverAttributes(recipe)}>${recipeVisualInner(recipe)}<button class="favorite-btn active" type="button" data-favorite="${recipe.id}" aria-label="Quitar de favoritos">♥</button></div><div class="recipe-card-body"><p class="eyebrow">${recipe.mealTypes.map(type => MEAL_LABELS[type]).join(' · ')}</p><h2>${escapeHtml(recipe.name)}</h2><div class="recipe-meta"><span><b>${recipe.totalTime} min</b></span><span>${number(recipe.nutrition.kcal)} kcal</span><span>${number(recipe.nutrition.protein)} g prot.</span></div></div><button class="favorite-plan" type="button" data-plan-favorite="${recipe.id}">＋ Añadir a mi planificación</button></article>`).join('');
   hydrateUploadedCovers($('#view-favorites'));
 }
 
@@ -336,7 +371,7 @@ function showRecipe(id, servings) {
   const userRating = state.ratings[id] || 0;
   const coverage = pantryCoverage(recipe, state.pantry, recipeServings);
   $('#recipe-dialog-content').innerHTML = `<button class="close-btn" type="button" data-close-dialog="recipe-dialog" aria-label="Cerrar">×</button>
-    <section class="recipe-detail-hero"><div><p class="eyebrow">${recipe.mealTypes.map(type => MEAL_LABELS[type]).join(' · ')}</p><h2 id="recipe-dialog-title">${escapeHtml(recipe.name)}</h2><p>${escapeHtml(recipe.description)}</p><div class="detail-actions"><button type="button" data-favorite="${id}">${state.favorites.includes(id) ? '♥ Favorita' : '♡ Guardar'}</button><button type="button" data-cook-recipe="${id}">✓ Receta preparada</button></div></div><div class="recipe-detail-emoji recipe-cover" ${coverAttributes(recipe)} aria-hidden="true"></div></section>
+    <section class="recipe-detail-hero"><div><p class="eyebrow">${recipe.mealTypes.map(type => MEAL_LABELS[type]).join(' · ')}</p><h2 id="recipe-dialog-title">${escapeHtml(recipe.name)}</h2><p>${escapeHtml(recipe.description)}</p><div class="detail-actions"><button type="button" data-favorite="${id}">${state.favorites.includes(id) ? '♥ Favorita' : '♡ Guardar'}</button><button type="button" data-cook-recipe="${id}">✓ Receta preparada</button></div></div><div class="recipe-detail-emoji recipe-cover" ${coverAttributes(recipe)} aria-hidden="true">${recipeVisualInner(recipe, true)}</div></section>
     <div class="detail-grid"><div><div class="nutrition-grid"><div><b>${number(recipe.nutrition.kcal)}</b><span>kcal</span></div><div><b>${number(recipe.nutrition.protein)} g</b><span>proteína</span></div><div><b>${number(recipe.nutrition.carbs)} g</b><span>carbos</span></div><div><b>${number(recipe.nutrition.fat)} g</b><span>grasas</span></div><div><b>${number(recipe.nutrition.fiber)} g</b><span>fibra</span></div><div><b>${euro(recipe.estimatedCost / recipe.servings)}</b><span>ración · est.</span></div></div><h3>Valoración</h3><div class="rating-control" aria-label="Valorar receta">${[1,2,3,4,5].map(value => `<button class="${value <= userRating ? 'active' : ''}" type="button" data-rate="${value}" aria-label="${value} estrellas">★</button>`).join('')}</div><small>${userRating ? `Tu valoración: ${userRating}/5` : recipe.ratingType === 'real' ? `Valoración pública: ${recipe.rating}/5 (${recipe.ratingCount})` : `Recomendación estimada: ${recipe.rating}/5. No es una valoración pública real.`}</small><h3>Información</h3><p>${recipe.totalTime} min · ${recipe.prepTime} min preparación · ${recipe.cookTime} min cocción</p><p>Alérgenos declarados: ${recipe.allergens.length ? recipe.allergens.join(', ') : 'ninguno en los datos de demostración'}.</p><p><small>Fuente: ${escapeHtml(recipe.source)}</small></p></div>
     <div><div class="serving-control"><h3>Ingredientes</h3><label><span class="sr-only">Raciones</span><input id="recipe-servings" type="number" min="1" max="24" value="${recipeServings}" /></label><span>raciones</span></div><p><small>${coverage.missing === 0 ? 'Tienes todo en casa.' : `Te faltan ${coverage.missing} ingredientes para estas raciones.`}</small></p><ul class="ingredient-list">${scaled.map(item => `<li><span>${escapeHtml(item.name)}</span><b>${number(item.amount)} ${item.unit}</b></li>`).join('')}</ul><h3>Pasos</h3><ol class="step-list">${recipe.steps.map(step => `<li>${escapeHtml(step)}</li>`).join('')}</ol></div></div>`;
   const dialog = $('#recipe-dialog');
@@ -773,7 +808,7 @@ function renderSwipeCandidate() {
   }
   const recipe = swipeSession.candidates[swipeSession.index];
   const remaining = swipeSession.candidates.length - swipeSession.index;
-  container.innerHTML = `<div class="swipe-shell"><header class="swipe-head"><span class="swipe-counter">${swipeSession.index + 1} DE ${swipeSession.candidates.length}</span><h2 id="swipe-title">Elige tu ${MEAL_LABELS[swipeSession.entry.mealType].toLowerCase()}</h2><p>Descarta o elige. Quedan ${remaining} propuestas compatibles.</p></header><article class="swipe-card"><div class="swipe-cover recipe-cover" ${coverAttributes(recipe)}></div><div class="swipe-card-copy"><p class="eyebrow">${recipe.tags.slice(0, 2).map(escapeHtml).join(' · ') || 'PROPUESTA PERSONALIZADA'}</p><h3>${escapeHtml(recipe.name)}</h3><p>${escapeHtml(recipe.description)}</p><div class="swipe-macros"><span><b>${number(recipe.nutrition.kcal)}</b>kcal</span><span><b>${number(recipe.nutrition.protein)} g</b>proteína</span><span><b>${euro(recipe.estimatedCost / recipe.servings * swipeSession.entry.servings)}</b>coste est.</span></div></div></article><div class="swipe-actions"><button class="swipe-dislike" type="button" data-swipe="dislike">✕ No me apetece</button><button class="swipe-like" type="button" data-swipe="like">♥ Elegir esta</button></div></div>`;
+  container.innerHTML = `<div class="swipe-shell"><header class="swipe-head"><span class="swipe-counter">${swipeSession.index + 1} DE ${swipeSession.candidates.length}</span><h2 id="swipe-title">Elige tu ${MEAL_LABELS[swipeSession.entry.mealType].toLowerCase()}</h2><p>Descarta o elige. Quedan ${remaining} propuestas compatibles.</p></header><article class="swipe-card"><div class="swipe-cover recipe-cover" ${coverAttributes(recipe)}>${recipeVisualInner(recipe)}</div><div class="swipe-card-copy"><p class="eyebrow">${recipe.tags.slice(0, 2).map(escapeHtml).join(' · ') || 'PROPUESTA PERSONALIZADA'}</p><h3>${escapeHtml(recipe.name)}</h3><p>${escapeHtml(recipe.description)}</p><div class="swipe-macros"><span><b>${number(recipe.nutrition.kcal)}</b>kcal</span><span><b>${number(recipe.nutrition.protein)} g</b>proteína</span><span><b>${euro(recipe.estimatedCost / recipe.servings * swipeSession.entry.servings)}</b>coste est.</span></div></div></article><div class="swipe-actions"><button class="swipe-dislike" type="button" data-swipe="dislike">✕ No me apetece</button><button class="swipe-like" type="button" data-swipe="like">✓ Elegir esta</button></div></div>`;
   hydrateUploadedCovers(container);
 }
 
@@ -797,8 +832,7 @@ function handleSwipe(choice) {
     return;
   }
   swipeSession.entry.recipeId = recipe.id;
-  if (!state.favorites.includes(recipe.id)) state.favorites.push(recipe.id);
-  recalculateShopping(); persist(); renderAll(); $('#swipe-dialog').close(); showToast(`${recipe.name} seleccionada y guardada en favoritos`);
+  recalculateShopping(); persist(); renderAll(); $('#swipe-dialog').close(); showToast(`${recipe.name} seleccionada para esta comida`);
 }
 
 function openAddShopping() {

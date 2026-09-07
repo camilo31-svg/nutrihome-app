@@ -1,8 +1,8 @@
-const CACHE_NAME = 'nutrihome-v5';
+const CACHE_NAME = 'nutrihome-v6';
 const APP_SHELL = [
   './', './index.html', './styles.css', './nutrihome-core.js', './demo-data.js', './recipe-library.js', './recipe-estimator.js', './storage.js', './app.js', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-192-maskable.png',
-  './icons/icon-512.png', './icons/icon-512-maskable.png', './og.png', './recipe-cover-atlas.jpg'
+  './icons/icon-512.png', './icons/icon-512-maskable.png', './og.png', './recipe-plate-atlas-v2.jpg'
 ];
 
 self.addEventListener('install', event => {
