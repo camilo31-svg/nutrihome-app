@@ -9,6 +9,8 @@ const noUser = await worker.fetch(new Request('https://nutrihome.example/api/sta
 assert.equal(noUser.status, 401);
 const unsafeImport = await worker.fetch(new Request('https://nutrihome.example/api/import-recipe?url=http%3A%2F%2F127.0.0.1%2Fprivate'), { ASSETS: assets });
 assert.equal(unsafeImport.status, 400);
+const invalidPhoto = await worker.fetch(new Request('https://nutrihome.example/api/recipe-photos/rec-test'), { ASSETS: assets });
+assert.equal(invalidPhoto.status, 400);
 let stored = null;
 const DB = { prepare(sql) { const statement = { values: [], bind(...values) { this.values = values; return this; }, async run() { if (sql.startsWith('INSERT')) stored = this.values[1]; return { success: true }; }, async first() { return stored ? { state_json: stored } : null; } }; return statement; } };
 const headers = { 'oai-authenticated-user-id': 'user-test', 'content-type': 'application/json' };

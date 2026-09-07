@@ -62,6 +62,72 @@ async function recipeImageApi(request, env, recipeId) {
   return json({ error: 'method_not_allowed' }, 405);
 }
 
+function stableHash(value = '') {
+  let hash = 2166136261;
+  for (const char of String(value)) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
+  return hash >>> 0;
+}
+
+function metadataText(value = '') {
+  return String(value).replace(/<[^>]*>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/&amp;/gi, '&').replace(/&#39;/g, "'").replace(/&quot;/gi, '"').replace(/\s+/g, ' ').trim().slice(0, 220);
+}
+
+async function recipePhotoApi(request, recipeId) {
+  if (request.method !== 'GET') return json({ error: 'method_not_allowed' }, 405);
+  if (!/^[a-z0-9-]{3,120}$/i.test(recipeId)) return json({ error: 'invalid_recipe_id' }, 400);
+  const rawQuery = new URL(request.url).searchParams.get('q') || '';
+  const query = rawQuery.replace(/[^\p{L}\p{N}\s,.'-]/gu, ' ').replace(/\s+/g, ' ').trim().slice(0, 180);
+  if (query.length < 3) return json({ error: 'invalid_photo_query' }, 400);
+  try {
+    const rejectedTitles = /\b(icon|logo|diagram|map|drawing|illustration|clipart|symbol|flag)\b/i;
+    const queryWords = query.split(' ');
+    const searchTerms = [...new Set([query, queryWords.slice(0, Math.min(3, queryWords.length)).join(' '), queryWords.slice(0, Math.min(2, queryWords.length)).join(' '), queryWords[0]])].filter(term => term.length >= 3);
+    let candidates = [];
+    for (const term of searchTerms) {
+      const api = new URL('https://commons.wikimedia.org/w/api.php');
+      api.search = new URLSearchParams({
+        action: 'query', format: 'json', generator: 'search', gsrsearch: term, gsrnamespace: '6', gsrlimit: '8',
+        prop: 'imageinfo', iiprop: 'url|mime|mediatype|extmetadata', iiurlwidth: '960', iiextmetadatalanguage: 'es',
+        iiextmetadatafilter: 'LicenseShortName|Artist|Credit|ImageDescription'
+      }).toString();
+      const searchResponse = await fetch(api, { headers: { accept: 'application/json', 'user-agent': 'NutriHome/1.7 recipe photo lookup' }, signal: AbortSignal.timeout(7000) });
+      if (!searchResponse.ok) continue;
+      const search = await searchResponse.json();
+      candidates = Object.values(search?.query?.pages || {})
+        .sort((left, right) => Number(left.index || 999) - Number(right.index || 999))
+        .filter(page => {
+          const info = page.imageinfo?.[0];
+          return info?.thumburl && info.mediatype === 'BITMAP' && /^image\/(jpeg|png|webp)$/i.test(info.mime || '') && !rejectedTitles.test(page.title || '');
+        });
+      if (candidates.length) break;
+    }
+    if (!candidates.length) return json({ error: 'photo_not_found' }, 404);
+    const meaningfulWords = query.toLowerCase().split(/\s+/).filter(word => word.length >= 4 && !['dish', 'food', 'prepared', 'bowl'].includes(word));
+    const scored = candidates.map(page => ({ page, score: meaningfulWords.filter(word => String(page.title || '').toLowerCase().includes(word)).length }));
+    const bestScore = Math.max(...scored.map(item => item.score));
+    const bestMatches = scored.filter(item => item.score === bestScore).map(item => item.page);
+    const chosen = bestMatches[stableHash(recipeId) % Math.min(3, bestMatches.length)];
+    const info = chosen.imageinfo[0];
+    const imageResponse = await fetch(info.thumburl, { headers: { accept: 'image/avif,image/webp,image/jpeg,image/png', 'user-agent': 'NutriHome/1.7 recipe photo proxy' }, signal: AbortSignal.timeout(9000) });
+    const type = String(imageResponse.headers.get('content-type') || '').split(';')[0];
+    const size = Number(imageResponse.headers.get('content-length') || 0);
+    if (!imageResponse.ok || !type.startsWith('image/') || size > 5_000_000) return json({ error: 'photo_fetch_failed' }, 502);
+    const bytes = await imageResponse.arrayBuffer();
+    if (!bytes.byteLength || bytes.byteLength > 5_000_000) return json({ error: 'photo_too_large' }, 502);
+    const headers = {
+      'content-type': type,
+      'cache-control': 'public, max-age=604800, s-maxage=2592000, stale-while-revalidate=604800',
+      'x-photo-source': 'Wikimedia Commons',
+      'x-photo-title': encodeURIComponent(String(chosen.title || '').slice(0, 180)),
+      'x-photo-author': encodeURIComponent(metadataText(info.extmetadata?.Artist?.value) || 'Wikimedia Commons'),
+      'x-photo-license': encodeURIComponent(metadataText(info.extmetadata?.LicenseShortName?.value) || 'Consulta el archivo original'),
+      'x-photo-page': info.descriptionurl || 'https://commons.wikimedia.org/'
+    };
+    if (info.descriptionurl) headers.link = `<${info.descriptionurl}>; rel="canonical"`;
+    return new Response(bytes, { headers });
+  } catch { return json({ error: 'photo_lookup_failed' }, 502); }
+}
+
 function isSafeRecipeUrl(raw) {
   try {
     const url = new URL(raw);
@@ -127,7 +193,7 @@ function secure(response) {
   secured.headers.set('x-content-type-options', 'nosniff');
   secured.headers.set('referrer-policy', 'strict-origin-when-cross-origin');
   secured.headers.set('permissions-policy', 'camera=(self), geolocation=()');
-  secured.headers.set('content-security-policy', "default-src 'self'; img-src 'self' data: blob:; style-src 'self'; script-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'");
+  secured.headers.set('content-security-policy', "default-src 'self'; img-src 'self' data: blob: https://upload.wikimedia.org; style-src 'self'; script-src 'self'; connect-src 'self' https://commons.wikimedia.org https://upload.wikimedia.org; object-src 'none'; base-uri 'self'; frame-ancestors 'none'");
   return secured;
 }
 
@@ -137,6 +203,8 @@ export default {
     if (url.pathname === '/api/state') return stateApi(request, env);
     const imageMatch = url.pathname.match(/^\/api\/recipe-images\/([^/]+)$/);
     if (imageMatch) return secure(await recipeImageApi(request, env, decodeURIComponent(imageMatch[1])));
+    const photoMatch = url.pathname.match(/^\/api\/recipe-photos\/([^/]+)$/);
+    if (photoMatch) return secure(await recipePhotoApi(request, decodeURIComponent(photoMatch[1])));
     if (url.pathname === '/api/import-recipe' && request.method === 'GET') return importRecipe(request);
     const response = await env.ASSETS.fetch(request);
     if (response.status !== 404 || request.method !== 'GET') return secure(response);

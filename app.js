@@ -1,12 +1,12 @@
-import { DEFAULT_PROFILE, DEMO_EXERCISE, createDemoPantry } from './demo-data.js';
-import { DIET_CATALOG_PROFILES, RECIPE_LIBRARY } from './recipe-library.js';
+import { DEFAULT_PROFILE, DEMO_EXERCISE, createDemoPantry } from './demo-data.js?v=1.7.0';
+import { DIET_CATALOG_PROFILES, RECIPE_LIBRARY } from './recipe-library.js?v=1.7.0';
 import {
   DAY_LABELS, MEAL_LABELS, buildShoppingList, calculateBMI, calculateGoalProgress, classifyAdultBMI, consumeRecipe, generateWeek, getExpiryStatus,
   isRecipeCompatible, menuNutrition, normalizeFoodName, normalizeText, normalizeUnit,
   pantryCoverage, rankMealCandidates, roundQuantity, sameFood, scaleIngredients, upsertBodyMeasurement, upsertPantryItem, validateRecipe
-} from './nutrihome-core.js';
-import { estimateRecipe, inferRecipeTraits, parseFlexibleIngredients } from './recipe-estimator.js';
-import { clearLocalState, createStateSnapshot, isPersonalRecipe, loadLocalState, loadRecipeImage, newestSnapshot, pullRemoteState, pushRemoteState, saveLocalState, saveRecipeImage } from './storage.js';
+} from './nutrihome-core.js?v=1.7.0';
+import { estimateRecipe, inferRecipeTraits, parseFlexibleIngredients } from './recipe-estimator.js?v=1.7.0';
+import { clearLocalState, createStateSnapshot, isPersonalRecipe, loadLocalState, loadRecipeImage, newestSnapshot, pullRemoteState, pushRemoteState, saveLocalState, saveRecipeImage } from './storage.js?v=1.7.0';
 
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
@@ -16,6 +16,7 @@ const number = value => new Intl.NumberFormat('es-ES', { maximumFractionDigits: 
 const LOCATION_LABELS = { fridge: 'Nevera', freezer: 'Congelador', pantry: 'Despensa' };
 const CATEGORY_EMOJI = { verduras: '🥬', frutas: '🍎', refrigerados: '❄️', congelados: '🧊', cereales: '🌾', legumbres: '🫘', conservas: '🥫', bebidas: '🥛', otros: '◌' };
 const DIET_LABELS = { omnivore: 'Omnívora', flexitarian: 'Flexitariana', pescetarian: 'Pescetariana', vegetarian: 'Vegetariana', vegan: 'Vegana', lacto_vegetarian: 'Lacto-vegetariana', ovo_vegetarian: 'Ovo-vegetariana' };
+const APP_VERSION = '1.7.0';
 
 let state;
 let activeDay = Math.max(0, Math.min(6, (new Date().getDay() + 6) % 7));
@@ -27,6 +28,9 @@ let installPrompt = null;
 let recipeVisibleLimit = 36;
 let swipeSession = null;
 const coverObjectUrls = new Map();
+const catalogPhotoCache = new Map();
+const loadingPhotoNodes = new WeakSet();
+let planningReminderTimer = null;
 
 function defaultBodyMetrics() {
   return { age: null, heightCm: null, currentWeightKg: null, currentMuscleKg: null, goalType: 'total', goalValueKg: null, history: [] };
@@ -62,7 +66,8 @@ function initialState() {
   return {
     version: 1, updatedAt: new Date().toISOString(), profile, pantry, recipes, activeWeekStart, weekPlans: [{ startDate: activeWeekStart, menu }],
     exercise: clone(DEMO_EXERCISE), favorites: [], ratings: {}, cookedHistory: [], dismissedRecipes: [],
-    shopping: buildShoppingList(menu, recipes, pantry), manualShopping: [], generationMode: 'balanced', bodyMetrics: defaultBodyMetrics()
+    shopping: buildShoppingList(menu, recipes, pantry), manualShopping: [], generationMode: 'balanced', bodyMetrics: defaultBodyMetrics(),
+    planningReminder: { enabled: false, hour: 18, lastShown: '' }
   };
 }
 
@@ -85,6 +90,7 @@ function normalizeState(saved) {
   merged.shopping = Array.isArray(saved.shopping) ? saved.shopping : buildShoppingList(activeMenu(merged), merged.recipes, merged.pantry);
   merged.bodyMetrics = { ...fresh.bodyMetrics, ...(saved.bodyMetrics || {}) };
   merged.bodyMetrics.history = Array.isArray(saved.bodyMetrics?.history) ? saved.bodyMetrics.history.filter(item => item?.date && Number(item.weightKg) > 0).sort((a, b) => a.date.localeCompare(b.date)) : [];
+  merged.planningReminder = { ...fresh.planningReminder, ...(saved.planningReminder || {}) };
   return merged;
 }
 
@@ -107,24 +113,10 @@ function coverAttributes(recipe) {
   const position = coverPosition(recipe);
   const hash = recipeHash(recipe);
   const turn = hash % 7 - 3;
-  return `style="--cover-x:${position.x};--cover-y:${position.y};--visual-hue:${hash % 38 - 19};--visual-turn:${turn}deg;--visual-turn-reverse:${-turn}deg"${recipe.hasCustomCover ? ` data-cover-recipe="${escapeHtml(recipe.id)}"` : ''}`;
+  return `style="--cover-x:${position.x};--cover-y:${position.y};--visual-hue:${hash % 38 - 19};--visual-turn:${turn}deg;--visual-turn-reverse:${-turn}deg" data-photo-recipe="${escapeHtml(recipe.id)}"`;
 }
 
-function ingredientSymbol(ingredient = {}) {
-  const name = normalizeText(ingredient.name);
-  const symbols = [
-    [/tomate/, '🍅'], [/zanahoria/, '🥕'], [/patata|papa/, '🥔'], [/boniato|batata/, '🍠'], [/berenjena/, '🍆'], [/aguacate/, '🥑'],
-    [/brocoli/, '🥦'], [/pepino/, '🥒'], [/pimiento/, '🫑'], [/cebolla|ajo/, '🧅'], [/maiz/, '🌽'], [/seta|champinon/, '🍄'],
-    [/arroz/, '🍚'], [/pasta|espagueti|macarron/, '🍝'], [/pan|tostada/, '🍞'], [/avena|cereal|quinoa|cuscus/, '🌾'],
-    [/garbanzo|lenteja|alubia|frijol|guisante/, '🫘'], [/huevo/, '🥚'], [/queso|yogur|leche/, '🥛'], [/tofu|tempeh|soja/, '◇'],
-    [/salmon|atun|merluza|bacalao|pescado/, '🐟'], [/gamba|langostino|marisco/, '🦐'], [/pollo|pavo/, '🍗'], [/carne|ternera|cerdo/, '🥩'],
-    [/platano|banana/, '🍌'], [/manzana/, '🍎'], [/pera/, '🍐'], [/naranja|mandarina/, '🍊'], [/limon|lima/, '🍋'], [/fresa|frutos rojos|arandano/, '🍓'],
-    [/nuez|almendra|anacardo|cacahuete|pistacho/, '🥜'], [/aceite/, '◒'], [/agua|caldo/, '◌']
-  ];
-  return symbols.find(([pattern]) => pattern.test(name))?.[1] || ({ verduras: '🥬', frutas: '●', cereales: '🌾', legumbres: '🫘', refrigerados: '❄', congelados: '◆', bebidas: '◌' }[ingredient.category] || '•');
-}
-
-function coverIngredients(recipe, limit = 5) {
+function coverIngredients(recipe, limit = 4) {
   const secondary = /^(sal|agua|aceite|pimienta|oregano|comino|perejil|cilantro)/;
   return [...(recipe.ingredients || [])]
     .sort((a, b) => Number(secondary.test(normalizeText(a.name))) - Number(secondary.test(normalizeText(b.name))))
@@ -132,46 +124,150 @@ function coverIngredients(recipe, limit = 5) {
 }
 
 function recipeVisualInner(recipe, compact = false) {
-  const ingredients = coverIngredients(recipe, compact ? 3 : 5);
-  return `<span class="ingredient-cloud" aria-hidden="true">${ingredients.map((ingredient, index) => `<span class="ingredient-chip ingredient-${index}"><i>${ingredientSymbol(ingredient)}</i><b>${escapeHtml(ingredient.name)}</b></span>`).join('')}</span><span class="visual-recipe-name">${escapeHtml(recipe.name)}</span>`;
+  const ingredients = coverIngredients(recipe, compact ? 2 : 4).map(item => item.name).join(' · ');
+  return `<span class="photo-loading" aria-hidden="true"></span><span class="visual-recipe-name">${escapeHtml(recipe.name)}</span><span class="visual-ingredients">${escapeHtml(ingredients)}</span>`;
 }
 
-async function hydrateUploadedCovers(root = document) {
-  const nodes = [...root.querySelectorAll('[data-cover-recipe]')];
-  await Promise.all(nodes.map(async node => {
-    const recipeId = node.dataset.coverRecipe;
-    const recipe = findRecipe(recipeId);
+function recipePhotoQuery(recipe) {
+  const name = normalizeText(recipe.name);
+  const dishTerms = [
+    [/avena/, 'oatmeal'], [/pudin/, 'chia pudding'], [/yogur/, 'yogurt bowl'], [/tostada/, 'toast'], [/batido/, 'smoothie'],
+    [/curry/, 'curry'], [/taco/, 'tacos'], [/fideo/, 'noodles'], [/donburi|bol de arroz/, 'rice bowl'], [/cuscus/, 'couscous'],
+    [/pasta|espagueti|macarron/, 'pasta'], [/cazuela|guiso/, 'stew'], [/sopa|crema/, 'soup'], [/ensalada/, 'salad'], [/bowl|bol /, 'grain bowl'],
+    [/tortilla|frittata/, 'omelette'], [/revuelto/, 'scrambled eggs'], [/huevos al plato/, 'baked eggs'], [/quiche/, 'quiche'], [/graten/, 'gratin'],
+    [/crepe/, 'savory crepes'], [/arroz/, 'rice dish'], [/pollo/, 'chicken dish'], [/pescado|salmon|atun|merluza/, 'fish dish']
+  ];
+  const dish = dishTerms.find(([pattern]) => pattern.test(name))?.[1] || 'prepared food';
+  const translations = [
+    [/garbanzo/, 'chickpeas'], [/lenteja/, 'lentils'], [/alubia|frijol/, 'beans'], [/tofu/, 'tofu'], [/tempeh/, 'tempeh'], [/edamame/, 'edamame'], [/guisante/, 'peas'],
+    [/brocoli/, 'broccoli'], [/calabacin/, 'zucchini'], [/berenjena/, 'eggplant'], [/pimiento/, 'red pepper'], [/espinaca/, 'spinach'], [/champinon|seta/, 'mushrooms'], [/coliflor/, 'cauliflower'], [/judia verde/, 'green beans'], [/zanahoria/, 'carrots'], [/calabaza/, 'pumpkin'], [/boniato|batata/, 'sweet potato'], [/patata/, 'potatoes'],
+    [/platano/, 'banana'], [/manzana/, 'apple'], [/pera/, 'pear'], [/arandano/, 'blueberries'], [/fresa/, 'strawberries'], [/mango/, 'mango'],
+    [/salmon/, 'salmon'], [/atun/, 'tuna'], [/merluza/, 'hake'], [/bacalao/, 'cod'], [/pollo/, 'chicken'], [/pavo/, 'turkey'], [/ternera/, 'beef'], [/cerdo/, 'pork'],
+    [/huevo/, 'eggs'], [/queso|mozzarella|ricotta|feta|manchego/, 'cheese'], [/arroz/, 'rice'], [/quinoa/, 'quinoa'], [/pasta/, 'pasta']
+  ];
+  const ingredients = [...new Set(coverIngredients(recipe, 5).map(item => normalizeText(item.name)).map(value => translations.find(([pattern]) => pattern.test(value))?.[1]).filter(Boolean))].slice(0, 2);
+  return [...new Set([...ingredients, dish])].join(' ').trim();
+}
+
+function setCoverPhoto(node, url, expectedRecipeId) {
+  return new Promise(resolve => {
+    const photo = new Image();
+    photo.onload = () => {
+      if (node.dataset.photoRecipe !== expectedRecipeId) { resolve(false); return; }
+      node.style.backgroundImage = `url("${photo.src}")`;
+      node.style.backgroundSize = 'cover';
+      node.style.backgroundPosition = 'center';
+      node.classList.add('photo-cover');
+      resolve(true);
+    };
+    photo.onerror = () => resolve(false);
+    photo.src = url;
+  });
+}
+
+function decodedHeader(response, name) {
+  try { return decodeURIComponent(response.headers.get(name) || ''); } catch { return response.headers.get(name) || ''; }
+}
+
+function photoMetadataText(value = '') {
+  const documentValue = new DOMParser().parseFromString(String(value), 'text/html');
+  return (documentValue.body.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 220);
+}
+
+async function loadCommonsPhoto(recipe) {
+  const query = recipePhotoQuery(recipe);
+  const queryWords = query.split(' ');
+  const searchTerms = [...new Set([query, queryWords.slice(0, Math.min(3, queryWords.length)).join(' '), queryWords.slice(0, Math.min(2, queryWords.length)).join(' '), queryWords[0]])].filter(term => term.length >= 3);
+  const rejectedTitles = /\b(icon|logo|diagram|map|drawing|illustration|clipart|symbol|flag)\b/i;
+  let candidates = [];
+  for (const term of searchTerms) {
+    const api = new URL('https://commons.wikimedia.org/w/api.php');
+    api.search = new URLSearchParams({ action: 'query', format: 'json', origin: '*', generator: 'search', gsrsearch: term, gsrnamespace: '6', gsrlimit: '8', prop: 'imageinfo', iiprop: 'url|mime|mediatype|extmetadata', iiurlwidth: '960', iiextmetadatalanguage: 'es', iiextmetadatafilter: 'LicenseShortName|Artist|Credit|ImageDescription' }).toString();
+    const response = await fetch(api, { headers: { accept: 'application/json' } });
+    if (!response.ok) continue;
+    const body = await response.json();
+    candidates = Object.values(body?.query?.pages || {}).sort((left, right) => Number(left.index || 999) - Number(right.index || 999)).filter(page => {
+      const info = page.imageinfo?.[0];
+      return info?.thumburl && info.mediatype === 'BITMAP' && /^image\/(jpeg|png|webp)$/i.test(info.mime || '') && !rejectedTitles.test(page.title || '');
+    });
+    if (candidates.length) break;
+  }
+  if (!candidates.length) return null;
+  const meaningfulWords = query.toLowerCase().split(/\s+/).filter(word => word.length >= 4 && !['dish', 'food', 'prepared', 'bowl'].includes(word));
+  const scored = candidates.map(page => ({ page, score: meaningfulWords.filter(word => String(page.title || '').toLowerCase().includes(word)).length }));
+  const bestScore = Math.max(...scored.map(item => item.score));
+  const bestMatches = scored.filter(item => item.score === bestScore).map(item => item.page);
+  const chosen = bestMatches[recipeHash(recipe) % Math.min(3, bestMatches.length)];
+  const info = chosen.imageinfo[0];
+  return { url: info.thumburl, title: chosen.title || '', author: photoMetadataText(info.extmetadata?.Artist?.value) || 'Wikimedia Commons', license: photoMetadataText(info.extmetadata?.LicenseShortName?.value) || 'Consulta el archivo original', page: info.descriptionurl || 'https://commons.wikimedia.org/' };
+}
+
+async function loadCatalogPhoto(recipe, requestUrl) {
+  if (catalogPhotoCache.has(recipe.id)) return catalogPhotoCache.get(recipe.id);
+  const response = await fetch(requestUrl, { headers: { accept: 'image/avif,image/webp,image/jpeg,image/png' } }).catch(() => null);
+  let record = null;
+  if (response?.ok && response.headers.get('content-type')?.startsWith('image/')) {
+    const blob = await response.blob();
+    record = { url: URL.createObjectURL(blob), objectUrl: true, title: decodedHeader(response, 'x-photo-title'), author: decodedHeader(response, 'x-photo-author'), license: decodedHeader(response, 'x-photo-license'), page: response.headers.get('x-photo-page') || 'https://commons.wikimedia.org/' };
+  } else {
+    record = await loadCommonsPhoto(recipe);
+  }
+  if (!record) return null;
+  catalogPhotoCache.set(recipe.id, record);
+  if (catalogPhotoCache.size > 120) {
+    const [oldestId, oldest] = catalogPhotoCache.entries().next().value;
+    if (oldest.objectUrl) URL.revokeObjectURL(oldest.url);
+    catalogPhotoCache.delete(oldestId);
+  }
+  return record;
+}
+
+function updatePhotoCredit(recipeId, photo) {
+  const target = $('#recipe-photo-credit');
+  if (!target || activeRecipeId !== recipeId || !photo) return;
+  const author = photo.author || 'colaborador de Wikimedia Commons';
+  const license = photo.license || 'licencia indicada en el archivo';
+  target.innerHTML = `Foto orientativa: ${escapeHtml(author)} · ${escapeHtml(license)} · <a href="${escapeHtml(photo.page)}" target="_blank" rel="noopener noreferrer">ver archivo original</a>`;
+}
+
+async function hydrateRecipeCover(node) {
+  if (loadingPhotoNodes.has(node) || node.classList.contains('photo-cover')) return;
+  loadingPhotoNodes.add(node);
+  const recipeId = node.dataset.photoRecipe;
+  const recipe = findRecipe(recipeId);
+  if (!recipe) { loadingPhotoNodes.delete(node); return; }
+  if (recipe.hasCustomCover) {
     let objectUrl = coverObjectUrls.get(recipeId);
     if (!objectUrl) {
       const blob = await loadRecipeImage(recipeId);
       if (blob) { objectUrl = URL.createObjectURL(blob); coverObjectUrls.set(recipeId, objectUrl); }
     }
     if (objectUrl) {
-      node.style.backgroundImage = `url("${objectUrl}")`;
-      node.style.backgroundSize = 'cover';
-      node.style.backgroundPosition = 'center';
-      node.classList.add('photo-cover');
+      await setCoverPhoto(node, objectUrl, recipeId);
+      loadingPhotoNodes.delete(node);
       return;
     }
-    const position = coverPosition(recipe);
-    await new Promise(resolve => {
-      const remote = new Image();
-      remote.onload = () => {
-        node.style.backgroundImage = `url("${remote.src}")`;
-        node.style.backgroundSize = 'cover';
-        node.style.backgroundPosition = 'center';
-        node.classList.add('photo-cover');
-        resolve();
-      };
-      remote.onerror = resolve;
-      remote.src = `./api/recipe-images/${encodeURIComponent(recipeId)}?v=${recipe?.coverRevision || 1}`;
-    });
-    if (!node.classList.contains('photo-cover')) {
-      node.style.backgroundImage = 'url("./recipe-plate-atlas-v2.jpg")';
-      node.style.backgroundSize = '400% 400%';
-      node.style.backgroundPosition = `${position.x} ${position.y}`;
+    if (await setCoverPhoto(node, `./api/recipe-images/${encodeURIComponent(recipeId)}?v=${recipe.coverRevision || 1}`, recipeId)) { loadingPhotoNodes.delete(node); return; }
+  }
+  const query = encodeURIComponent(recipePhotoQuery(recipe));
+  try {
+    const requestUrl = `./api/recipe-photos/${encodeURIComponent(recipeId)}?q=${query}&v=3`;
+    const photo = await loadCatalogPhoto(recipe, requestUrl);
+    if (photo) {
+      await setCoverPhoto(node, photo.url, recipeId);
+      updatePhotoCredit(recipeId, photo);
     }
-  }));
+  } catch { /* the built-in photorealistic fallback remains visible */ }
+  loadingPhotoNodes.delete(node);
+}
+
+function hydrateUploadedCovers(root = document) {
+  const nodes = [...root.querySelectorAll('[data-photo-recipe]')];
+  if (!('IntersectionObserver' in window)) { nodes.forEach(hydrateRecipeCover); return; }
+  const observer = new IntersectionObserver(entries => {
+    for (const entry of entries) if (entry.isIntersecting) { observer.unobserve(entry.target); hydrateRecipeCover(entry.target); }
+  }, { rootMargin: '240px' });
+  nodes.forEach(node => observer.observe(node));
 }
 
 function timeGreeting(date = new Date()) {
@@ -276,9 +372,10 @@ function renderWeek() {
     const hero = $('#today-card .hero-dish');
     const position = coverPosition(currentRecipe);
     hero.className = 'hero-dish recipe-cover';
+    loadingPhotoNodes.delete(hero);
     hero.style.cssText = `--cover-x:${position.x};--cover-y:${position.y}`;
     hero.innerHTML = recipeVisualInner(currentRecipe, true);
-    if (currentRecipe.hasCustomCover) hero.dataset.coverRecipe = currentRecipe.id; else delete hero.dataset.coverRecipe;
+    hero.dataset.photoRecipe = currentRecipe.id;
     $('#open-today').dataset.openRecipe = currentRecipe.id;
   }
   const expiring = state.pantry.filter(item => ['soon', 'today'].includes(getExpiryStatus(item.expiry).key));
@@ -294,25 +391,78 @@ function nextMealType() {
   return 'dinner';
 }
 
-function runGenerator(mode = 'balanced', weeks = 1, start = 'current') {
+function generationRecipePool(source = 'algorithm') {
+  if (source !== 'favorites') return state.recipes;
+  const favoriteIds = new Set(state.favorites);
+  const pool = state.recipes.filter(recipe => favoriteIds.has(recipe.id) && isRecipeCompatible(recipe, state.profile));
+  if (!pool.length) throw new Error('Guarda primero alguna receta compatible en Favoritos.');
+  const missingMeals = Object.keys(MEAL_LABELS).filter(mealType => !pool.some(recipe => recipe.mealTypes.includes(mealType)));
+  if (missingMeals.length) throw new Error(`Tus favoritos no cubren: ${missingMeals.map(item => MEAL_LABELS[item]).join(', ')}.`);
+  return pool;
+}
+
+function generationDays(scope, targetDay, startDate) {
+  if (scope === 'day') return [Math.max(0, Math.min(6, Number(targetDay) || 0))];
+  if (scope !== 'remaining') return [0, 1, 2, 3, 4, 5, 6];
+  const today = new Date(`${isoDate(new Date())}T12:00:00`);
+  const monday = new Date(`${startDate}T12:00:00`);
+  const offset = Math.round((today - monday) / 86400000);
+  if (offset > 6) throw new Error('La semana mostrada ya ha terminado. Elige semana completa o una semana futura.');
+  const firstDay = Math.max(0, offset);
+  return Array.from({ length: 7 - firstDay }, (_, index) => firstDay + index);
+}
+
+function preserveOutsideScope(currentMenu, generatedMenu, days) {
+  const selected = new Set(days);
+  const generatedBySlot = new Map(generatedMenu.map(entry => [`${entry.day}-${entry.mealType}`, entry]));
+  return currentMenu.map(entry => selected.has(entry.day) && !entry.locked ? { ...generatedBySlot.get(`${entry.day}-${entry.mealType}`), locked: false } : entry);
+}
+
+function runGenerator(mode = 'balanced', weeks = 1, start = 'current', source = 'algorithm', scope = 'full', targetDay = 0) {
   try {
-    const count = Math.max(1, Math.min(8, Number(weeks) || 1));
+    const count = scope === 'full' ? Math.max(1, Math.min(8, Number(weeks) || 1)) : 1;
     const firstStart = start === 'next' ? addDays(state.activeWeekStart, 7) : state.activeWeekStart;
+    const recipePool = generationRecipePool(source);
     for (let index = 0; index < count; index += 1) {
       const startDate = addDays(firstStart, index * 7);
       const existing = state.weekPlans.find(plan => plan.startDate === startDate);
-      const menu = generateWeek({ recipes: state.recipes, profile: state.profile, pantry: state.pantry, exercise: state.exercise, previousMenu: existing?.menu || [], mode });
+      const currentMenu = existing?.menu?.length === 28 ? existing.menu : generateWeek({ recipes: state.recipes, profile: state.profile, pantry: state.pantry, exercise: state.exercise, mode: state.generationMode || 'balanced' });
+      const lockedEntries = currentMenu.filter(entry => entry.locked && isRecipeCompatible(findRecipe(entry.recipeId), state.profile));
+      const generated = generateWeek({ recipes: recipePool, profile: state.profile, pantry: state.pantry, exercise: state.exercise, previousMenu: lockedEntries, mode });
+      const days = generationDays(scope, targetDay, startDate);
+      const menu = scope === 'full' ? generated : preserveOutsideScope(currentMenu, generated, days);
       if (existing) existing.menu = menu; else state.weekPlans.push({ startDate, menu });
     }
     state.weekPlans.sort((a, b) => a.startDate.localeCompare(b.startDate));
     state.activeWeekStart = firstStart;
-    activeDay = 0;
+    activeDay = scope === 'day' ? Math.max(0, Math.min(6, Number(targetDay) || 0)) : scope === 'remaining' ? generationDays(scope, targetDay, firstStart)[0] : 0;
     state.generationMode = mode;
+    state.generationSource = source;
     recalculateShopping();
     persist();
     renderAll();
-    showToast(`${count === 1 ? 'Semana generada' : `${count} semanas generadas`}: ${({ balanced: 'equilibrada', pantry: 'aprovechando despensa', waste: 'priorizando caducidades', economic: 'económica', quick: 'rápida', protein: 'alta en proteína', surprise: 'sorpresa' })[mode] || mode}`);
+    const sourceLabel = source === 'favorites' ? 'solo con favoritos' : 'con el algoritmo NutriHome';
+    const scopeLabel = scope === 'remaining' ? 'Resto de la semana generado' : scope === 'day' ? `${DAY_LABELS[Math.max(0, Math.min(6, Number(targetDay) || 0))]} generado` : count === 1 ? 'Semana generada' : `${count} semanas generadas`;
+    showToast(`${scopeLabel} ${sourceLabel}`);
   } catch (error) { showToast(error.message); }
+}
+
+function updateGeneratorControls() {
+  const form = $('#generator-form');
+  const partial = form.elements.scope.value !== 'full';
+  form.elements.weeks.disabled = partial;
+  $('#generator-day-field').hidden = form.elements.scope.value !== 'day';
+  $('#generator-duration-field').classList.toggle('muted-field', partial);
+  $('#favorite-source-count').textContent = `${state.favorites.map(findRecipe).filter(recipe => isRecipeCompatible(recipe, state.profile)).length} compatibles guardadas`;
+}
+
+function openGenerator(preferredMode = state.generationMode || 'balanced') {
+  const form = $('#generator-form');
+  form.elements.mode.value = preferredMode;
+  form.elements.source.value = state.generationSource || 'algorithm';
+  form.elements.day.value = String(activeDay);
+  updateGeneratorControls();
+  $('#generator-dialog').showModal();
 }
 
 function compatibleRecipes() { return state.recipes.filter(recipe => isRecipeCompatible(recipe, state.profile)); }
@@ -355,7 +505,7 @@ function renderRecipes() {
 }
 
 function renderFavorites() {
-  const recipes = state.favorites.map(findRecipe).filter(Boolean);
+  const recipes = state.favorites.map(findRecipe).filter(recipe => isRecipeCompatible(recipe, state.profile));
   $('#favorite-count').textContent = recipes.length;
   $('#favorites-empty').hidden = recipes.length > 0;
   $('#favorite-grid').innerHTML = recipes.map(recipe => `<article class="recipe-card" data-open-recipe="${recipe.id}" tabindex="0" role="button" aria-label="Ver receta ${escapeHtml(recipe.name)}"><div class="recipe-art recipe-cover" ${coverAttributes(recipe)}>${recipeVisualInner(recipe)}<button class="favorite-btn active" type="button" data-favorite="${recipe.id}" aria-label="Quitar de favoritos">♥</button></div><div class="recipe-card-body"><p class="eyebrow">${recipe.mealTypes.map(type => MEAL_LABELS[type]).join(' · ')}</p><h2>${escapeHtml(recipe.name)}</h2><div class="recipe-meta"><span><b>${recipe.totalTime} min</b></span><span>${number(recipe.nutrition.kcal)} kcal</span><span>${number(recipe.nutrition.protein)} g prot.</span></div></div><button class="favorite-plan" type="button" data-plan-favorite="${recipe.id}">＋ Añadir a mi planificación</button></article>`).join('');
@@ -372,8 +522,8 @@ function showRecipe(id, servings) {
   const coverage = pantryCoverage(recipe, state.pantry, recipeServings);
   $('#recipe-dialog-content').innerHTML = `<button class="close-btn" type="button" data-close-dialog="recipe-dialog" aria-label="Cerrar">×</button>
     <section class="recipe-detail-hero"><div><p class="eyebrow">${recipe.mealTypes.map(type => MEAL_LABELS[type]).join(' · ')}</p><h2 id="recipe-dialog-title">${escapeHtml(recipe.name)}</h2><p>${escapeHtml(recipe.description)}</p><div class="detail-actions"><button type="button" data-favorite="${id}">${state.favorites.includes(id) ? '♥ Favorita' : '♡ Guardar'}</button><button type="button" data-cook-recipe="${id}">✓ Receta preparada</button></div></div><div class="recipe-detail-emoji recipe-cover" ${coverAttributes(recipe)} aria-hidden="true">${recipeVisualInner(recipe, true)}</div></section>
-    <div class="detail-grid"><div><div class="nutrition-grid"><div><b>${number(recipe.nutrition.kcal)}</b><span>kcal</span></div><div><b>${number(recipe.nutrition.protein)} g</b><span>proteína</span></div><div><b>${number(recipe.nutrition.carbs)} g</b><span>carbos</span></div><div><b>${number(recipe.nutrition.fat)} g</b><span>grasas</span></div><div><b>${number(recipe.nutrition.fiber)} g</b><span>fibra</span></div><div><b>${euro(recipe.estimatedCost / recipe.servings)}</b><span>ración · est.</span></div></div><h3>Valoración</h3><div class="rating-control" aria-label="Valorar receta">${[1,2,3,4,5].map(value => `<button class="${value <= userRating ? 'active' : ''}" type="button" data-rate="${value}" aria-label="${value} estrellas">★</button>`).join('')}</div><small>${userRating ? `Tu valoración: ${userRating}/5` : recipe.ratingType === 'real' ? `Valoración pública: ${recipe.rating}/5 (${recipe.ratingCount})` : `Recomendación estimada: ${recipe.rating}/5. No es una valoración pública real.`}</small><h3>Información</h3><p>${recipe.totalTime} min · ${recipe.prepTime} min preparación · ${recipe.cookTime} min cocción</p><p>Alérgenos declarados: ${recipe.allergens.length ? recipe.allergens.join(', ') : 'ninguno en los datos de demostración'}.</p><p><small>Fuente: ${escapeHtml(recipe.source)}</small></p></div>
-    <div><div class="serving-control"><h3>Ingredientes</h3><label><span class="sr-only">Raciones</span><input id="recipe-servings" type="number" min="1" max="24" value="${recipeServings}" /></label><span>raciones</span></div><p><small>${coverage.missing === 0 ? 'Tienes todo en casa.' : `Te faltan ${coverage.missing} ingredientes para estas raciones.`}</small></p><ul class="ingredient-list">${scaled.map(item => `<li><span>${escapeHtml(item.name)}</span><b>${number(item.amount)} ${item.unit}</b></li>`).join('')}</ul><h3>Pasos</h3><ol class="step-list">${recipe.steps.map(step => `<li>${escapeHtml(step)}</li>`).join('')}</ol></div></div>`;
+    <div class="detail-grid"><div><div class="nutrition-grid"><div><b>${number(recipe.nutrition.kcal)}</b><span>kcal</span></div><div><b>${number(recipe.nutrition.protein)} g</b><span>proteína</span></div><div><b>${number(recipe.nutrition.carbs)} g</b><span>carbos</span></div><div><b>${number(recipe.nutrition.fat)} g</b><span>grasas</span></div><div><b>${number(recipe.nutrition.fiber)} g</b><span>fibra</span></div><div><b>${euro(recipe.estimatedCost / recipe.servings)}</b><span>ración · est.</span></div></div><h3>Valoración</h3><div class="rating-control" aria-label="Valorar receta">${[1,2,3,4,5].map(value => `<button class="${value <= userRating ? 'active' : ''}" type="button" data-rate="${value}" aria-label="${value} estrellas">★</button>`).join('')}</div><small>${userRating ? `Tu valoración: ${userRating}/5` : recipe.ratingType === 'real' ? `Valoración pública: ${recipe.rating}/5 (${recipe.ratingCount})` : `Recomendación estimada: ${recipe.rating}/5. No es una valoración pública real.`}</small><h3>Información</h3><p>${recipe.totalTime} min · ${recipe.prepTime} min preparación · ${recipe.cookTime} min cocción</p><p>Alérgenos declarados: ${recipe.allergens.length ? recipe.allergens.join(', ') : 'ninguno en los datos de demostración'}.</p><p><small>Fuente: ${escapeHtml(recipe.source)}</small></p><p><small id="recipe-photo-credit">${recipe.hasCustomCover ? 'Foto personal subida por el usuario.' : 'Foto gastronómica real orientativa; cargando autoría y licencia…'}</small></p></div>
+    <div><div class="serving-control"><h3>Ingredientes</h3><label><span class="sr-only">Raciones</span><input id="recipe-servings" type="number" min="1" max="24" value="${recipeServings}" /></label><span>raciones</span></div><p><small>${coverage.missing === 0 ? 'Tienes todo en casa.' : `Te faltan ${coverage.missing} ingredientes para estas raciones.`} Puedes excluir cualquier ingrediente para que no vuelva a aparecer en ninguna propuesta.</small></p><ul class="ingredient-list">${scaled.map(item => `<li><span>${escapeHtml(item.name)}</span><span class="ingredient-actions"><b>${number(item.amount)} ${item.unit}</b><button type="button" data-exclude-ingredient="${escapeHtml(item.name)}" aria-label="Excluir ${escapeHtml(item.name)} de todas las recetas">Excluir</button></span></li>`).join('')}</ul><h3>Pasos</h3><ol class="step-list">${recipe.steps.map(step => `<li>${escapeHtml(step)}</li>`).join('')}</ol></div></div>`;
   const dialog = $('#recipe-dialog');
   if (!dialog.open) dialog.showModal();
   hydrateUploadedCovers(dialog);
@@ -437,6 +587,12 @@ function renderProfile() {
   const unique = new Set(activeMenu().map(item => item.recipeId)).size;
   const usedPantry = state.pantry.filter(item => item.quantity > item.minQuantity).length;
   $('#stats-grid').innerHTML = `<article class="stat-card"><span>Media diaria</span><strong>${number(week.kcal / 7)}</strong><small>kcal</small></article><article class="stat-card"><span>Proteína media</span><strong>${number(week.protein / 7)} g</strong><small>al día</small></article><article class="stat-card"><span>Coste estimado</span><strong>${euro(week.cost)}</strong><small>semana</small></article><article class="stat-card"><span>Variedad</span><strong>${unique}</strong><small>recetas distintas</small></article><article class="stat-card"><span>Despensa útil</span><strong>${usedPantry}</strong><small>productos disponibles</small></article><article class="stat-card"><span>Cocinadas</span><strong>${state.cookedHistory.length}</strong><small>en el historial</small></article>`;
+  $('#planning-reminder-hour').value = String(state.planningReminder.hour || 18);
+  $('#toggle-planning-reminder').textContent = state.planningReminder.enabled ? 'Desactivar aviso en la app' : 'Activar aviso en la app';
+  $('#planning-reminder-status').textContent = state.planningReminder.enabled
+    ? `Activo los domingos desde las ${String(state.planningReminder.hour || 18).padStart(2, '0')}:00. Si la app está cerrada, usa también el recordatorio del calendario.`
+    : 'Desactivado. Puedes activar el aviso y añadir una alarma semanal a tu calendario.';
+  $$('.app-version-label').forEach(node => { node.textContent = `v${APP_VERSION}`; });
 }
 
 function localDateKey(date = new Date()) {
@@ -444,6 +600,64 @@ function localDateKey(date = new Date()) {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+function nextSundayAtHour(hour, from = new Date()) {
+  const result = new Date(from);
+  result.setMinutes(0, 0, 0);
+  result.setHours(hour);
+  let days = (7 - from.getDay()) % 7;
+  if (days === 0 && from >= result) days = 7;
+  result.setDate(result.getDate() + days);
+  return result;
+}
+
+function calendarTimestamp(date) {
+  return `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}T${String(date.getHours()).padStart(2, '0')}0000`;
+}
+
+function downloadPlanningReminder() {
+  const hour = Number($('#planning-reminder-hour').value) || 18;
+  state.planningReminder.hour = hour;
+  persist();
+  const start = nextSundayAtHour(hour);
+  const end = new Date(start.getTime() + 30 * 60000);
+  const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//NutriHome//Plan semanal//ES', 'BEGIN:VEVENT', `UID:nutrihome-plan-${APP_VERSION}@nutrihome`, `DTSTART:${calendarTimestamp(start)}`, `DTEND:${calendarTimestamp(end)}`, 'RRULE:FREQ=WEEKLY;BYDAY=SU', 'SUMMARY:Preparar el menú semanal en NutriHome', 'DESCRIPTION:Abre NutriHome y genera la semana completa o los días que necesites.', 'BEGIN:VALARM', 'TRIGGER:PT0M', 'ACTION:DISPLAY', 'DESCRIPTION:Es hora de preparar el menú semanal en NutriHome', 'END:VALARM', 'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
+  const url = URL.createObjectURL(new Blob([ics], { type: 'text/calendar;charset=utf-8' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'recordatorio-semanal-nutrihome.ics';
+  link.click();
+  URL.revokeObjectURL(url);
+  renderProfile();
+  showToast('Recordatorio semanal listo para añadir a tu calendario.');
+}
+
+async function togglePlanningReminder() {
+  const enabling = !state.planningReminder.enabled;
+  state.planningReminder.hour = Number($('#planning-reminder-hour').value) || 18;
+  if (enabling && 'Notification' in window && Notification.permission === 'default') await Notification.requestPermission();
+  state.planningReminder.enabled = enabling;
+  state.planningReminder.lastShown = '';
+  persist();
+  renderProfile();
+  if (enabling && (!('Notification' in window) || Notification.permission === 'denied')) showToast('Aviso dentro de la app activado; las notificaciones del sistema están bloqueadas.');
+  else showToast(enabling ? 'Aviso dominical activado.' : 'Aviso dominical desactivado.');
+}
+
+async function checkPlanningReminder(date = new Date()) {
+  const reminder = state?.planningReminder;
+  if (!reminder?.enabled || date.getDay() !== 0 || date.getHours() < (Number(reminder.hour) || 18)) return;
+  const today = localDateKey(date);
+  if (reminder.lastShown === today) return;
+  reminder.lastShown = today;
+  persist();
+  showToast('Es domingo: prepara ahora las recetas de la próxima semana.');
+  $('#notifications').classList.add('has-alert');
+  if ('Notification' in window && Notification.permission === 'granted' && 'serviceWorker' in navigator) {
+    const registration = await navigator.serviceWorker.getRegistration();
+    await registration?.showNotification('Prepara tu semana en NutriHome', { body: 'Elige favoritos o el algoritmo y genera la semana completa, el resto o un día.', icon: './icons/icon-192.png', badge: './icons/icon-192.png', tag: `nutrihome-plan-${today}` });
+  }
 }
 
 function formatMetricDate(value) {
@@ -707,7 +921,7 @@ async function saveRecipeForm(form) {
   const imageFile = data.get('coverImage');
   let imageBlob = null;
   try { imageBlob = await compressRecipeImage(imageFile); } catch (problem) { $('#recipe-form-error').textContent = problem.message; return; }
-  const recipe = { id: `rec-user-${crypto.randomUUID()}`, name: data.get('name').trim(), emoji: '🍽️', mealTypes: [data.get('mealType')], totalTime: Number(data.get('totalTime')), prepTime: Number(data.get('totalTime')), cookTime: 0, servings, nutrition: estimated.nutrition, estimatedCost: estimated.estimatedCost, ingredients, description: `Receta personal con cálculo automático${estimated.inferredCount ? `; ${estimated.inferredCount} cantidades inferidas` : ''}.`, steps: data.get('steps').split(/\r?\n/).map(item => item.trim()).filter(Boolean), traits, allergens: traits.map(item => ({ egg: 'huevo', dairy: 'lácteos', soy: 'soja', gluten: 'gluten', nuts: 'frutos secos', fish: 'pescado' })[item]).filter(Boolean), equipment: [], tags: data.get('tags').split(',').map(item => item.trim()).filter(Boolean), rating: 0, ratingCount: 0, ratingType: 'unrated', source: 'Receta personal', hasCustomCover: Boolean(imageBlob), coverRevision: imageBlob ? Date.now() : 0, estimation: { inferredIngredients: estimated.inferredCount, lowConfidence: estimated.lowConfidence } };
+  const recipe = { id: `rec-user-${crypto.randomUUID()}`, name: data.get('name').trim(), mealTypes: [data.get('mealType')], totalTime: Number(data.get('totalTime')), prepTime: Number(data.get('totalTime')), cookTime: 0, servings, nutrition: estimated.nutrition, estimatedCost: estimated.estimatedCost, ingredients, description: `Receta personal con cálculo automático${estimated.inferredCount ? `; ${estimated.inferredCount} cantidades inferidas` : ''}.`, steps: data.get('steps').split(/\r?\n/).map(item => item.trim()).filter(Boolean), traits, allergens: traits.map(item => ({ egg: 'huevo', dairy: 'lácteos', soy: 'soja', gluten: 'gluten', nuts: 'frutos secos', fish: 'pescado' })[item]).filter(Boolean), equipment: [], tags: data.get('tags').split(',').map(item => item.trim()).filter(Boolean), rating: 0, ratingCount: 0, ratingType: 'unrated', source: 'Receta personal', hasCustomCover: Boolean(imageBlob), coverRevision: imageBlob ? Date.now() : 0, estimation: { inferredIngredients: estimated.inferredCount, lowConfidence: estimated.lowConfidence } };
   const errors = validateRecipe(recipe);
   if (errors.length) { $('#recipe-form-error').textContent = errors.join(' '); return; }
   state.recipes.push(recipe);
@@ -726,12 +940,40 @@ function prefillProfileForm() {
   $$('input[name="equipment"]').forEach(input => { input.checked = (profile.equipment || []).includes(input.value); });
 }
 
+function repairPlansForProfile() {
+  for (const plan of state.weekPlans) {
+    const originalLocks = new Map((plan.menu || []).map(entry => [entry.id, Boolean(entry.locked)]));
+    const compatibleEntries = (plan.menu || [])
+      .filter(entry => isRecipeCompatible(findRecipe(entry.recipeId), state.profile))
+      .map(entry => ({ ...entry, locked: true }));
+    const repaired = generateWeek({ recipes: state.recipes, profile: state.profile, pantry: state.pantry, exercise: state.exercise, previousMenu: compatibleEntries, mode: state.generationMode || 'balanced' });
+    plan.menu = repaired.map(entry => ({ ...entry, locked: originalLocks.get(entry.id) || false }));
+  }
+}
+
+function excludeIngredient(ingredientName) {
+  const normalized = normalizeFoodName(ingredientName);
+  if (!normalized || state.profile.dislikes.some(item => normalizeFoodName(item) === normalized)) {
+    showToast('Ese ingrediente ya está excluido.');
+    return;
+  }
+  state.profile.dislikes = [...state.profile.dislikes, ingredientName];
+  repairPlansForProfile();
+  recalculateShopping();
+  persist();
+  renderAll();
+  $('#recipe-dialog').close();
+  showToast(`${ingredientName} excluido de recetas, menús y propuestas.`);
+}
+
 function saveProfile(form) {
   const data = new FormData(form);
   state.profile = { ...state.profile, configured: true, diet: data.get('diet'), eatsEgg: data.get('eatsEgg') === 'on', eatsDairy: data.get('eatsDairy') === 'on', allergies: data.get('allergies').split(',').map(item => normalizeText(item)).filter(Boolean), dislikes: data.get('dislikes').split(',').map(item => item.trim()).filter(Boolean), calorieTarget: Number(data.get('calorieTarget')), proteinTarget: Number(data.get('proteinTarget')), weeklyBudget: Number(data.get('weeklyBudget')), monthlyBudget: Number(data.get('weeklyBudget')) * 4, people: Number(data.get('people')), maxCookingTime: Number(data.get('maxCookingTime')), supermarket: data.get('supermarket').trim(), equipment: data.getAll('equipment') };
   delete state.profile.name;
-  for (const plan of state.weekPlans) plan.menu = plan.menu.filter(entry => isRecipeCompatible(findRecipe(entry.recipeId), state.profile));
-  runGenerator(state.generationMode || 'balanced');
+  repairPlansForProfile();
+  recalculateShopping();
+  persist();
+  renderAll();
   $('#onboarding-dialog').close();
   showToast('Perfil guardado; menú y compra actualizados');
 }
@@ -932,7 +1174,12 @@ function bindEvents() {
     const nav = event.target.closest('[data-nav]'); if (nav) { navigate(nav.dataset.nav); return; }
     const day = event.target.closest('[data-day]'); if (day) { activeDay = Number(day.dataset.day); renderWeek(); return; }
     const weekShift = event.target.closest('[data-week-shift]'); if (weekShift) { switchWeek(weekShift.dataset.weekShift); return; }
-    const generator = event.target.closest('[data-generate-mode]'); if (generator) { runGenerator(generator.dataset.generateMode); return; }
+    const generator = event.target.closest('[data-generate-mode]'); if (generator) { openGenerator(generator.dataset.generateMode); return; }
+    const exclude = event.target.closest('[data-exclude-ingredient]'); if (exclude) {
+      const ingredientName = exclude.dataset.excludeIngredient;
+      openSimple(`<p class="eyebrow">EXCLUSIÓN PERMANENTE</p><h2>No volver a mostrar ${escapeHtml(ingredientName)}</h2><p class="dialog-intro">Ocultaremos todas las recetas que contengan este ingrediente y sustituiremos los platos incompatibles de tus calendarios. Puedes deshacerlo desde Editar perfil.</p><div class="dialog-actions"><button class="secondary-btn" value="cancel">Cancelar</button><button class="primary-btn" value="default" type="submit">Excluir ingrediente</button></div>`, () => excludeIngredient(ingredientName));
+      return;
+    }
     const favorite = event.target.closest('[data-favorite]'); if (favorite) { event.stopPropagation(); const id = favorite.dataset.favorite; state.favorites = state.favorites.includes(id) ? state.favorites.filter(item => item !== id) : [...state.favorites, id]; persist(); renderRecipes(); renderFavorites(); if ($('#recipe-dialog').open) showRecipe(id, recipeServings); return; }
     const planFavorite = event.target.closest('[data-plan-favorite]'); if (planFavorite) { event.stopPropagation(); openFavoritePlanner(planFavorite.dataset.planFavorite); return; }
     const open = event.target.closest('[data-open-recipe]'); if (open) { showRecipe(open.dataset.openRecipe); return; }
@@ -954,8 +1201,10 @@ function bindEvents() {
     const card = event.target.closest('.recipe-card[role="button"]');
     if (card && event.target === card && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); showRecipe(card.dataset.openRecipe); }
   });
-  $('#open-generator').addEventListener('click', () => $('#generator-dialog').showModal());
-  $('#generator-form').addEventListener('submit', event => { event.preventDefault(); const data = new FormData(event.currentTarget); const mode = event.submitter.value; $('#generator-dialog').close(); runGenerator(mode, data.get('weeks'), data.get('start')); });
+  $('#open-generator').addEventListener('click', () => openGenerator());
+  $('#generator-form').addEventListener('submit', event => { event.preventDefault(); const data = new FormData(event.currentTarget); $('#generator-dialog').close(); runGenerator(data.get('mode'), data.get('weeks'), data.get('start'), data.get('source'), data.get('scope'), data.get('day')); });
+  $('#generator-form').elements.scope.addEventListener('change', updateGeneratorControls);
+  $('#generator-form').elements.source.addEventListener('change', updateGeneratorControls);
   const resetRecipeResults = () => { recipeVisibleLimit = 36; renderRecipes(); };
   $('#recipe-search').addEventListener('input', resetRecipeResults); $('#filter-meal').addEventListener('change', resetRecipeResults); $('#filter-time').addEventListener('change', resetRecipeResults); $('#filter-protein').addEventListener('change', resetRecipeResults); $('#filter-diet').addEventListener('change', resetRecipeResults); $('#filter-pantry').addEventListener('change', resetRecipeResults);
   $('#recipe-load-more').addEventListener('click', () => { recipeVisibleLimit += 36; renderRecipes(); });
@@ -975,15 +1224,21 @@ function bindEvents() {
   $('#simple-form').addEventListener('submit', event => { event.preventDefault(); const data = new FormData(event.currentTarget); const handler = simpleHandler; $('#simple-dialog').close(); simpleHandler = null; handler?.(data); });
   $('#recipe-dialog').addEventListener('change', event => { if (event.target.id === 'recipe-servings') showRecipe(activeRecipeId, event.target.value); });
   $('#add-exercise').addEventListener('click', openExerciseForm); $('#export-data').addEventListener('click', exportData); $('#import-data').addEventListener('change', event => { if (event.target.files[0]) importData(event.target.files[0]); event.target.value = ''; });
+  $('#toggle-planning-reminder').addEventListener('click', togglePlanningReminder);
+  $('#download-calendar-reminder').addEventListener('click', downloadPlanningReminder);
+  $('#planning-reminder-hour').addEventListener('change', event => { state.planningReminder.hour = Number(event.target.value) || 18; state.planningReminder.lastShown = ''; persist(); renderProfile(); checkPlanningReminder(); });
   $('#notifications').addEventListener('click', () => {
     const low = state.pantry.filter(item => item.minQuantity > 0 && item.quantity <= item.minQuantity);
     const expiring = state.pantry.filter(item => ['soon', 'today'].includes(getExpiryStatus(item.expiry).key));
-    openSimple(`<p class="eyebrow">AVISOS</p><h2>Tu casa al día</h2><p class="dialog-intro">${low.length ? `${low.length} productos están bajo el mínimo.` : 'No hay productos bajo el mínimo.'}</p><p class="dialog-intro">${expiring.length ? `${expiring.map(item => escapeHtml(item.name)).join(', ')} conviene usar pronto.` : 'No hay caducidades próximas.'}</p><div class="dialog-actions"><button class="primary-btn" type="button" data-close-dialog="simple-dialog">Entendido</button></div>`, null);
+    $('#notifications').classList.remove('has-alert');
+    const reminderCopy = state.planningReminder.enabled ? `El recordatorio del menú está activo los domingos desde las ${String(state.planningReminder.hour).padStart(2, '0')}:00.` : 'El recordatorio dominical del menú está desactivado.';
+    openSimple(`<p class="eyebrow">AVISOS</p><h2>Tu casa al día</h2><p class="dialog-intro">${reminderCopy}</p><p class="dialog-intro">${low.length ? `${low.length} productos están bajo el mínimo.` : 'No hay productos bajo el mínimo.'}</p><p class="dialog-intro">${expiring.length ? `${expiring.map(item => escapeHtml(item.name)).join(', ')} conviene usar pronto.` : 'No hay caducidades próximas.'}</p><div class="dialog-actions"><button class="primary-btn" type="button" data-close-dialog="simple-dialog">Entendido</button></div>`, null);
   });
   $('#reset-preferences').addEventListener('click', () => { if (!confirm('¿Reiniciar favoritos, valoraciones e historial?')) return; state.favorites = []; state.ratings = {}; state.cookedHistory = []; state.dismissedRecipes = []; persist(); renderAll(); showToast('Preferencias reiniciadas'); });
   $('#delete-data').addEventListener('click', async () => { if (!confirm('¿Eliminar todos los datos de NutriHome en este dispositivo?')) return; await clearLocalState(); state = initialState(); renderAll(); persist({ remote: false }); prefillProfileForm(); $('#onboarding-dialog').showModal(); });
   window.addEventListener('online', () => { updateSyncBadge('pending'); persist(); }); window.addEventListener('offline', () => updateSyncBadge('offline'));
   window.addEventListener('resize', () => requestAnimationFrame(drawWeightChart));
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) checkPlanningReminder(); });
   window.addEventListener('beforeinstallprompt', event => { event.preventDefault(); installPrompt = event; $('#install-app').hidden = false; }); $('#install-app').addEventListener('click', async () => { if (!installPrompt) return; installPrompt.prompt(); await installPrompt.userChoice; installPrompt = null; $('#install-app').hidden = true; });
 }
 
@@ -991,6 +1246,10 @@ async function init() {
   const local = await loadLocalState();
   const remote = await pullRemoteState();
   state = normalizeState(newestSnapshot(local, remote.state));
+  if (state.weekPlans.some(plan => plan.menu.length !== 28 || plan.menu.some(entry => !isRecipeCompatible(findRecipe(entry.recipeId), state.profile)))) {
+    repairPlansForProfile();
+    recalculateShopping();
+  }
   const todayIndex = weekDates().findIndex(date => isoDate(date) === isoDate(new Date()));
   activeDay = todayIndex >= 0 ? todayIndex : 0;
   const snapshot = await saveLocalState(createStateSnapshot(state));
@@ -999,7 +1258,10 @@ async function init() {
   bindEvents(); renderAll();
   const route = location.hash.slice(1); if (['week','recipes','favorites','pantry','shopping','more'].includes(route)) navigate(route, false);
   if (!state.profile.configured) { prefillProfileForm(); setTimeout(() => $('#onboarding-dialog').showModal(), 250); }
-  if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => updateSyncBadge('offline')));
+  if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').then(() => checkPlanningReminder()).catch(() => updateSyncBadge('offline')));
+  checkPlanningReminder();
+  clearInterval(planningReminderTimer);
+  planningReminderTimer = setInterval(checkPlanningReminder, 15 * 60 * 1000);
 }
 
 init().catch(error => { console.error(error); $('#main-content').innerHTML = `<div class="empty-state"><span>!</span><h1>No pudimos abrir NutriHome</h1><p>Tus datos siguen a salvo. Recarga para intentarlo de nuevo.</p><button class="primary-btn" onclick="location.reload()">Reintentar</button></div>`; });

@@ -65,6 +65,36 @@ export function normalizeFoodName(name = '') {
   return value.replace(/\b(fresco|fresca|frescos|frescas|troceado|troceada)\b/g, '').replace(/\s+/g, ' ').trim();
 }
 
+const EXCLUSION_FAMILIES = Object.freeze({
+  pescado: ['pescado', 'salmon', 'atun', 'merluza', 'bacalao', 'sardina', 'trucha', 'dorada', 'lubina', 'anchoa'],
+  marisco: ['marisco', 'gamba', 'langostino', 'camaron', 'mejillon', 'almeja', 'calamar', 'pulpo'],
+  carne: ['carne', 'ternera', 'cerdo', 'cordero', 'pollo', 'pavo', 'jamon', 'bacon'],
+  'fruto seco': ['fruto seco', 'frutos secos', 'nuez', 'nueces', 'almendra', 'anacardo', 'cacahuete', 'pistacho', 'avellana'],
+  lacteo: ['lacteo', 'lacteos', 'leche', 'queso', 'yogur', 'nata', 'mantequilla'],
+  gluten: ['gluten', 'trigo', 'cebada', 'centeno', 'espelta'],
+  soja: ['soja', 'tofu', 'tempeh', 'edamame'],
+  huevo: ['huevo', 'huevos', 'clara de huevo', 'yema de huevo']
+});
+
+function exclusionFamily(value) {
+  const normalized = normalizeFoodName(value);
+  return Object.values(EXCLUSION_FAMILIES).find(terms => terms.some(term => normalizeFoodName(term) === normalized)) || [];
+}
+
+export function ingredientMatchesExclusion(ingredientName, excludedName) {
+  const ingredient = normalizeFoodName(ingredientName);
+  const excluded = normalizeFoodName(excludedName);
+  if (!ingredient || !excluded) return false;
+  const ingredientWords = new Set(ingredient.split(' '));
+  const excludedWords = excluded.split(' ');
+  if (excludedWords.every(word => ingredientWords.has(word))) return true;
+  const family = exclusionFamily(excluded);
+  return family.some(term => {
+    const words = normalizeFoodName(term).split(' ');
+    return words.every(word => ingredientWords.has(word));
+  });
+}
+
 export function sameFood(left, right) {
   if (normalizeFoodName(left) !== normalizeFoodName(right)) return false;
   const a = ingredientForm(left);
@@ -149,18 +179,19 @@ export function recipeTraits(recipe) {
 }
 
 export function isRecipeCompatible(recipe, profile = {}) {
+  if (!recipe) return false;
   const blocks = new Set(DIET_BLOCKS[profile.diet] || []);
   if (profile.eatsEgg === false) blocks.add('egg');
   if (profile.eatsDairy === false) blocks.add('dairy');
   const traits = recipeTraits(recipe);
   for (const blocked of blocks) if (traits.has(blocked)) return false;
 
-  const restrictions = new Set([...(profile.allergies || []), ...(profile.restrictions || [])].map(normalizeText));
-  if (recipe.allergens?.some(allergen => restrictions.has(normalizeText(allergen)))) return false;
-  if (recipe.ingredients?.some(ingredient => restrictions.has(normalizeFoodName(ingredient.name)))) return false;
+  const restrictions = [...(profile.allergies || []), ...(profile.restrictions || [])].map(normalizeFoodName).filter(Boolean);
+  if (recipe.allergens?.some(allergen => restrictions.some(restriction => ingredientMatchesExclusion(allergen, restriction)))) return false;
+  if (recipe.ingredients?.some(ingredient => restrictions.some(restriction => ingredientMatchesExclusion(ingredient.name, restriction)))) return false;
 
   const dislikes = (profile.dislikes || []).map(normalizeFoodName).filter(Boolean);
-  if (recipe.ingredients?.some(ingredient => dislikes.includes(normalizeFoodName(ingredient.name)))) return false;
+  if (recipe.ingredients?.some(ingredient => dislikes.some(dislike => ingredientMatchesExclusion(ingredient.name, dislike)))) return false;
 
   const equipment = new Set(profile.equipment || []);
   if (equipment.size && recipe.equipment?.some(required => !equipment.has(required))) return false;

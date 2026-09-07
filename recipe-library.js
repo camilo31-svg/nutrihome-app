@@ -1,4 +1,4 @@
-import { DEMO_RECIPES } from './demo-data.js';
+import { DEMO_RECIPES } from './demo-data.js?v=1.7.0';
 
 const ingredient = (name, amount, unit, category = 'otros') => ({ name, amount, unit, category });
 const rounded = value => Math.round(value * 10) / 10;

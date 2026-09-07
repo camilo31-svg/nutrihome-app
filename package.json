@@ -1,6 +1,6 @@
 {
   "name": "nutrihome-pwa",
-  "version": "0.1.0",
+  "version": "1.7.0",
   "private": true,
   "type": "module",
   "description": "PWA mobile-first para menús, recetas, despensa y compra inteligente.",

@@ -5,7 +5,7 @@ import { createStateSnapshot } from '../storage.js';
 import { estimateRecipe, inferRecipeTraits, parseFlexibleIngredients } from '../recipe-estimator.js';
 import {
   buildShoppingList, calculateBMI, calculateGoalProgress, classifyAdultBMI, consumeRecipe, convertQuantity, generateWeek, getExpiryStatus,
-  isRecipeCompatible, normalizeText, pantryCoverage, rankMealCandidates, regenerateMeal, sameFood, scaleIngredients, upsertBodyMeasurement, upsertPantryItem, validateRecipe
+  ingredientMatchesExclusion, isRecipeCompatible, normalizeText, pantryCoverage, rankMealCandidates, regenerateMeal, sameFood, scaleIngredients, upsertBodyMeasurement, upsertPantryItem, validateRecipe
 } from '../nutrihome-core.js';
 
 const GENERIC_RECIPE_STEPS = [
@@ -72,6 +72,10 @@ assert.equal(isRecipeCompatible(fishRecipe, vegetarianNoEgg), false);
 assert.equal(isRecipeCompatible(veganRecipe, vegetarianNoEgg), true);
 assert.equal(isRecipeCompatible(dairyRecipe, { ...DEFAULT_PROFILE, diet: 'vegan' }), false);
 assert.equal(isRecipeCompatible(veganRecipe, { ...DEFAULT_PROFILE, allergies: ['garbanzo'] }), false);
+assert.equal(ingredientMatchesExclusion('pimiento rojo asado', 'pimiento'), true);
+assert.equal(ingredientMatchesExclusion('salsa de tomate', 'sal'), false);
+assert.equal(isRecipeCompatible(fishRecipe, { ...DEFAULT_PROFILE, dislikes: ['pescado'] }), false, 'Una exclusión amplia bloquea ingredientes de su familia');
+assert.equal(isRecipeCompatible(DEMO_RECIPES.find(recipe => recipe.ingredients.some(item => normalizeText(item.name).includes('pimiento rojo'))), { ...DEFAULT_PROFILE, dislikes: ['pimiento'] }), false, 'Excluir un ingrediente bloquea también sus variantes descriptivas');
 
 const scaled = scaleIngredients(veganRecipe, 4);
 assert.equal(scaled.find(item => item.name === 'garbanzos cocidos').amount, 640);
