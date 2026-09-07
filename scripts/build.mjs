@@ -11,7 +11,7 @@ await rm(dist, { recursive: true, force: true });
 await mkdir(client, { recursive: true });
 await mkdir(server, { recursive: true });
 
-for (const filename of ['index.html', 'styles.css', 'nutrihome-core.js', 'demo-data.js', 'recipe-library.js', 'storage.js', 'app.js', 'sw.js', 'manifest.webmanifest', 'og.png']) {
+for (const filename of ['index.html', 'styles.css', 'nutrihome-core.js', 'demo-data.js', 'recipe-library.js', 'recipe-estimator.js', 'storage.js', 'app.js', 'sw.js', 'manifest.webmanifest', 'og.png', 'recipe-cover-atlas.jpg']) {
   await cp(path.join(root, filename), path.join(client, filename));
 }
 await cp(path.join(root, 'icons'), path.join(client, 'icons'), { recursive: true });

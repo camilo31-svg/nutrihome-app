@@ -9,7 +9,7 @@ const worker = await readFile(new URL('../sw.js', import.meta.url), 'utf8');
 const ids = [...html.matchAll(/id="([^"]+)"/g)].map(match => match[1]);
 assert.deepEqual(ids.filter((id, index) => ids.indexOf(id) !== index), [], 'No hay IDs HTML duplicados');
 
-for (const view of ['week', 'recipes', 'pantry', 'shopping', 'more']) {
+for (const view of ['week', 'recipes', 'favorites', 'pantry', 'shopping', 'more']) {
   assert.match(html, new RegExp(`data-view="${view}"`));
   assert.match(html, new RegExp(`data-nav="${view}"`));
 }
@@ -29,7 +29,7 @@ assert.match(app, /getHours\(\) < 14 \? 'Buenos días' : 'Buenas tardes'/);
 assert.equal(manifest.name.startsWith('NutriHome'), true);
 assert.equal(manifest.icons.some(icon => icon.sizes === '192x192'), true);
 assert.equal(manifest.icons.some(icon => icon.sizes === '512x512'), true);
-for (const asset of ['nutrihome-core.js', 'demo-data.js', 'recipe-library.js', 'storage.js', 'app.js']) assert.equal(worker.includes(asset), true);
+for (const asset of ['nutrihome-core.js', 'demo-data.js', 'recipe-library.js', 'recipe-estimator.js', 'storage.js', 'app.js', 'recipe-cover-atlas.jpg']) assert.equal(worker.includes(asset), true);
 assert.match(html, /id="recipe-load-more"/);
 assert.match(html, /value="lacto_vegetarian"/);
 assert.match(html, /value="ovo_vegetarian"/);
@@ -37,6 +37,11 @@ assert.match(html, /value="flexitarian"/);
 const shellMatch = worker.match(/const APP_SHELL = \[([\s\S]*?)\];/);
 assert.ok(shellMatch, 'El service worker declara el app shell');
 for (const match of shellMatch[1].matchAll(/'\.\/([^']+)'/g)) await access(new URL(`../${match[1]}`, import.meta.url));
-for (const dialogId of ['onboarding-dialog', 'pantry-dialog', 'recipe-form-dialog', 'generator-dialog', 'simple-dialog']) assert.match(html, new RegExp(`data-close-dialog="${dialogId}"`));
+for (const dialogId of ['onboarding-dialog', 'pantry-dialog', 'recipe-form-dialog', 'generator-dialog', 'swipe-dialog', 'simple-dialog']) assert.match(html, new RegExp(`data-close-dialog="${dialogId}"`));
+assert.match(html, /id="recipe-estimate-preview"/);
+assert.match(html, /name="coverImage"/);
+assert.match(html, /name="weeks"/);
+assert.match(app, /rankMealCandidates/);
+await access(new URL('../recipe-cover-atlas.jpg', import.meta.url));
 
 console.log('NutriHome UI/PWA smoke tests passed');

@@ -34,6 +34,34 @@ async function stateApi(request, env) {
   return json({ error: 'method_not_allowed' }, 405);
 }
 
+async function recipeImageApi(request, env, recipeId) {
+  if (!env.RECIPE_IMAGES) return json({ error: 'image_storage_not_configured' }, 503);
+  const userId = currentUser(request);
+  if (!userId) return json({ error: 'authentication_required' }, 401);
+  if (!/^rec-user-[a-z0-9-]{1,90}$/i.test(recipeId)) return json({ error: 'invalid_recipe_id' }, 400);
+  const key = `${encodeURIComponent(userId)}/${recipeId}`;
+  if (request.method === 'GET') {
+    const object = await env.RECIPE_IMAGES.get(key);
+    if (!object) return json({ error: 'not_found' }, 404);
+    return new Response(object.body, { headers: { 'content-type': object.httpMetadata?.contentType || 'image/webp', 'cache-control': 'private, max-age=86400', etag: object.httpEtag } });
+  }
+  if (request.method === 'PUT') {
+    const type = String(request.headers.get('content-type') || '').split(';')[0];
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(type)) return json({ error: 'unsupported_image' }, 415);
+    const declaredLength = Number(request.headers.get('content-length') || 0);
+    if (declaredLength > 5_000_000) return json({ error: 'image_too_large' }, 413);
+    const bytes = await request.arrayBuffer();
+    if (!bytes.byteLength || bytes.byteLength > 5_000_000) return json({ error: 'image_too_large' }, 413);
+    await env.RECIPE_IMAGES.put(key, bytes, { httpMetadata: { contentType: type } });
+    return json({ ok: true });
+  }
+  if (request.method === 'DELETE') {
+    await env.RECIPE_IMAGES.delete(key);
+    return json({ ok: true });
+  }
+  return json({ error: 'method_not_allowed' }, 405);
+}
+
 function isSafeRecipeUrl(raw) {
   try {
     const url = new URL(raw);
@@ -107,6 +135,8 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (url.pathname === '/api/state') return stateApi(request, env);
+    const imageMatch = url.pathname.match(/^\/api\/recipe-images\/([^/]+)$/);
+    if (imageMatch) return secure(await recipeImageApi(request, env, decodeURIComponent(imageMatch[1])));
     if (url.pathname === '/api/import-recipe' && request.method === 'GET') return importRecipe(request);
     const response = await env.ASSETS.fetch(request);
     if (response.status !== 404 || request.method !== 'GET') return secure(response);

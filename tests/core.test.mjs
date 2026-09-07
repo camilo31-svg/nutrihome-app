@@ -2,9 +2,10 @@ import assert from 'node:assert/strict';
 import { DEMO_RECIPES, DEFAULT_PROFILE, createDemoPantry } from '../demo-data.js';
 import { DIET_CATALOG_PROFILES, RECIPE_LIBRARY, catalogCounts } from '../recipe-library.js';
 import { createStateSnapshot } from '../storage.js';
+import { estimateRecipe, inferRecipeTraits, parseFlexibleIngredients } from '../recipe-estimator.js';
 import {
   buildShoppingList, calculateBMI, calculateGoalProgress, classifyAdultBMI, consumeRecipe, convertQuantity, generateWeek, getExpiryStatus,
-  isRecipeCompatible, normalizeText, pantryCoverage, regenerateMeal, sameFood, scaleIngredients, upsertBodyMeasurement, upsertPantryItem, validateRecipe
+  isRecipeCompatible, normalizeText, pantryCoverage, rankMealCandidates, regenerateMeal, sameFood, scaleIngredients, upsertBodyMeasurement, upsertPantryItem, validateRecipe
 } from '../nutrihome-core.js';
 
 const GENERIC_RECIPE_STEPS = [
@@ -104,6 +105,20 @@ const regenerated = generateWeek({ recipes: DEMO_RECIPES, profile: vegetarianNoE
 assert.deepEqual(regenerated.find(entry => entry.id === locked.id), locked);
 const noChange = regenerateMeal({ entry: locked, menu, recipes: DEMO_RECIPES, profile: vegetarianNoEgg, pantry: demoPantry });
 assert.equal(noChange, menu);
+const candidates = rankMealCandidates({ entry: menu[0], menu, recipes: RECIPE_LIBRARY, profile: vegetarianNoEgg, pantry: demoPantry, limit: 100 });
+assert.equal(candidates.length, 100, 'El selector ofrece cien alternativas cuando el catálogo lo permite');
+assert.equal(candidates.every(recipe => recipe.mealTypes.includes(menu[0].mealType) && isRecipeCompatible(recipe, vegetarianNoEgg)), true);
+
+const flexible = parseFlexibleIngredients('arroz integral\ntomate\n2 huevos\n1 cucharada de aceite de oliva', 2);
+assert.equal(flexible.length, 4);
+assert.equal(flexible[0].inferred, true, 'Se infiere una cantidad cuando no se proporciona');
+assert.equal(flexible[2].unit, 'unidad');
+assert.equal(flexible[2].amount, 2);
+assert.equal(flexible[3].unit, 'g');
+const autoEstimate = estimateRecipe(flexible, 2);
+assert.ok(autoEstimate.estimatedCost > 0);
+assert.ok(autoEstimate.nutrition.kcal > 0 && autoEstimate.nutrition.protein > 0 && autoEstimate.nutrition.fiber > 0);
+assert.ok(inferRecipeTraits(flexible).includes('egg'));
 
 const today = new Date();
 const todayKey = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 12).toISOString().slice(0, 10);

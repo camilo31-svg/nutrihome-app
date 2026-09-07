@@ -4,13 +4,15 @@ NutriHome es una PWA mobile-first que conecta planificación semanal, recetas, o
 
 ## Funciones implementadas
 
-- Menú de lunes a domingo con desayuno, comida, merienda y cena.
+- Planificación por semanas completas de lunes a domingo, con navegación y generación encadenada de hasta ocho semanas.
 - Generación multiobjetivo: equilibrada, rápida, económica, alta en proteína, aprovechamiento de despensa, prioridad a caducidades y modo sorpresa.
-- Bloqueo, regeneración, repetición e intercambio de comidas.
+- Bloqueo, repetición e intercambio de comidas, además de un selector tipo Tinder con hasta 100 alternativas compatibles para cada hueco.
 - Restricciones dietéticas reales. Huevo y lácteos se comprueban de forma independiente a la etiqueta vegetariana.
 - Biblioteca de 1.705 recetas únicas en castellano, con más de 1.000 opciones compatibles para cada dieta disponible, búsqueda por nombre/ingrediente/etiqueta, filtros dietéticos completos y carga progresiva de resultados.
 - Cada receta incorporada tiene ingredientes cuantificados y cuatro pasos propios; las pruebas rechazan instrucciones genéricas, IDs o nombres duplicados y catálogos con menos de 1.000 opciones por dieta.
-- Recetas personales indexadas al guardarlas, escalado de raciones, favoritos, valoración personal e historial de recetas preparadas.
+- Recetas personales con ingredientes escritos libremente: se infieren cantidades y se calculan automáticamente coste, calorías, proteína, carbohidratos, grasas y fibra.
+- Carátulas gastronómicas generadas con IA para toda la biblioteca y carga opcional de una foto propia, persistida en IndexedDB y R2 cuando hay sesión.
+- Pestaña independiente de favoritos, asignación directa a un día y comida concretos, escalado de raciones, valoración personal e historial de recetas preparadas.
 - Despensa con cantidades, unidades, ubicación, stock mínimo, caducidad, precio registrado y código de barras.
 - Descuento FIFO del inventario al preparar una receta y aviso de ingredientes no registrados.
 - Lista de compra que agrega ingredientes, normaliza unidades compatibles y resta existencias.
@@ -33,8 +35,9 @@ app.js                      coordinación de vistas y flujos
 nutrihome-core.js           unidades, dieta, menú, inventario y compra
 demo-data.js                recetas y datos iniciales identificados como demo
 recipe-library.js           catálogo internacional generado, fuentes y perfiles dietéticos
-storage.js                  IndexedDB y sincronización progresiva
-worker/index.js             assets, API autenticada y importación JSON-LD
+recipe-estimator.js         inferencia de cantidades, nutrientes y coste orientativo
+storage.js                  IndexedDB, imágenes locales y sincronización progresiva
+worker/index.js             assets, API autenticada, R2 e importación JSON-LD
 db/schema.ts                esquema lógico de persistencia
 drizzle/                    migración incluida en despliegues
 tests/                      lógica crítica y smoke tests PWA
@@ -70,7 +73,7 @@ Las pruebas cubren conversiones, unidades incompatibles, sinónimos, dietas y al
 
 - `dist/client/` con la PWA estática.
 - `dist/server/index.js` con el Worker compatible con Cloudflare.
-- `dist/.openai/hosting.json` con el proyecto Sites y el binding lógico `DB`.
+- `dist/.openai/hosting.json` con el proyecto Sites y los bindings lógicos `DB` y `RECIPE_IMAGES`.
 
 La carpeta `drizzle/` contiene la migración de D1 y se empaqueta al crear una versión de Sites. No se necesitan claves en el frontend. Para otro proveedor compatible, configura un binding D1 llamado `DB` y sirve `dist/client` mediante el Worker.
 

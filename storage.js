@@ -1,6 +1,7 @@
 const DB_NAME = 'nutrihome-local';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE = 'snapshots';
+const IMAGE_STORE = 'recipe-images';
 const STATE_KEY = 'current';
 
 export function isPersonalRecipe(recipe) {
@@ -17,17 +18,18 @@ function openDatabase() {
     request.onupgradeneeded = () => {
       const db = request.result;
       if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE, { keyPath: 'key' });
+      if (!db.objectStoreNames.contains(IMAGE_STORE)) db.createObjectStore(IMAGE_STORE, { keyPath: 'key' });
     };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
 }
 
-async function transact(mode, action) {
+async function transact(mode, action, storeName = STORE) {
   const db = await openDatabase();
   return new Promise((resolve, reject) => {
-    const transaction = db.transaction(STORE, mode);
-    const request = action(transaction.objectStore(STORE));
+    const transaction = db.transaction(storeName, mode);
+    const request = action(transaction.objectStore(storeName));
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
     transaction.oncomplete = () => db.close();
@@ -51,6 +53,23 @@ export async function saveLocalState(state) {
 
 export async function clearLocalState() {
   try { await transact('readwrite', store => store.delete(STATE_KEY)); } catch { /* already empty */ }
+  try { await transact('readwrite', store => store.clear(), IMAGE_STORE); } catch { /* already empty */ }
+}
+
+export async function saveRecipeImage(recipeId, blob) {
+  if (!(blob instanceof Blob) || !recipeId) throw new TypeError('Imagen de receta no válida.');
+  return transact('readwrite', store => store.put({ key: recipeId, blob, updatedAt: new Date().toISOString() }), IMAGE_STORE);
+}
+
+export async function loadRecipeImage(recipeId) {
+  try {
+    const record = await transact('readonly', store => store.get(recipeId), IMAGE_STORE);
+    return record?.blob || null;
+  } catch { return null; }
+}
+
+export async function deleteRecipeImage(recipeId) {
+  try { await transact('readwrite', store => store.delete(recipeId), IMAGE_STORE); } catch { /* already empty */ }
 }
 
 export async function pullRemoteState() {

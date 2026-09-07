@@ -3,9 +3,10 @@ import { DIET_CATALOG_PROFILES, RECIPE_LIBRARY } from './recipe-library.js';
 import {
   DAY_LABELS, MEAL_LABELS, buildShoppingList, calculateBMI, calculateGoalProgress, classifyAdultBMI, consumeRecipe, generateWeek, getExpiryStatus,
   isRecipeCompatible, menuNutrition, normalizeFoodName, normalizeText, normalizeUnit,
-  pantryCoverage, regenerateMeal, roundQuantity, sameFood, scaleIngredients, upsertBodyMeasurement, upsertPantryItem, validateRecipe
+  pantryCoverage, rankMealCandidates, roundQuantity, sameFood, scaleIngredients, upsertBodyMeasurement, upsertPantryItem, validateRecipe
 } from './nutrihome-core.js';
-import { clearLocalState, createStateSnapshot, isPersonalRecipe, loadLocalState, newestSnapshot, pullRemoteState, pushRemoteState, saveLocalState } from './storage.js';
+import { estimateRecipe, inferRecipeTraits, parseFlexibleIngredients } from './recipe-estimator.js';
+import { clearLocalState, createStateSnapshot, isPersonalRecipe, loadLocalState, loadRecipeImage, newestSnapshot, pullRemoteState, pushRemoteState, saveLocalState, saveRecipeImage } from './storage.js';
 
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
@@ -24,9 +25,32 @@ let saveTimer = null;
 let simpleHandler = null;
 let installPrompt = null;
 let recipeVisibleLimit = 36;
+let swipeSession = null;
+const coverObjectUrls = new Map();
 
 function defaultBodyMetrics() {
   return { age: null, heightCm: null, currentWeightKg: null, currentMuscleKg: null, goalType: 'total', goalValueKg: null, history: [] };
+}
+
+function isoDate(date) {
+  const local = new Date(date);
+  local.setHours(12, 0, 0, 0);
+  return `${local.getFullYear()}-${String(local.getMonth() + 1).padStart(2, '0')}-${String(local.getDate()).padStart(2, '0')}`;
+}
+
+function addDays(dateKey, days) {
+  const date = new Date(`${dateKey}T12:00:00`);
+  date.setDate(date.getDate() + days);
+  return isoDate(date);
+}
+
+function defaultPlanStart(date = new Date()) {
+  const value = new Date(date);
+  value.setHours(12, 0, 0, 0);
+  const isSunday = value.getDay() === 0;
+  const mondayIndex = (value.getDay() + 6) % 7;
+  value.setDate(value.getDate() - mondayIndex + (isSunday ? 7 : 0));
+  return isoDate(value);
 }
 
 function initialState() {
@@ -34,8 +58,9 @@ function initialState() {
   const pantry = createDemoPantry();
   const recipes = clone(RECIPE_LIBRARY);
   const menu = generateWeek({ recipes, profile, pantry, exercise: DEMO_EXERCISE, mode: 'balanced' });
+  const activeWeekStart = defaultPlanStart();
   return {
-    version: 1, updatedAt: new Date().toISOString(), profile, pantry, recipes, menu,
+    version: 1, updatedAt: new Date().toISOString(), profile, pantry, recipes, activeWeekStart, weekPlans: [{ startDate: activeWeekStart, menu }],
     exercise: clone(DEMO_EXERCISE), favorites: [], ratings: {}, cookedHistory: [], dismissedRecipes: [],
     shopping: buildShoppingList(menu, recipes, pantry), manualShopping: [], generationMode: 'balanced', bodyMetrics: defaultBodyMetrics()
   };
@@ -50,8 +75,14 @@ function normalizeState(saved) {
   const personalRecipes = savedRecipes.filter(isPersonalRecipe);
   merged.recipes = [...fresh.recipes, ...personalRecipes];
   merged.pantry = Array.isArray(saved.pantry) ? saved.pantry : fresh.pantry;
-  merged.menu = Array.isArray(saved.menu) && saved.menu.length ? saved.menu : fresh.menu;
-  merged.shopping = Array.isArray(saved.shopping) ? saved.shopping : buildShoppingList(merged.menu, merged.recipes, merged.pantry);
+  const legacyMenu = Array.isArray(saved.menu) && saved.menu.length ? saved.menu : fresh.weekPlans[0].menu;
+  merged.weekPlans = Array.isArray(saved.weekPlans) && saved.weekPlans.length
+    ? saved.weekPlans.filter(plan => /^\d{4}-\d{2}-\d{2}$/.test(plan?.startDate) && Array.isArray(plan.menu) && plan.menu.length)
+    : [{ startDate: saved.activeWeekStart || fresh.activeWeekStart, menu: legacyMenu }];
+  if (!merged.weekPlans.length) merged.weekPlans = [{ startDate: fresh.activeWeekStart, menu: fresh.weekPlans[0].menu }];
+  merged.activeWeekStart = merged.weekPlans.some(plan => plan.startDate === saved.activeWeekStart) ? saved.activeWeekStart : merged.weekPlans[0].startDate;
+  delete merged.menu;
+  merged.shopping = Array.isArray(saved.shopping) ? saved.shopping : buildShoppingList(activeMenu(merged), merged.recipes, merged.pantry);
   merged.bodyMetrics = { ...fresh.bodyMetrics, ...(saved.bodyMetrics || {}) };
   merged.bodyMetrics.history = Array.isArray(saved.bodyMetrics?.history) ? saved.bodyMetrics.history.filter(item => item?.date && Number(item.weightKg) > 0).sort((a, b) => a.date.localeCompare(b.date)) : [];
   return merged;
@@ -61,15 +92,66 @@ function escapeHtml(value = '') {
   return String(value).replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char]);
 }
 
+function recipeCoverSlot(recipe = {}) {
+  const text = normalizeText(`${recipe.id || ''} ${recipe.name || ''} ${recipe.tags?.join(' ') || ''}`);
+  const slots = [
+    [/avena|porridge|desayuno dulce/, 0], [/smoothie|batido/, 1], [/ensalada/, 2], [/mediterr|quinoa|bowl/, 3],
+    [/curry|indio|dal/, 4], [/taco|mexic|tortilla/, 5], [/thai|tailand|fideo|noodle/, 6], [/japon|sushi|teriyaki/, 7],
+    [/ital|pasta|espagu|macarr/, 8], [/patata|papa|espan/, 9], [/cuscus|magreb|marro/, 10], [/sopa|crema|guiso|lenteja/, 11],
+    [/huevo|tortilla|revuelto/, 12], [/queso|gratin|lasana/, 13], [/salmon|atun|merluza|pescado/, 14], [/pollo|pavo|ternera|carne/, 15]
+  ];
+  const match = slots.find(([pattern]) => pattern.test(text));
+  if (match) return match[1];
+  let hash = 0;
+  for (const char of String(recipe.id || recipe.name || 'nutrihome')) hash = (Math.imul(hash, 31) + char.charCodeAt(0)) | 0;
+  return Math.abs(hash) % 16;
+}
+
+function coverPosition(recipe) {
+  const slot = recipeCoverSlot(recipe);
+  return { x: `${(slot % 4) * 33.333}%`, y: `${Math.floor(slot / 4) * 33.333}%` };
+}
+
+function coverAttributes(recipe) {
+  const position = coverPosition(recipe);
+  return `style="--cover-x:${position.x};--cover-y:${position.y}"${recipe.hasCustomCover ? ` data-cover-recipe="${escapeHtml(recipe.id)}"` : ''}`;
+}
+
+async function hydrateUploadedCovers(root = document) {
+  const nodes = [...root.querySelectorAll('[data-cover-recipe]')];
+  await Promise.all(nodes.map(async node => {
+    const recipeId = node.dataset.coverRecipe;
+    const recipe = findRecipe(recipeId);
+    let objectUrl = coverObjectUrls.get(recipeId);
+    if (!objectUrl) {
+      const blob = await loadRecipeImage(recipeId);
+      if (blob) { objectUrl = URL.createObjectURL(blob); coverObjectUrls.set(recipeId, objectUrl); }
+    }
+    if (objectUrl) {
+      node.style.backgroundImage = `url("${objectUrl}")`;
+      node.style.backgroundSize = 'cover';
+      node.style.backgroundPosition = 'center';
+      return;
+    }
+    const position = coverPosition(recipe);
+    node.style.backgroundImage = `url("./api/recipe-images/${encodeURIComponent(recipeId)}?v=${recipe?.coverRevision || 1}"), url("./recipe-cover-atlas.jpg")`;
+    node.style.backgroundSize = 'cover, 400% 400%';
+    node.style.backgroundPosition = `center, ${position.x} ${position.y}`;
+  }));
+}
+
 function timeGreeting(date = new Date()) {
   return date.getHours() < 14 ? 'Buenos días' : 'Buenas tardes';
 }
 
+function activePlan(targetState = state) {
+  return targetState.weekPlans.find(plan => plan.startDate === targetState.activeWeekStart) || targetState.weekPlans[0];
+}
+
+function activeMenu(targetState = state) { return activePlan(targetState)?.menu || []; }
+
 function weekDates() {
-  const now = new Date();
-  now.setHours(12, 0, 0, 0);
-  const monday = new Date(now);
-  monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+  const monday = new Date(`${state.activeWeekStart}T12:00:00`);
   return Array.from({ length: 7 }, (_, index) => { const date = new Date(monday); date.setDate(monday.getDate() + index); return date; });
 }
 
@@ -105,13 +187,14 @@ function navigate(viewName, updateHash = true) {
   if (updateHash) history.replaceState(null, '', `#${viewName}`);
   window.scrollTo({ top: 0, behavior: 'smooth' });
   if (viewName === 'recipes') renderRecipes();
+  if (viewName === 'favorites') renderFavorites();
   if (viewName === 'pantry') renderPantry();
   if (viewName === 'shopping') renderShopping();
   if (viewName === 'more') renderProfile();
 }
 
 function findRecipe(id) { return state.recipes.find(recipe => recipe.id === id); }
-function dayEntries(day = activeDay) { return state.menu.filter(entry => entry.day === day); }
+function dayEntries(day = activeDay) { return activeMenu().filter(entry => entry.day === day); }
 
 function renderWeek() {
   const dates = weekDates();
@@ -119,7 +202,7 @@ function renderWeek() {
   const last = dates[6].toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
   $('#week-range').textContent = `Del ${first} al ${last}`;
   $('#week-title').textContent = timeGreeting();
-  const weekTotals = menuNutrition(state.menu, state.recipes);
+  const weekTotals = menuNutrition(activeMenu(), state.recipes);
   $('#week-cost').textContent = euro(weekTotals.cost);
   const budgetDifference = (state.profile.weeklyBudget || 0) - weekTotals.cost;
   $('#budget-status').textContent = budgetDifference >= 0 ? `${euro(budgetDifference)} bajo presupuesto` : `${euro(Math.abs(budgetDifference))} sobre presupuesto`;
@@ -141,25 +224,31 @@ function renderWeek() {
     const recipe = findRecipe(entry.recipeId);
     if (!recipe) return '';
     return `<article class="meal-card" data-recipe-card="${recipe.id}">
-      <button class="meal-emoji" type="button" data-open-recipe="${recipe.id}" aria-label="Ver ${escapeHtml(recipe.name)}">${recipe.emoji || '🍽️'}</button>
+      <button class="meal-emoji recipe-cover" type="button" data-open-recipe="${recipe.id}" aria-label="Ver ${escapeHtml(recipe.name)}" style="--cover-x:${coverPosition(recipe).x};--cover-y:${coverPosition(recipe).y}"${recipe.hasCustomCover ? ` data-cover-recipe="${escapeHtml(recipe.id)}"` : ''}></button>
       <div class="meal-copy"><span>${MEAL_LABELS[entry.mealType]}</span><button class="meal-title" type="button" data-open-recipe="${recipe.id}">${escapeHtml(recipe.name)}</button><p>${number(recipe.nutrition.kcal)} kcal · ${number(recipe.nutrition.protein)} g prot. · ${recipe.totalTime} min · ${euro(recipe.estimatedCost / recipe.servings * entry.servings)} est.</p></div>
       <div class="meal-controls"><button class="meal-action" type="button" data-regenerate="${entry.id}" aria-label="Regenerar ${MEAL_LABELS[entry.mealType]}">↻</button><button class="meal-action" type="button" data-move-meal="${entry.id}" aria-label="Mover o sustituir comida">⋯</button><button class="meal-action" type="button" data-lock="${entry.id}" aria-pressed="${entry.locked}" aria-label="${entry.locked ? 'Desbloquear' : 'Bloquear'} ${escapeHtml(recipe.name)}">${entry.locked ? '●' : '○'}</button></div>
     </article>`;
   }).join('');
 
-  const currentEntry = entries.find(entry => entry.mealType === nextMealType()) || entries[1] || entries[0];
+  const selectedDateIsToday = isoDate(dates[activeDay]) === isoDate(new Date());
+  const currentEntry = entries.find(entry => entry.mealType === (selectedDateIsToday ? nextMealType() : 'lunch')) || entries[1] || entries[0];
   const currentRecipe = currentEntry && findRecipe(currentEntry.recipeId);
   if (currentRecipe) {
-    $('#today-pill').textContent = `HOY · ${DAY_LABELS[activeDay].toUpperCase()}`;
+    $('#today-pill').textContent = `${selectedDateIsToday ? 'HOY · ' : ''}${DAY_LABELS[activeDay].toUpperCase()} ${dates[activeDay].getDate()}`;
     $('#today-title').textContent = currentRecipe.name;
     const coverage = pantryCoverage(currentRecipe, state.pantry, currentEntry.servings);
     $('#today-reason').textContent = coverage.missing === 0 ? `Puedes cocinarla ahora · lista en ${currentRecipe.totalTime} min` : `${currentRecipe.totalTime} min · faltan ${coverage.missing} ${coverage.missing === 1 ? 'ingrediente' : 'ingredientes'}`;
     $('#today-macros').innerHTML = `<span><b>${number(currentRecipe.nutrition.kcal)}</b> kcal</span><span><b>${number(currentRecipe.nutrition.protein)} g</b> proteína</span><span><b>${euro(currentRecipe.estimatedCost / currentRecipe.servings)}</b> / ración est.</span>`;
-    $('#today-emoji').textContent = currentRecipe.emoji || '🍽️';
+    const hero = $('#today-card .hero-dish');
+    const position = coverPosition(currentRecipe);
+    hero.className = 'hero-dish recipe-cover';
+    hero.style.cssText = `--cover-x:${position.x};--cover-y:${position.y}`;
+    if (currentRecipe.hasCustomCover) hero.dataset.coverRecipe = currentRecipe.id; else delete hero.dataset.coverRecipe;
     $('#open-today').dataset.openRecipe = currentRecipe.id;
   }
   const expiring = state.pantry.filter(item => ['soon', 'today'].includes(getExpiryStatus(item.expiry).key));
   $('#waste-copy').textContent = expiring.length ? `Conviene usar ${expiring.slice(0, 3).map(item => item.name).join(', ')}${expiring.length > 3 ? ' y más' : ''}.` : 'No hay productos con fecha próxima. Buen trabajo.';
+  hydrateUploadedCovers($('#view-week'));
 }
 
 function nextMealType() {
@@ -170,14 +259,24 @@ function nextMealType() {
   return 'dinner';
 }
 
-function runGenerator(mode = 'balanced') {
+function runGenerator(mode = 'balanced', weeks = 1, start = 'current') {
   try {
-    state.menu = generateWeek({ recipes: state.recipes, profile: state.profile, pantry: state.pantry, exercise: state.exercise, previousMenu: state.menu, mode });
+    const count = Math.max(1, Math.min(8, Number(weeks) || 1));
+    const firstStart = start === 'next' ? addDays(state.activeWeekStart, 7) : state.activeWeekStart;
+    for (let index = 0; index < count; index += 1) {
+      const startDate = addDays(firstStart, index * 7);
+      const existing = state.weekPlans.find(plan => plan.startDate === startDate);
+      const menu = generateWeek({ recipes: state.recipes, profile: state.profile, pantry: state.pantry, exercise: state.exercise, previousMenu: existing?.menu || [], mode });
+      if (existing) existing.menu = menu; else state.weekPlans.push({ startDate, menu });
+    }
+    state.weekPlans.sort((a, b) => a.startDate.localeCompare(b.startDate));
+    state.activeWeekStart = firstStart;
+    activeDay = 0;
     state.generationMode = mode;
     recalculateShopping();
     persist();
     renderAll();
-    showToast(`Semana generada: ${({ balanced: 'equilibrada', pantry: 'aprovechando despensa', waste: 'priorizando caducidades', economic: 'económica', quick: 'rápida', protein: 'alta en proteína', surprise: 'sorpresa' })[mode] || mode}`);
+    showToast(`${count === 1 ? 'Semana generada' : `${count} semanas generadas`}: ${({ balanced: 'equilibrada', pantry: 'aprovechando despensa', waste: 'priorizando caducidades', economic: 'económica', quick: 'rápida', protein: 'alta en proteína', surprise: 'sorpresa' })[mode] || mode}`);
   } catch (error) { showToast(error.message); }
 }
 
@@ -212,11 +311,20 @@ function renderRecipes() {
     const userRating = state.ratings[recipe.id];
     const rating = userRating || recipe.rating;
     const ratingLabel = userRating ? 'tu valoración' : recipe.ratingType === 'real' ? `${recipe.ratingCount} valoraciones` : 'estimación del sistema';
-    return `<article class="recipe-card" data-open-recipe="${recipe.id}" tabindex="0" role="button" aria-label="Ver receta ${escapeHtml(recipe.name)}"><div class="recipe-art"><span aria-hidden="true">${recipe.emoji || '🍽️'}</span><button class="favorite-btn ${state.favorites.includes(recipe.id) ? 'active' : ''}" type="button" data-favorite="${recipe.id}" aria-label="${state.favorites.includes(recipe.id) ? 'Quitar de favoritos' : 'Guardar en favoritos'}">${state.favorites.includes(recipe.id) ? '♥' : '♡'}</button></div><div class="recipe-card-body"><p class="eyebrow">${recipe.mealTypes.map(type => MEAL_LABELS[type]).join(' · ')}</p><h2>${escapeHtml(recipe.name)}</h2><div class="recipe-meta"><span><b>${recipe.totalTime} min</b></span><span>${number(recipe.nutrition.kcal)} kcal</span><span>${number(recipe.nutrition.protein)} g prot.</span></div><div class="recipe-tags"><span>${coverage.missing === 0 ? 'puedo cocinar' : `faltan ${coverage.missing}`}</span>${recipe.tags.slice(0, 2).map(tag => `<span>${escapeHtml(tag)}</span>`).join('')}</div><div class="recipe-rating">★ ${number(rating)} <small>· ${ratingLabel}</small></div></div></article>`;
+    return `<article class="recipe-card" data-open-recipe="${recipe.id}" tabindex="0" role="button" aria-label="Ver receta ${escapeHtml(recipe.name)}"><div class="recipe-art recipe-cover" ${coverAttributes(recipe)}><button class="favorite-btn ${state.favorites.includes(recipe.id) ? 'active' : ''}" type="button" data-favorite="${recipe.id}" aria-label="${state.favorites.includes(recipe.id) ? 'Quitar de favoritos' : 'Guardar en favoritos'}">${state.favorites.includes(recipe.id) ? '♥' : '♡'}</button></div><div class="recipe-card-body"><p class="eyebrow">${recipe.mealTypes.map(type => MEAL_LABELS[type]).join(' · ')}</p><h2>${escapeHtml(recipe.name)}</h2><div class="recipe-meta"><span><b>${recipe.totalTime} min</b></span><span>${number(recipe.nutrition.kcal)} kcal</span><span>${number(recipe.nutrition.protein)} g prot.</span></div><div class="recipe-tags"><span>${coverage.missing === 0 ? 'puedo cocinar' : `faltan ${coverage.missing}`}</span>${recipe.tags.slice(0, 2).map(tag => `<span>${escapeHtml(tag)}</span>`).join('')}</div><div class="recipe-rating">★ ${number(rating)} <small>· ${ratingLabel}</small></div></div></article>`;
   }).join('');
   $('#recipe-load-more').hidden = visibleRecipes.length >= recipes.length;
   $('#recipe-load-more').textContent = `Mostrar ${Math.min(36, recipes.length - visibleRecipes.length)} más`;
   renderCatalogCounts();
+  hydrateUploadedCovers($('#view-recipes'));
+}
+
+function renderFavorites() {
+  const recipes = state.favorites.map(findRecipe).filter(Boolean);
+  $('#favorite-count').textContent = recipes.length;
+  $('#favorites-empty').hidden = recipes.length > 0;
+  $('#favorite-grid').innerHTML = recipes.map(recipe => `<article class="recipe-card" data-open-recipe="${recipe.id}" tabindex="0" role="button" aria-label="Ver receta ${escapeHtml(recipe.name)}"><div class="recipe-art recipe-cover" ${coverAttributes(recipe)}><button class="favorite-btn active" type="button" data-favorite="${recipe.id}" aria-label="Quitar de favoritos">♥</button></div><div class="recipe-card-body"><p class="eyebrow">${recipe.mealTypes.map(type => MEAL_LABELS[type]).join(' · ')}</p><h2>${escapeHtml(recipe.name)}</h2><div class="recipe-meta"><span><b>${recipe.totalTime} min</b></span><span>${number(recipe.nutrition.kcal)} kcal</span><span>${number(recipe.nutrition.protein)} g prot.</span></div></div><button class="favorite-plan" type="button" data-plan-favorite="${recipe.id}">＋ Añadir a mi planificación</button></article>`).join('');
+  hydrateUploadedCovers($('#view-favorites'));
 }
 
 function showRecipe(id, servings) {
@@ -228,11 +336,12 @@ function showRecipe(id, servings) {
   const userRating = state.ratings[id] || 0;
   const coverage = pantryCoverage(recipe, state.pantry, recipeServings);
   $('#recipe-dialog-content').innerHTML = `<button class="close-btn" type="button" data-close-dialog="recipe-dialog" aria-label="Cerrar">×</button>
-    <section class="recipe-detail-hero"><div><p class="eyebrow">${recipe.mealTypes.map(type => MEAL_LABELS[type]).join(' · ')}</p><h2 id="recipe-dialog-title">${escapeHtml(recipe.name)}</h2><p>${escapeHtml(recipe.description)}</p><div class="detail-actions"><button type="button" data-favorite="${id}">${state.favorites.includes(id) ? '♥ Favorita' : '♡ Guardar'}</button><button type="button" data-cook-recipe="${id}">✓ Receta preparada</button></div></div><div class="recipe-detail-emoji" aria-hidden="true">${recipe.emoji || '🍽️'}</div></section>
+    <section class="recipe-detail-hero"><div><p class="eyebrow">${recipe.mealTypes.map(type => MEAL_LABELS[type]).join(' · ')}</p><h2 id="recipe-dialog-title">${escapeHtml(recipe.name)}</h2><p>${escapeHtml(recipe.description)}</p><div class="detail-actions"><button type="button" data-favorite="${id}">${state.favorites.includes(id) ? '♥ Favorita' : '♡ Guardar'}</button><button type="button" data-cook-recipe="${id}">✓ Receta preparada</button></div></div><div class="recipe-detail-emoji recipe-cover" ${coverAttributes(recipe)} aria-hidden="true"></div></section>
     <div class="detail-grid"><div><div class="nutrition-grid"><div><b>${number(recipe.nutrition.kcal)}</b><span>kcal</span></div><div><b>${number(recipe.nutrition.protein)} g</b><span>proteína</span></div><div><b>${number(recipe.nutrition.carbs)} g</b><span>carbos</span></div><div><b>${number(recipe.nutrition.fat)} g</b><span>grasas</span></div><div><b>${number(recipe.nutrition.fiber)} g</b><span>fibra</span></div><div><b>${euro(recipe.estimatedCost / recipe.servings)}</b><span>ración · est.</span></div></div><h3>Valoración</h3><div class="rating-control" aria-label="Valorar receta">${[1,2,3,4,5].map(value => `<button class="${value <= userRating ? 'active' : ''}" type="button" data-rate="${value}" aria-label="${value} estrellas">★</button>`).join('')}</div><small>${userRating ? `Tu valoración: ${userRating}/5` : recipe.ratingType === 'real' ? `Valoración pública: ${recipe.rating}/5 (${recipe.ratingCount})` : `Recomendación estimada: ${recipe.rating}/5. No es una valoración pública real.`}</small><h3>Información</h3><p>${recipe.totalTime} min · ${recipe.prepTime} min preparación · ${recipe.cookTime} min cocción</p><p>Alérgenos declarados: ${recipe.allergens.length ? recipe.allergens.join(', ') : 'ninguno en los datos de demostración'}.</p><p><small>Fuente: ${escapeHtml(recipe.source)}</small></p></div>
     <div><div class="serving-control"><h3>Ingredientes</h3><label><span class="sr-only">Raciones</span><input id="recipe-servings" type="number" min="1" max="24" value="${recipeServings}" /></label><span>raciones</span></div><p><small>${coverage.missing === 0 ? 'Tienes todo en casa.' : `Te faltan ${coverage.missing} ingredientes para estas raciones.`}</small></p><ul class="ingredient-list">${scaled.map(item => `<li><span>${escapeHtml(item.name)}</span><b>${number(item.amount)} ${item.unit}</b></li>`).join('')}</ul><h3>Pasos</h3><ol class="step-list">${recipe.steps.map(step => `<li>${escapeHtml(step)}</li>`).join('')}</ol></div></div>`;
   const dialog = $('#recipe-dialog');
   if (!dialog.open) dialog.showModal();
+  hydrateUploadedCovers(dialog);
 }
 
 function renderPantry() {
@@ -259,7 +368,7 @@ function renderPantry() {
 function pantryStep(item) { return ['g', 'ml'].includes(normalizeUnit(item.unit)) ? 50 : 1; }
 
 function recalculateShopping() {
-  const generated = buildShoppingList(state.menu, state.recipes, state.pantry);
+  const generated = buildShoppingList(activeMenu(), state.recipes, state.pantry);
   const oldByKey = new Map(state.shopping.map(item => [`${normalizeFoodName(item.name)}|${item.unit}`, item]));
   state.shopping = generated.map(item => ({ ...item, checked: oldByKey.get(`${normalizeFoodName(item.name)}|${item.unit}`)?.checked || false }));
   for (const purchased of [...oldByKey.values()].filter(item => item.checked && item.inventoryTransfer)) {
@@ -289,8 +398,8 @@ function renderProfile() {
   $('#goal-protein').textContent = `${number(profile.proteinTarget)} g`;
   $('#goal-budget').textContent = euro(profile.weeklyBudget);
   $('#exercise-list').innerHTML = state.exercise.length ? state.exercise.sort((a,b) => a.day-b.day).map(item => `<article class="exercise-card"><span>${DAY_LABELS[item.day]}</span><h3>${escapeHtml(item.type)}</h3><p>${item.duration} min · ${item.intensity === 'high' ? 'intensa' : item.intensity === 'medium' ? 'moderada' : 'suave'}${item.calories ? ` · ${item.calories} kcal estimadas` : ''}</p></article>`).join('') : '<p class="intro">Aún no hay actividad planificada.</p>';
-  const week = menuNutrition(state.menu, state.recipes);
-  const unique = new Set(state.menu.map(item => item.recipeId)).size;
+  const week = menuNutrition(activeMenu(), state.recipes);
+  const unique = new Set(activeMenu().map(item => item.recipeId)).size;
   const usedPantry = state.pantry.filter(item => item.quantity > item.minQuantity).length;
   $('#stats-grid').innerHTML = `<article class="stat-card"><span>Media diaria</span><strong>${number(week.kcal / 7)}</strong><small>kcal</small></article><article class="stat-card"><span>Proteína media</span><strong>${number(week.protein / 7)} g</strong><small>al día</small></article><article class="stat-card"><span>Coste estimado</span><strong>${euro(week.cost)}</strong><small>semana</small></article><article class="stat-card"><span>Variedad</span><strong>${unique}</strong><small>recetas distintas</small></article><article class="stat-card"><span>Despensa útil</span><strong>${usedPantry}</strong><small>productos disponibles</small></article><article class="stat-card"><span>Cocinadas</span><strong>${state.cookedHistory.length}</strong><small>en el historial</small></article>`;
 }
@@ -492,7 +601,7 @@ function saveWeightLog(form) {
   persist(); form.elements.weightKg.value = ''; form.elements.muscleKg.value = ''; renderBodyMetrics(); showToast('Registro corporal guardado');
 }
 
-function renderAll() { renderWeek(); renderRecipes(); renderPantry(); renderShopping(); renderProfile(); renderBodyMetrics(); }
+function renderAll() { renderWeek(); renderRecipes(); renderFavorites(); renderPantry(); renderShopping(); renderProfile(); renderBodyMetrics(); }
 
 function openPantryForm(item) {
   const form = $('#pantry-form');
@@ -510,23 +619,65 @@ function savePantryForm(form) {
   recalculateShopping(); persist(); renderAll(); $('#pantry-dialog').close(); showToast('Producto guardado y compra recalculada');
 }
 
-function parseIngredients(value) {
-  return value.split(/\r?\n/).map(line => line.trim()).filter(Boolean).map(line => {
-    const match = line.match(/^([\d,.]+)\s*(mg|g|kg|ml|cl|l|unidad(?:es)?|paquete(?:s)?|lata(?:s)?|botella(?:s)?)\s+(.+)$/i);
-    if (!match) return null;
-    return { amount: Number(match[1].replace(',', '.')), unit: normalizeUnit(match[2]), name: match[3].trim(), category: 'otros' };
-  });
+function recipeFormEstimate(form = $('#recipe-form')) {
+  const servings = Math.max(1, Number(form.elements.servings.value) || 2);
+  const ingredients = parseFlexibleIngredients(form.elements.ingredients.value, servings);
+  return { ingredients, estimate: estimateRecipe(ingredients, servings) };
 }
 
-function saveRecipeForm(form) {
+function updateRecipeEstimatePreview() {
+  const form = $('#recipe-form');
+  const { ingredients, estimate } = recipeFormEstimate(form);
+  const preview = $('#recipe-estimate-preview');
+  if (!ingredients.length) {
+    preview.innerHTML = '<div><span>Coste total est.</span><strong>—</strong></div><div><span>kcal / ración</span><strong>—</strong></div><div><span>Proteína</span><strong>—</strong></div><div><span>Carbohidratos</span><strong>—</strong></div><div><span>Grasas</span><strong>—</strong></div><div><span>Fibra</span><strong>—</strong></div><p>Añade ingredientes para ver el cálculo.</p>';
+    return;
+  }
+  const nutrition = estimate.nutrition;
+  preview.innerHTML = `<div><span>Coste total est.</span><strong>${euro(estimate.estimatedCost)}</strong></div><div><span>kcal / ración</span><strong>${number(nutrition.kcal)}</strong></div><div><span>Proteína</span><strong>${number(nutrition.protein)} g</strong></div><div><span>Carbohidratos</span><strong>${number(nutrition.carbs)} g</strong></div><div><span>Grasas</span><strong>${number(nutrition.fat)} g</strong></div><div><span>Fibra</span><strong>${number(nutrition.fiber)} g</strong></div><p>${estimate.inferredCount ? `Hemos inferido ${estimate.inferredCount} ${estimate.inferredCount === 1 ? 'cantidad' : 'cantidades'}: ${ingredients.filter(item => item.inferred).slice(0, 5).map(item => `${number(item.amount)} ${item.unit} de ${escapeHtml(item.name)}`).join(' · ')}${estimate.inferredCount > 5 ? '…' : ''}. ` : ''}${estimate.lowConfidence ? `${estimate.lowConfidence} ingrediente(s) no estaban en el catálogo y usan una media orientativa. ` : ''}Comprueba envases y cantidades si necesitas precisión clínica o contable.</p>`;
+  for (const trait of inferRecipeTraits(ingredients)) {
+    const checkbox = form.querySelector(`input[name="traits"][value="${trait}"]`);
+    if (checkbox) checkbox.checked = true;
+  }
+}
+
+async function compressRecipeImage(file) {
+  if (!file || !file.size) return null;
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) throw new TypeError('La foto debe ser JPG, PNG o WebP.');
+  if (file.size > 12_000_000) throw new TypeError('La foto supera el límite de 12 MB.');
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, 1200 / bitmap.width, 900 / bitmap.height);
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+  canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+  canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+  return new Promise(resolve => canvas.toBlob(resolve, 'image/webp', .84));
+}
+
+async function uploadRecipeImage(recipeId, blob) {
+  await saveRecipeImage(recipeId, blob);
+  if (!navigator.onLine) return;
+  try { await fetch(`./api/recipe-images/${encodeURIComponent(recipeId)}`, { method: 'PUT', headers: { 'content-type': blob.type }, body: blob }); } catch { /* IndexedDB remains the offline source */ }
+}
+
+async function saveRecipeForm(form) {
   const data = new FormData(form);
-  const ingredients = parseIngredients(data.get('ingredients'));
-  if (ingredients.some(item => !item)) { $('#recipe-form-error').textContent = 'Cada ingrediente debe tener “cantidad unidad nombre”, por ejemplo: 200 g garbanzos cocidos.'; return; }
-  const traits = data.getAll('traits');
-  const recipe = { id: `rec-user-${crypto.randomUUID()}`, name: data.get('name').trim(), emoji: '🍽️', mealTypes: [data.get('mealType')], totalTime: Number(data.get('totalTime')), prepTime: Number(data.get('totalTime')), cookTime: 0, servings: Number(data.get('servings')), nutrition: { kcal: Number(data.get('kcal')), protein: Number(data.get('protein')), carbs: Number(data.get('carbs')), fat: Number(data.get('fat')), fiber: 0 }, estimatedCost: Number(data.get('estimatedCost')), ingredients, description: 'Receta añadida por ti.', steps: data.get('steps').split(/\r?\n/).map(item => item.trim()).filter(Boolean), traits, allergens: traits.map(item => ({ egg: 'huevo', dairy: 'lácteos', soy: 'soja', gluten: 'gluten', nuts: 'frutos secos', fish: 'pescado' })[item]).filter(Boolean), equipment: [], tags: data.get('tags').split(',').map(item => item.trim()).filter(Boolean), rating: 0, ratingCount: 0, ratingType: 'unrated', source: 'Receta personal' };
+  const servings = Number(data.get('servings'));
+  const ingredients = parseFlexibleIngredients(data.get('ingredients'), servings);
+  const estimated = estimateRecipe(ingredients, servings);
+  if (!ingredients.length) { $('#recipe-form-error').textContent = 'Añade al menos un ingrediente, uno por línea.'; return; }
+  const detectedTraits = inferRecipeTraits(ingredients);
+  const traits = [...new Set([...data.getAll('traits'), ...detectedTraits])];
+  const imageFile = data.get('coverImage');
+  let imageBlob = null;
+  try { imageBlob = await compressRecipeImage(imageFile); } catch (problem) { $('#recipe-form-error').textContent = problem.message; return; }
+  const recipe = { id: `rec-user-${crypto.randomUUID()}`, name: data.get('name').trim(), emoji: '🍽️', mealTypes: [data.get('mealType')], totalTime: Number(data.get('totalTime')), prepTime: Number(data.get('totalTime')), cookTime: 0, servings, nutrition: estimated.nutrition, estimatedCost: estimated.estimatedCost, ingredients, description: `Receta personal con cálculo automático${estimated.inferredCount ? `; ${estimated.inferredCount} cantidades inferidas` : ''}.`, steps: data.get('steps').split(/\r?\n/).map(item => item.trim()).filter(Boolean), traits, allergens: traits.map(item => ({ egg: 'huevo', dairy: 'lácteos', soy: 'soja', gluten: 'gluten', nuts: 'frutos secos', fish: 'pescado' })[item]).filter(Boolean), equipment: [], tags: data.get('tags').split(',').map(item => item.trim()).filter(Boolean), rating: 0, ratingCount: 0, ratingType: 'unrated', source: 'Receta personal', hasCustomCover: Boolean(imageBlob), coverRevision: imageBlob ? Date.now() : 0, estimation: { inferredIngredients: estimated.inferredCount, lowConfidence: estimated.lowConfidence } };
   const errors = validateRecipe(recipe);
   if (errors.length) { $('#recipe-form-error').textContent = errors.join(' '); return; }
-  state.recipes.push(recipe); persist(); renderAll(); $('#recipe-form-dialog').close(); form.reset(); showToast('Receta añadida e indexada'); showRecipe(recipe.id);
+  state.recipes.push(recipe);
+  if (imageBlob) await uploadRecipeImage(recipe.id, imageBlob);
+  persist(); renderAll(); $('#recipe-form-dialog').close(); form.reset(); resetRecipeCoverPreview(); showToast('Receta añadida con nutrición y coste calculados'); showRecipe(recipe.id);
 }
 
 function prefillProfileForm() {
@@ -544,7 +695,7 @@ function saveProfile(form) {
   const data = new FormData(form);
   state.profile = { ...state.profile, configured: true, diet: data.get('diet'), eatsEgg: data.get('eatsEgg') === 'on', eatsDairy: data.get('eatsDairy') === 'on', allergies: data.get('allergies').split(',').map(item => normalizeText(item)).filter(Boolean), dislikes: data.get('dislikes').split(',').map(item => item.trim()).filter(Boolean), calorieTarget: Number(data.get('calorieTarget')), proteinTarget: Number(data.get('proteinTarget')), weeklyBudget: Number(data.get('weeklyBudget')), monthlyBudget: Number(data.get('weeklyBudget')) * 4, people: Number(data.get('people')), maxCookingTime: Number(data.get('maxCookingTime')), supermarket: data.get('supermarket').trim(), equipment: data.getAll('equipment') };
   delete state.profile.name;
-  state.menu = state.menu.filter(entry => isRecipeCompatible(findRecipe(entry.recipeId), state.profile));
+  for (const plan of state.weekPlans) plan.menu = plan.menu.filter(entry => isRecipeCompatible(findRecipe(entry.recipeId), state.profile));
   runGenerator(state.generationMode || 'balanced');
   $('#onboarding-dialog').close();
   showToast('Perfil guardado; menú y compra actualizados');
@@ -559,13 +710,14 @@ function openSimple(html, handler) {
 }
 
 function openMoveMeal(entryId) {
-  const entry = state.menu.find(item => item.id === entryId);
+  const menu = activeMenu();
+  const entry = menu.find(item => item.id === entryId);
   const recipe = findRecipe(entry.recipeId);
   const alternatives = compatibleRecipes().filter(item => item.mealTypes.includes(entry.mealType) && item.id !== recipe.id);
-  openSimple(`<p class="eyebrow">ORGANIZAR MENÚ</p><h2>Mover o sustituir</h2><p class="dialog-intro">${escapeHtml(recipe.name)}</p><div class="form-grid"><label class="full-field"><span>Elegir otra receta para esta comida</span><select name="recipeId"><option value="">Mantener la receta actual</option>${alternatives.map(item => `<option value="${item.id}">${escapeHtml(item.name)}</option>`).join('')}</select></label><label class="full-field"><span>O mover a otro hueco</span><select name="target"><option value="">No mover</option>${state.menu.filter(item => item.id !== entry.id).map(item => `<option value="${item.id}">${DAY_LABELS[item.day]} · ${MEAL_LABELS[item.mealType]} · ${escapeHtml(findRecipe(item.recipeId)?.name || '')}</option>`).join('')}</select></label></div><label class="check-card"><input type="checkbox" name="copy" /><span><b>Repetir en lugar de intercambiar</b><small>El plato actual también se mantiene.</small></span></label><div class="dialog-actions"><button class="secondary-btn" value="cancel">Cancelar</button><button class="primary-btn" value="default" type="submit">Aplicar</button></div>`, data => {
+  openSimple(`<p class="eyebrow">ORGANIZAR MENÚ</p><h2>Mover o sustituir</h2><p class="dialog-intro">${escapeHtml(recipe.name)}</p><div class="form-grid"><label class="full-field"><span>Elegir otra receta para esta comida</span><select name="recipeId"><option value="">Mantener la receta actual</option>${alternatives.map(item => `<option value="${item.id}">${escapeHtml(item.name)}</option>`).join('')}</select></label><label class="full-field"><span>O mover a otro hueco</span><select name="target"><option value="">No mover</option>${menu.filter(item => item.id !== entry.id).map(item => `<option value="${item.id}">${DAY_LABELS[item.day]} · ${MEAL_LABELS[item.mealType]} · ${escapeHtml(findRecipe(item.recipeId)?.name || '')}</option>`).join('')}</select></label></div><label class="check-card"><input type="checkbox" name="copy" /><span><b>Repetir en lugar de intercambiar</b><small>El plato actual también se mantiene.</small></span></label><div class="dialog-actions"><button class="secondary-btn" value="cancel">Cancelar</button><button class="primary-btn" value="default" type="submit">Aplicar</button></div>`, data => {
     const recipeId = data.get('recipeId');
     if (recipeId) entry.recipeId = recipeId;
-    const target = state.menu.find(item => item.id === data.get('target'));
+    const target = menu.find(item => item.id === data.get('target'));
     if (target) {
       if (data.get('copy')) target.recipeId = entry.recipeId;
       else [entry.recipeId, target.recipeId] = [target.recipeId, entry.recipeId];
@@ -573,6 +725,80 @@ function openMoveMeal(entryId) {
     if (!recipeId && !target) return;
     recalculateShopping(); persist(); renderAll(); showToast('Menú reorganizado');
   });
+}
+
+function switchWeek(delta) {
+  const targetStart = addDays(state.activeWeekStart, Number(delta) * 7);
+  let plan = state.weekPlans.find(item => item.startDate === targetStart);
+  if (!plan) {
+    plan = { startDate: targetStart, menu: generateWeek({ recipes: state.recipes, profile: state.profile, pantry: state.pantry, exercise: state.exercise, mode: state.generationMode || 'balanced' }) };
+    state.weekPlans.push(plan);
+    state.weekPlans.sort((a, b) => a.startDate.localeCompare(b.startDate));
+    showToast('Nueva semana preparada. Puedes regenerarla con otro criterio.');
+  }
+  state.activeWeekStart = targetStart;
+  const todayIndex = weekDates().findIndex(date => isoDate(date) === isoDate(new Date()));
+  activeDay = todayIndex >= 0 ? todayIndex : 0;
+  recalculateShopping(); persist(); renderAll();
+}
+
+function openFavoritePlanner(recipeId) {
+  const recipe = findRecipe(recipeId);
+  if (!recipe) return;
+  const plans = [...state.weekPlans].sort((a, b) => a.startDate.localeCompare(b.startDate));
+  const options = plans.flatMap(plan => plan.menu
+    .filter(entry => recipe.mealTypes.includes(entry.mealType))
+    .map(entry => {
+      const date = new Date(`${addDays(plan.startDate, entry.day)}T12:00:00`);
+      const dateLabel = date.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'short' });
+      return `<option value="${plan.startDate}|${entry.id}">${dateLabel} · ${MEAL_LABELS[entry.mealType]}</option>`;
+    }));
+  openSimple(`<p class="eyebrow">DESDE FAVORITOS</p><h2>Añadir al plan</h2><p class="dialog-intro">${escapeHtml(recipe.name)}</p><div class="form-grid"><label class="full-field"><span>Día y comida</span><select name="target" required>${options.join('')}</select><small>Se muestran todas las semanas ya creadas y los momentos compatibles con la receta.</small></label></div><div class="dialog-actions"><button class="secondary-btn" value="cancel">Cancelar</button><button class="primary-btn" value="default" type="submit">Añadir al calendario</button></div>`, data => {
+    const [startDate, entryId] = String(data.get('target') || '').split('|');
+    const plan = state.weekPlans.find(item => item.startDate === startDate);
+    const entry = plan?.menu.find(item => item.id === entryId);
+    if (!entry) return;
+    entry.recipeId = recipeId;
+    state.activeWeekStart = startDate;
+    activeDay = entry.day;
+    recalculateShopping(); persist(); renderAll(); navigate('week'); showToast(`${recipe.name} añadida a ${DAY_LABELS[entry.day].toLowerCase()}, ${MEAL_LABELS[entry.mealType].toLowerCase()}`);
+  });
+}
+
+function renderSwipeCandidate() {
+  const container = $('#swipe-dialog-content');
+  if (!swipeSession || swipeSession.index >= swipeSession.candidates.length) {
+    container.innerHTML = '<div class="swipe-empty"><span class="swipe-counter">LISTA COMPLETADA</span><h2 id="swipe-title">Has revisado todas las alternativas</h2><p>No hemos cambiado tu plato porque no elegiste ninguno. Puedes cerrar y volver a intentarlo.</p></div>';
+    return;
+  }
+  const recipe = swipeSession.candidates[swipeSession.index];
+  const remaining = swipeSession.candidates.length - swipeSession.index;
+  container.innerHTML = `<div class="swipe-shell"><header class="swipe-head"><span class="swipe-counter">${swipeSession.index + 1} DE ${swipeSession.candidates.length}</span><h2 id="swipe-title">Elige tu ${MEAL_LABELS[swipeSession.entry.mealType].toLowerCase()}</h2><p>Descarta o elige. Quedan ${remaining} propuestas compatibles.</p></header><article class="swipe-card"><div class="swipe-cover recipe-cover" ${coverAttributes(recipe)}></div><div class="swipe-card-copy"><p class="eyebrow">${recipe.tags.slice(0, 2).map(escapeHtml).join(' · ') || 'PROPUESTA PERSONALIZADA'}</p><h3>${escapeHtml(recipe.name)}</h3><p>${escapeHtml(recipe.description)}</p><div class="swipe-macros"><span><b>${number(recipe.nutrition.kcal)}</b>kcal</span><span><b>${number(recipe.nutrition.protein)} g</b>proteína</span><span><b>${euro(recipe.estimatedCost / recipe.servings * swipeSession.entry.servings)}</b>coste est.</span></div></div></article><div class="swipe-actions"><button class="swipe-dislike" type="button" data-swipe="dislike">✕ No me apetece</button><button class="swipe-like" type="button" data-swipe="like">♥ Elegir esta</button></div></div>`;
+  hydrateUploadedCovers(container);
+}
+
+function startSwipePicker(entryId) {
+  const entry = activeMenu().find(item => item.id === entryId);
+  if (!entry) return;
+  if (entry.locked) { showToast('Desbloquea esta comida antes de cambiarla'); return; }
+  const candidates = rankMealCandidates({ entry, menu: activeMenu(), recipes: state.recipes, profile: state.profile, pantry: state.pantry, mode: state.generationMode, limit: 100 });
+  swipeSession = { entry, candidates, index: 0 };
+  renderSwipeCandidate();
+  $('#swipe-dialog').showModal();
+}
+
+function handleSwipe(choice) {
+  if (!swipeSession || swipeSession.index >= swipeSession.candidates.length) return;
+  const recipe = swipeSession.candidates[swipeSession.index];
+  if (choice === 'dislike') {
+    if (!state.dismissedRecipes.includes(recipe.id)) state.dismissedRecipes.push(recipe.id);
+    swipeSession.index += 1;
+    persist(); renderSwipeCandidate();
+    return;
+  }
+  swipeSession.entry.recipeId = recipe.id;
+  if (!state.favorites.includes(recipe.id)) state.favorites.push(recipe.id);
+  recalculateShopping(); persist(); renderAll(); $('#swipe-dialog').close(); showToast(`${recipe.name} seleccionada y guardada en favoritos`);
 }
 
 function openAddShopping() {
@@ -631,13 +857,14 @@ function openImportRecipe() {
       const response = await fetch(`./api/import-recipe?url=${encodeURIComponent(data.get('url'))}`);
       if (!response.ok) throw new Error();
       const imported = await response.json();
+      $('#recipe-form').reset(); resetRecipeCoverPreview();
       $('#recipe-form').elements.name.value = imported.name || '';
       $('#recipe-form').elements.servings.value = imported.servings || 2;
       $('#recipe-form').elements.totalTime.value = imported.totalTime || 25;
       $('#recipe-form').elements.ingredients.value = (imported.ingredients || []).join('\n');
       $('#recipe-form').elements.steps.value = (imported.steps || []).join('\n');
-      $('#simple-dialog').close(); $('#recipe-form-dialog').showModal(); showToast('Datos extraídos; revísalos antes de guardar');
-    } catch { $('#simple-dialog').close(); $('#recipe-form-dialog').showModal(); showToast('No se pudo extraer automáticamente; puedes estructurarla manualmente'); }
+      updateRecipeEstimatePreview(); $('#simple-dialog').close(); $('#recipe-form-dialog').showModal(); showToast('Datos extraídos; revisa las cantidades inferidas antes de guardar');
+    } catch { $('#recipe-form').reset(); resetRecipeCoverPreview(); updateRecipeEstimatePreview(); $('#simple-dialog').close(); $('#recipe-form-dialog').showModal(); showToast('No se pudo extraer automáticamente; puedes escribir solo los ingredientes'); }
   });
 }
 
@@ -647,15 +874,37 @@ function openExerciseForm() {
   });
 }
 
+function resetRecipeCoverPreview() {
+  const preview = $('#recipe-cover-preview');
+  if (preview.dataset.objectUrl) URL.revokeObjectURL(preview.dataset.objectUrl);
+  preview.dataset.objectUrl = '';
+  preview.style.backgroundImage = '';
+  preview.classList.remove('has-image');
+  preview.textContent = 'Vista previa';
+}
+
+function previewRecipeCover(file) {
+  resetRecipeCoverPreview();
+  if (!file) return;
+  const preview = $('#recipe-cover-preview');
+  const url = URL.createObjectURL(file);
+  preview.dataset.objectUrl = url;
+  preview.style.backgroundImage = `url("${url}")`;
+  preview.classList.add('has-image');
+}
+
 function bindEvents() {
   document.addEventListener('click', event => {
     const nav = event.target.closest('[data-nav]'); if (nav) { navigate(nav.dataset.nav); return; }
     const day = event.target.closest('[data-day]'); if (day) { activeDay = Number(day.dataset.day); renderWeek(); return; }
+    const weekShift = event.target.closest('[data-week-shift]'); if (weekShift) { switchWeek(weekShift.dataset.weekShift); return; }
     const generator = event.target.closest('[data-generate-mode]'); if (generator) { runGenerator(generator.dataset.generateMode); return; }
-    const favorite = event.target.closest('[data-favorite]'); if (favorite) { event.stopPropagation(); const id = favorite.dataset.favorite; state.favorites = state.favorites.includes(id) ? state.favorites.filter(item => item !== id) : [...state.favorites, id]; persist(); renderRecipes(); if ($('#recipe-dialog').open) showRecipe(id, recipeServings); return; }
+    const favorite = event.target.closest('[data-favorite]'); if (favorite) { event.stopPropagation(); const id = favorite.dataset.favorite; state.favorites = state.favorites.includes(id) ? state.favorites.filter(item => item !== id) : [...state.favorites, id]; persist(); renderRecipes(); renderFavorites(); if ($('#recipe-dialog').open) showRecipe(id, recipeServings); return; }
+    const planFavorite = event.target.closest('[data-plan-favorite]'); if (planFavorite) { event.stopPropagation(); openFavoritePlanner(planFavorite.dataset.planFavorite); return; }
     const open = event.target.closest('[data-open-recipe]'); if (open) { showRecipe(open.dataset.openRecipe); return; }
-    const lock = event.target.closest('[data-lock]'); if (lock) { const entry = state.menu.find(item => item.id === lock.dataset.lock); entry.locked = !entry.locked; persist(); renderWeek(); showToast(entry.locked ? 'Comida bloqueada' : 'Comida desbloqueada'); return; }
-    const regenerate = event.target.closest('[data-regenerate]'); if (regenerate) { const entry = state.menu.find(item => item.id === regenerate.dataset.regenerate); state.menu = regenerateMeal({ entry, menu: state.menu, recipes: state.recipes, profile: state.profile, pantry: state.pantry, mode: state.generationMode }); recalculateShopping(); persist(); renderAll(); showToast(entry.locked ? 'Desbloquea la comida para regenerarla' : 'Comida sustituida'); return; }
+    const lock = event.target.closest('[data-lock]'); if (lock) { const entry = activeMenu().find(item => item.id === lock.dataset.lock); entry.locked = !entry.locked; persist(); renderWeek(); showToast(entry.locked ? 'Comida bloqueada' : 'Comida desbloqueada'); return; }
+    const regenerate = event.target.closest('[data-regenerate]'); if (regenerate) { startSwipePicker(regenerate.dataset.regenerate); return; }
+    const swipe = event.target.closest('[data-swipe]'); if (swipe) { handleSwipe(swipe.dataset.swipe); return; }
     const move = event.target.closest('[data-move-meal]'); if (move) { openMoveMeal(move.dataset.moveMeal); return; }
     const delta = event.target.closest('[data-pantry-delta]'); if (delta) { const item = state.pantry.find(row => row.id === delta.dataset.pantryId); item.quantity = roundQuantity(Math.max(0, item.quantity + Number(delta.dataset.pantryDelta))); state.pantry = state.pantry.filter(row => row.quantity > 0); recalculateShopping(); persist(); renderAll(); return; }
     const edit = event.target.closest('[data-edit-pantry]'); if (edit) { openPantryForm(state.pantry.find(item => item.id === edit.dataset.editPantry)); return; }
@@ -672,14 +921,17 @@ function bindEvents() {
     if (card && event.target === card && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); showRecipe(card.dataset.openRecipe); }
   });
   $('#open-generator').addEventListener('click', () => $('#generator-dialog').showModal());
-  $('#generator-form').addEventListener('submit', event => { event.preventDefault(); const mode = event.submitter.value; $('#generator-dialog').close(); runGenerator(mode); });
+  $('#generator-form').addEventListener('submit', event => { event.preventDefault(); const data = new FormData(event.currentTarget); const mode = event.submitter.value; $('#generator-dialog').close(); runGenerator(mode, data.get('weeks'), data.get('start')); });
   const resetRecipeResults = () => { recipeVisibleLimit = 36; renderRecipes(); };
   $('#recipe-search').addEventListener('input', resetRecipeResults); $('#filter-meal').addEventListener('change', resetRecipeResults); $('#filter-time').addEventListener('change', resetRecipeResults); $('#filter-protein').addEventListener('change', resetRecipeResults); $('#filter-diet').addEventListener('change', resetRecipeResults); $('#filter-pantry').addEventListener('change', resetRecipeResults);
   $('#recipe-load-more').addEventListener('click', () => { recipeVisibleLimit += 36; renderRecipes(); });
   $('#what-can-cook').addEventListener('click', () => { navigate('recipes'); $('#filter-pantry').checked = true; resetRecipeResults(); });
   $('#pantry-search').addEventListener('input', renderPantry); $('#pantry-location').addEventListener('change', renderPantry);
   $('#add-pantry').addEventListener('click', () => openPantryForm()); $('#pantry-form').addEventListener('submit', event => { event.preventDefault(); savePantryForm(event.currentTarget); });
-  $('#add-recipe').addEventListener('click', () => { $('#recipe-form').reset(); $('#recipe-form-error').textContent = ''; $('#recipe-form-dialog').showModal(); }); $('#recipe-form').addEventListener('submit', event => { event.preventDefault(); saveRecipeForm(event.currentTarget); });
+  $('#add-recipe').addEventListener('click', () => { $('#recipe-form').reset(); $('#recipe-form-error').textContent = ''; resetRecipeCoverPreview(); updateRecipeEstimatePreview(); $('#recipe-form-dialog').showModal(); }); $('#recipe-form').addEventListener('submit', event => { event.preventDefault(); saveRecipeForm(event.currentTarget); });
+  $('#recipe-form').elements.ingredients.addEventListener('input', updateRecipeEstimatePreview);
+  $('#recipe-form').elements.servings.addEventListener('input', updateRecipeEstimatePreview);
+  $('#recipe-cover-input').addEventListener('change', event => previewRecipeCover(event.target.files[0]));
   $('#import-recipe').addEventListener('click', openImportRecipe); $('#add-shopping').addEventListener('click', openAddShopping); $('#share-shopping').addEventListener('click', shareShopping); $('#refresh-shopping').addEventListener('click', () => { recalculateShopping(); persist(); renderShopping(); showToast('Lista recalculada'); });
   $('#onboarding-form').addEventListener('submit', event => { event.preventDefault(); saveProfile(event.currentTarget); }); $('#edit-profile').addEventListener('click', () => { prefillProfileForm(); $('#onboarding-dialog').showModal(); });
   $('#body-metrics-form').addEventListener('submit', event => { event.preventDefault(); saveBodyMetrics(event.currentTarget); });
@@ -705,11 +957,13 @@ async function init() {
   const local = await loadLocalState();
   const remote = await pullRemoteState();
   state = normalizeState(newestSnapshot(local, remote.state));
+  const todayIndex = weekDates().findIndex(date => isoDate(date) === isoDate(new Date()));
+  activeDay = todayIndex >= 0 ? todayIndex : 0;
   const snapshot = await saveLocalState(createStateSnapshot(state));
   state.updatedAt = snapshot.updatedAt;
   updateSyncBadge(remote.status);
   bindEvents(); renderAll();
-  const route = location.hash.slice(1); if (['week','recipes','pantry','shopping','more'].includes(route)) navigate(route, false);
+  const route = location.hash.slice(1); if (['week','recipes','favorites','pantry','shopping','more'].includes(route)) navigate(route, false);
   if (!state.profile.configured) { prefillProfileForm(); setTimeout(() => $('#onboarding-dialog').showModal(), 250); }
   if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => updateSyncBadge('offline')));
 }

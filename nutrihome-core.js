@@ -265,6 +265,19 @@ export function regenerateMeal({ entry, menu, recipes, profile, pantry, mode = '
   return menu.map(item => item.id === entry.id ? { ...item, recipeId: best.id } : item);
 }
 
+export function rankMealCandidates({ entry, menu, recipes, profile, pantry = [], mode = 'balanced', limit = 100, excludedRecipeIds = [] }) {
+  if (!entry) return [];
+  const used = new Map();
+  for (const item of menu || []) used.set(item.recipeId, (used.get(item.recipeId) || 0) + 1);
+  const excluded = new Set([entry.recipeId, ...excludedRecipeIds]);
+  return recipes
+    .filter(recipe => recipe.mealTypes.includes(entry.mealType) && !excluded.has(recipe.id) && isRecipeCompatible(recipe, profile))
+    .map(recipe => ({ recipe, score: scoreRecipe(recipe, { profile, pantry, mode, mealType: entry.mealType, used, dayIndex: entry.day }) }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, Math.max(1, Math.min(100, Number(limit) || 100)))
+    .map(item => item.recipe);
+}
+
 function aggregateRequirements(menu, recipes) {
   const grouped = new Map();
   for (const entry of menu) {
