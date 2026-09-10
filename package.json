@@ -1,6 +1,6 @@
 {
   "name": "nutrihome-pwa",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "private": true,
   "type": "module",
   "description": "PWA mobile-first para menús, recetas, despensa y compra inteligente.",
@@ -8,7 +8,7 @@
     "dev": "node scripts/dev.mjs",
     "build": "node scripts/build.mjs",
     "check": "node --check nutrihome-core.js && node --check demo-data.js && node --check recipe-library.js && node --check recipe-estimator.js && node --check storage.js && node --check app.js && node --check sw.js && node --check worker/index.js",
-    "test": "node tests/core.test.mjs && node tests/ui.test.mjs && node tests/worker.test.mjs"
+    "test": "node tests/core.test.mjs && node tests/ui.test.mjs && node tests/worker.test.mjs && node tests/covers.test.mjs"
   },
   "license": "MIT"
 }

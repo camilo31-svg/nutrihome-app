@@ -1,12 +1,12 @@
-import { DEFAULT_PROFILE, DEMO_EXERCISE, createDemoPantry } from './demo-data.js?v=1.7.0';
-import { DIET_CATALOG_PROFILES, RECIPE_LIBRARY } from './recipe-library.js?v=1.7.0';
+import { DEFAULT_PROFILE, DEMO_EXERCISE, createDemoPantry } from './demo-data.js?v=1.8.0';
+import { DIET_CATALOG_PROFILES, RECIPE_LIBRARY } from './recipe-library.js?v=1.8.0';
 import {
   DAY_LABELS, MEAL_LABELS, buildShoppingList, calculateBMI, calculateGoalProgress, classifyAdultBMI, consumeRecipe, generateWeek, getExpiryStatus,
   isRecipeCompatible, menuNutrition, normalizeFoodName, normalizeText, normalizeUnit,
   pantryCoverage, rankMealCandidates, roundQuantity, sameFood, scaleIngredients, upsertBodyMeasurement, upsertPantryItem, validateRecipe
-} from './nutrihome-core.js?v=1.7.0';
-import { estimateRecipe, inferRecipeTraits, parseFlexibleIngredients } from './recipe-estimator.js?v=1.7.0';
-import { clearLocalState, createStateSnapshot, isPersonalRecipe, loadLocalState, loadRecipeImage, newestSnapshot, pullRemoteState, pushRemoteState, saveLocalState, saveRecipeImage } from './storage.js?v=1.7.0';
+} from './nutrihome-core.js?v=1.8.0';
+import { estimateRecipe, inferRecipeTraits, parseFlexibleIngredients } from './recipe-estimator.js?v=1.8.0';
+import { clearLocalState, createStateSnapshot, isPersonalRecipe, loadLocalState, loadRecipeImage, newestSnapshot, pullRemoteState, pushRemoteState, saveLocalState, saveRecipeImage } from './storage.js?v=1.8.0';
 
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
@@ -16,7 +16,7 @@ const number = value => new Intl.NumberFormat('es-ES', { maximumFractionDigits: 
 const LOCATION_LABELS = { fridge: 'Nevera', freezer: 'Congelador', pantry: 'Despensa' };
 const CATEGORY_EMOJI = { verduras: '🥬', frutas: '🍎', refrigerados: '❄️', congelados: '🧊', cereales: '🌾', legumbres: '🫘', conservas: '🥫', bebidas: '🥛', otros: '◌' };
 const DIET_LABELS = { omnivore: 'Omnívora', flexitarian: 'Flexitariana', pescetarian: 'Pescetariana', vegetarian: 'Vegetariana', vegan: 'Vegana', lacto_vegetarian: 'Lacto-vegetariana', ovo_vegetarian: 'Ovo-vegetariana' };
-const APP_VERSION = '1.7.0';
+const APP_VERSION = '1.8.0';
 
 let state;
 let activeDay = Math.max(0, Math.min(6, (new Date().getDay() + 6) % 7));
@@ -105,9 +105,32 @@ function recipeHash(recipe = {}) {
 }
 
 function coverPosition(recipe) {
-  const slot = recipeHash(recipe) % 16;
-  return { x: `${(slot % 4) * 33.333}%`, y: `${Math.floor(slot / 4) * 33.333}%` };
+  const name = normalizeText(recipe.name || '');
+  const slot = [/avena/, /tortilla|revuelto/, /yogur|pudin/, /tostada/, /quinoa|bowl|bol /, /gazpacho/, /pasta|espagueti|fideo/, /pollo|paella/, /lenteja|guiso/, /salmon|merluza|pescado/, /atun/, /curry|garbanzo/, /quiche|graten/, /fruta|batido/, /sopa|crema/, /ensalada/].findIndex(pattern => pattern.test(name));
+  const cell = slot < 0 ? 4 : slot;
+  return { x: `${(cell % 4) * 33.333}%`, y: `${Math.floor(cell / 4) * 33.333}%` };
 }
+
+function fitFallbackCover(node) {
+  if (node.classList.contains('photo-cover')) return;
+  const recipe = findRecipe(node.dataset.photoRecipe);
+  if (!recipe) return;
+  const position = coverPosition(recipe);
+  const column = Math.round(parseFloat(position.x) / 33.333);
+  const row = Math.round(parseFloat(position.y) / 33.333);
+  const { width, height } = node.getBoundingClientRect();
+  if (!width || !height) return;
+  const cellSize = Math.max(width, height) * 1.06;
+  node.style.backgroundSize = `${cellSize * 4}px ${cellSize * 4}px`;
+  node.style.backgroundPosition = `${width / 2 - (column + .5) * cellSize}px ${height / 2 - (row + .5) * cellSize}px`;
+}
+
+const fallbackResizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(entries => {
+  for (const { target } of entries) {
+    if (!target.isConnected || target.classList.contains('photo-cover')) fallbackResizeObserver.unobserve(target);
+    else fitFallbackCover(target);
+  }
+});
 
 function coverAttributes(recipe) {
   const position = coverPosition(recipe);
@@ -178,7 +201,7 @@ async function loadCommonsPhoto(recipe) {
   const query = recipePhotoQuery(recipe);
   const queryWords = query.split(' ');
   const searchTerms = [...new Set([query, queryWords.slice(0, Math.min(3, queryWords.length)).join(' '), queryWords.slice(0, Math.min(2, queryWords.length)).join(' '), queryWords[0]])].filter(term => term.length >= 3);
-  const rejectedTitles = /\b(icon|logo|diagram|map|drawing|illustration|clipart|symbol|flag)\b/i;
+  const rejectedTitles = /\b(icon|logo|diagram|map|drawing|illustration|clipart|symbol|flag|collage|montage|mosaic|grid|atlas|contact sheet|compilation|cuadricula|mosaico)\b/i;
   let candidates = [];
   for (const term of searchTerms) {
     const api = new URL('https://commons.wikimedia.org/w/api.php');
@@ -251,18 +274,19 @@ async function hydrateRecipeCover(node) {
   }
   const query = encodeURIComponent(recipePhotoQuery(recipe));
   try {
-    const requestUrl = `./api/recipe-photos/${encodeURIComponent(recipeId)}?q=${query}&v=3`;
+    const requestUrl = `./api/recipe-photos/${encodeURIComponent(recipeId)}?q=${query}&v=4`;
     const photo = await loadCatalogPhoto(recipe, requestUrl);
     if (photo) {
-      await setCoverPhoto(node, photo.url, recipeId);
-      updatePhotoCredit(recipeId, photo);
+      if (await setCoverPhoto(node, photo.url, recipeId)) updatePhotoCredit(recipeId, photo);
     }
   } catch { /* the built-in photorealistic fallback remains visible */ }
+  node.classList.add('photo-ready');
   loadingPhotoNodes.delete(node);
 }
 
 function hydrateUploadedCovers(root = document) {
   const nodes = [...root.querySelectorAll('[data-photo-recipe]')];
+  nodes.forEach(node => { fitFallbackCover(node); fallbackResizeObserver?.observe(node); });
   if (!('IntersectionObserver' in window)) { nodes.forEach(hydrateRecipeCover); return; }
   const observer = new IntersectionObserver(entries => {
     for (const entry of entries) if (entry.isIntersecting) { observer.unobserve(entry.target); hydrateRecipeCover(entry.target); }
@@ -313,7 +337,12 @@ function persist({ remote = true } = {}) {
 
 function navigate(viewName, updateHash = true) {
   $$('.view').forEach(view => view.classList.toggle('active', view.dataset.view === viewName));
-  $$('.bottom-nav [data-nav]').forEach(button => button.classList.toggle('active', button.dataset.nav === viewName));
+  $$('.bottom-nav [data-nav]').forEach(button => {
+    const active = button.dataset.nav === viewName;
+    button.classList.toggle('active', active);
+    if (active) button.setAttribute('aria-current', 'page');
+    else button.removeAttribute('aria-current');
+  });
   if (updateHash) history.replaceState(null, '', `#${viewName}`);
   window.scrollTo({ top: 0, behavior: 'smooth' });
   if (viewName === 'recipes') renderRecipes();
@@ -522,7 +551,7 @@ function showRecipe(id, servings) {
   const coverage = pantryCoverage(recipe, state.pantry, recipeServings);
   $('#recipe-dialog-content').innerHTML = `<button class="close-btn" type="button" data-close-dialog="recipe-dialog" aria-label="Cerrar">×</button>
     <section class="recipe-detail-hero"><div><p class="eyebrow">${recipe.mealTypes.map(type => MEAL_LABELS[type]).join(' · ')}</p><h2 id="recipe-dialog-title">${escapeHtml(recipe.name)}</h2><p>${escapeHtml(recipe.description)}</p><div class="detail-actions"><button type="button" data-favorite="${id}">${state.favorites.includes(id) ? '♥ Favorita' : '♡ Guardar'}</button><button type="button" data-cook-recipe="${id}">✓ Receta preparada</button></div></div><div class="recipe-detail-emoji recipe-cover" ${coverAttributes(recipe)} aria-hidden="true">${recipeVisualInner(recipe, true)}</div></section>
-    <div class="detail-grid"><div><div class="nutrition-grid"><div><b>${number(recipe.nutrition.kcal)}</b><span>kcal</span></div><div><b>${number(recipe.nutrition.protein)} g</b><span>proteína</span></div><div><b>${number(recipe.nutrition.carbs)} g</b><span>carbos</span></div><div><b>${number(recipe.nutrition.fat)} g</b><span>grasas</span></div><div><b>${number(recipe.nutrition.fiber)} g</b><span>fibra</span></div><div><b>${euro(recipe.estimatedCost / recipe.servings)}</b><span>ración · est.</span></div></div><h3>Valoración</h3><div class="rating-control" aria-label="Valorar receta">${[1,2,3,4,5].map(value => `<button class="${value <= userRating ? 'active' : ''}" type="button" data-rate="${value}" aria-label="${value} estrellas">★</button>`).join('')}</div><small>${userRating ? `Tu valoración: ${userRating}/5` : recipe.ratingType === 'real' ? `Valoración pública: ${recipe.rating}/5 (${recipe.ratingCount})` : `Recomendación estimada: ${recipe.rating}/5. No es una valoración pública real.`}</small><h3>Información</h3><p>${recipe.totalTime} min · ${recipe.prepTime} min preparación · ${recipe.cookTime} min cocción</p><p>Alérgenos declarados: ${recipe.allergens.length ? recipe.allergens.join(', ') : 'ninguno en los datos de demostración'}.</p><p><small>Fuente: ${escapeHtml(recipe.source)}</small></p><p><small id="recipe-photo-credit">${recipe.hasCustomCover ? 'Foto personal subida por el usuario.' : 'Foto gastronómica real orientativa; cargando autoría y licencia…'}</small></p></div>
+    <div class="detail-grid"><div><div class="nutrition-grid"><div><b>${number(recipe.nutrition.kcal)}</b><span>kcal</span></div><div><b>${number(recipe.nutrition.protein)} g</b><span>proteína</span></div><div><b>${number(recipe.nutrition.carbs)} g</b><span>carbos</span></div><div><b>${number(recipe.nutrition.fat)} g</b><span>grasas</span></div><div><b>${number(recipe.nutrition.fiber)} g</b><span>fibra</span></div><div><b>${euro(recipe.estimatedCost / recipe.servings)}</b><span>ración · est.</span></div></div><h3>Valoración</h3><div class="rating-control" aria-label="Valorar receta">${[1,2,3,4,5].map(value => `<button class="${value <= userRating ? 'active' : ''}" type="button" data-rate="${value}" aria-label="${value} estrellas">★</button>`).join('')}</div><small>${userRating ? `Tu valoración: ${userRating}/5` : recipe.ratingType === 'real' ? `Valoración pública: ${recipe.rating}/5 (${recipe.ratingCount})` : `Recomendación estimada: ${recipe.rating}/5. No es una valoración pública real.`}</small><h3>Información</h3><p>${recipe.totalTime} min · ${recipe.prepTime} min preparación · ${recipe.cookTime} min cocción</p><p>Alérgenos declarados: ${recipe.allergens.length ? recipe.allergens.join(', ') : 'ninguno en los datos de demostración'}.</p><p><small>Fuente: ${escapeHtml(recipe.source)}</small></p><p><small id="recipe-photo-credit">${recipe.hasCustomCover ? 'Foto personal subida por el usuario.' : 'Imagen orientativa de la categoría, generada con IA. No representa los ingredientes exactos.'}</small></p></div>
     <div><div class="serving-control"><h3>Ingredientes</h3><label><span class="sr-only">Raciones</span><input id="recipe-servings" type="number" min="1" max="24" value="${recipeServings}" /></label><span>raciones</span></div><p><small>${coverage.missing === 0 ? 'Tienes todo en casa.' : `Te faltan ${coverage.missing} ingredientes para estas raciones.`} Puedes excluir cualquier ingrediente para que no vuelva a aparecer en ninguna propuesta.</small></p><ul class="ingredient-list">${scaled.map(item => `<li><span>${escapeHtml(item.name)}</span><span class="ingredient-actions"><b>${number(item.amount)} ${item.unit}</b><button type="button" data-exclude-ingredient="${escapeHtml(item.name)}" aria-label="Excluir ${escapeHtml(item.name)} de todas las recetas">Excluir</button></span></li>`).join('')}</ul><h3>Pasos</h3><ol class="step-list">${recipe.steps.map(step => `<li>${escapeHtml(step)}</li>`).join('')}</ol></div></div>`;
   const dialog = $('#recipe-dialog');
   if (!dialog.open) dialog.showModal();

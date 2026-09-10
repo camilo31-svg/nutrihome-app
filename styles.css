@@ -1,10 +1,10 @@
 :root {
   color-scheme: light;
-  --ink: #173f35;
+  --ink: #153e35;
   --ink-2: #2f574c;
   --muted: #6e7d77;
-  --cream: #f7f4ed;
-  --paper: #fffefa;
+  --cream: #f2f2f7;
+  --paper: #ffffff;
   --line: #e3e6df;
   --mint: #dceee5;
   --mint-2: #a9d5bf;
@@ -16,7 +16,7 @@
 }
 * { box-sizing: border-box; }
 html { background: var(--cream); scroll-behavior: smooth; }
-body { margin: 0; min-width: 320px; background: var(--cream); color: var(--ink); font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; }
+body { margin: 0; min-width: 320px; background: var(--cream); color: var(--ink); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
 button, input, select, textarea { font: inherit; }
 button { color: inherit; }
 button, a { -webkit-tap-highlight-color: transparent; }
@@ -487,3 +487,86 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--ink); }
   .meal-list { grid-template-columns: 1fr 1fr; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+
+/* Shared mobile system surfaces. Keep the same controls and saved state. */
+:root { --muted: #626872; --line: #e5e7eb; --mint: #e4f3ed; --coral: #bd4938; --shadow: 0 8px 28px rgba(25,35,50,.07); }
+body { font-size: 16px; line-height: 1.45; }
+h1, .hero-card h2, .section-heading h2, .sheet-dialog h2, .swipe-card-copy h3,
+.metric-grid strong, .visual-recipe-name { font-family: inherit; letter-spacing: -.035em; }
+h1 { font-size: clamp(32px, 7vw, 42px); font-weight: 750; line-height: 1.1; }
+.section-heading h2 { font-size: 23px; font-weight: 700; }
+.hero-card h2 { font-weight: 700; line-height: 1.12; }
+.topbar { height: calc(72px + env(safe-area-inset-top)); padding-top: env(safe-area-inset-top); background: rgba(242,242,247,.87); backdrop-filter: blur(24px) saturate(160%); -webkit-backdrop-filter: blur(24px) saturate(160%); }
+.brand { font-weight: 750; letter-spacing: -.045em; }
+.brand-mark { border-radius: 11px; font-family: inherit; font-weight: 700; background: linear-gradient(145deg,#2b8d6d,#174c3c); box-shadow: inset 0 1px 1px #ffffff55; }
+.brand small { font-size: 12px; background: transparent; color: var(--muted); font-weight: 500; letter-spacing: 0; }
+.icon-btn, .avatar-btn { width: 44px; height: 44px; border-radius: 15px; border: 0; background: #fff; box-shadow: 0 2px 8px #172b3a06; }
+.icon-btn svg { width: 22px; height: 22px; display: block; }
+.avatar-btn { background: var(--mint); }
+.hero-card { border-radius: 28px; background: linear-gradient(125deg,#143f34,#247258); box-shadow: 0 10px 28px #153e351a; }
+.hero-dish { transform: none; border-radius: 24px; border: 0; }
+.hero-card p, .hero-kicker { font-size: 15px; }
+.status-pill { background: #ffffff20; font-size: 12px; letter-spacing: .045em; }
+.eyebrow { font-size: 12px; line-height: 1.4; letter-spacing: .075em; }
+.meal-card, .recipe-card, .day-summary, .metric-grid article, .profile-card,
+.settings-card, .tracker-card, .swipe-card { border: 0; box-shadow: 0 2px 12px #172b3a06; border-radius: 22px; }
+.meal-card { gap: 12px; padding: 14px; }
+.meal-emoji { border-radius: 17px; }
+.meal-title, .meal-copy h3 { white-space: normal; font-size: 16px; line-height: 1.3; }
+.meal-copy p, .meal-copy span, .day-tab span, .day-summary span, .recipe-meta,
+.recipe-rating, .recipe-tags span, .tag-row span, .result-summary, .metric-grid span,
+.metric-grid small, .nutrition-grid span, .visual-ingredients { font-size: 12px; }
+.day-tabs { background: #e8e9ef; border-radius: 20px; padding: 5px; margin-bottom: 14px; }
+.day-tab { border-radius: 15px; }
+.day-tab.active { box-shadow: 0 2px 8px #0000000d; }
+.day-tab.active b { background: var(--ink); }
+.day-macros { flex-wrap: wrap; }
+.primary-btn, .secondary-btn, .ghost-btn, .light-btn, .favorite-plan { min-height: 46px; border-radius: 15px; font-size: 14px; font-weight: 650; }
+.meal-controls .meal-action { min-width: 44px; min-height: 44px; }
+.week-arrow, .favorite-btn { min-width: 44px; min-height: 44px; }
+.favorite-btn { border-radius: 15px; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+.recipe-art { height: 230px; }
+.recipe-card-body { padding: 18px; }
+.recipe-card-body h2 { font-size: 19px; line-height: 1.25; }
+.recipe-meta { flex-wrap: wrap; justify-content: flex-start; gap: 6px 14px; }
+.recipe-cover { background-size: 424% 424%; }
+.photo-ready .photo-loading { display: none; }
+.visual-recipe-name, .visual-ingredients { display: none; }
+.recipe-cover::after { height: 24%; background: linear-gradient(transparent,#09201a14); }
+.search-box, input:not([type="checkbox"]):not([type="range"]), select, textarea { font-size: 16px; }
+.filter-grid label, .form-grid label, .sheet-dialog label, .check-row label, legend { font-size: 14px; }
+.dialog-intro, .ingredient-list li, .step-list li, .swipe-card-copy p, .swipe-head p { font-size: 16px; line-height: 1.55; }
+.ingredient-list li { flex-wrap: wrap; }
+.ingredient-actions { flex-wrap: wrap; white-space: normal; }
+.ingredient-actions button { min-height: 44px; font-size: 12px; }
+.sheet-dialog { border-radius: 28px; box-shadow: 0 24px 90px #00000024; }
+.sheet-dialog::backdrop { background: #16242d55; backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); }
+.recipe-detail-emoji { border-radius: 24px; }
+.bottom-nav { background: rgba(255,255,255,.9); backdrop-filter: blur(28px) saturate(170%); -webkit-backdrop-filter: blur(28px) saturate(170%); border: 1px solid #ffffffbb; box-shadow: 0 8px 32px #2138491a; }
+.bottom-nav button { min-height: 58px; border-radius: 18px; }
+.bottom-nav button > span, .bottom-nav .center-action > span { width: 26px; height: 26px; margin: 0 auto 3px; background: transparent; color: inherit; box-shadow: none; border-radius: 0; display: block; }
+.bottom-nav svg { width: 24px; height: 24px; display: block; margin: auto; }
+.bottom-nav button.active { background: var(--mint); color: #145d43; }
+.bottom-nav b { font-size: 12px; font-weight: 600; }
+.nav-count { top: 1px; right: 7px; }
+button { touch-action: manipulation; }
+button:active { filter: brightness(.95); }
+:focus-visible { outline-color: #007aff; }
+@media (max-width: 759px) {
+  .app-shell { padding-bottom: calc(112px + env(safe-area-inset-bottom)); }
+  .bottom-nav { left: 10px; right: 10px; bottom: max(10px, env(safe-area-inset-bottom)); height: 76px; padding: 7px 4px; gap: 1px; border-radius: 26px; }
+  main { padding: 20px 16px 28px; }
+  .brand small { display: none; }
+  .hero-card { min-height: 260px; padding: 24px; }
+  .hero-copy { max-width: 100%; padding-bottom: 105px; }
+  .hero-dish { width: 100px; height: 100px; right: 22px; bottom: 22px; opacity: 1; }
+  .macro-row { max-width: none; }
+  .recipe-detail-hero { grid-template-columns: 1fr; gap: 18px; }
+  .recipe-detail-emoji { width: 100%; height: 230px; }
+  .sheet-dialog { max-height: 92dvh; border-radius: 28px 28px 0 0; }
+  .swipe-cover { height: 280px; }
+  .swipe-shell { min-height: 0; }
+  .swipe-dialog { overflow-y: auto; }
+}
+@media (min-width: 760px) { .bottom-nav { border-radius: 26px; } .hero-copy { padding-bottom: 0; } }
+@media (prefers-reduced-transparency: reduce) { .topbar { background: var(--cream); } .bottom-nav { background: #fff; } }

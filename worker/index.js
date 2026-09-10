@@ -79,7 +79,7 @@ async function recipePhotoApi(request, recipeId) {
   const query = rawQuery.replace(/[^\p{L}\p{N}\s,.'-]/gu, ' ').replace(/\s+/g, ' ').trim().slice(0, 180);
   if (query.length < 3) return json({ error: 'invalid_photo_query' }, 400);
   try {
-    const rejectedTitles = /\b(icon|logo|diagram|map|drawing|illustration|clipart|symbol|flag)\b/i;
+    const rejectedTitles = /\b(icon|logo|diagram|map|drawing|illustration|clipart|symbol|flag|collage|montage|mosaic|grid|atlas|contact sheet|compilation|cuadricula|mosaico)\b/i;
     const queryWords = query.split(' ');
     const searchTerms = [...new Set([query, queryWords.slice(0, Math.min(3, queryWords.length)).join(' '), queryWords.slice(0, Math.min(2, queryWords.length)).join(' '), queryWords[0]])].filter(term => term.length >= 3);
     let candidates = [];

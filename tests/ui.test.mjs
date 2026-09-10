@@ -45,7 +45,7 @@ assert.match(html, /name="source"/);
 assert.match(html, /name="scope"/);
 assert.match(html, /id="planning-reminder-hour"/);
 assert.match(html, /id="download-calendar-reminder"/);
-assert.match(html, /v1\.7\.0/);
+assert.match(html, /v1\.8\.0/);
 assert.match(app, /rankMealCandidates/);
 await access(new URL('../recipe-photo-atlas-v3.png', import.meta.url));
 assert.match(app, /recipe-photos/);
