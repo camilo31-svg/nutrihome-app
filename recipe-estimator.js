@@ -1,8 +1,16 @@
-import { normalizeText, roundQuantity } from './nutrihome-core.js';
+import { normalizeText, roundQuantity } from './nutrihome-core.js?v=1.9.0';
 
 // Valores orientativos por 100 g y precios medios configurados solo para estimar.
 // NutriHome los presenta como una ayuda editable, nunca como información de etiqueta.
 const FOOD_PROFILES = [
+  // Specific ingredients used by the new recipes must precede broad aliases.
+  // References and measurement basis: docs/nutrition-sources.md.
+  ['garbanzos secos|garbanzo seco', 378, 20.47, 62.95, 6.04, 12.2, 3.5, 80, 'g', 1, 'legumbres'],
+  ['lentejas rojas secas|lentejas secas', 352, 24.63, 63.35, 1.06, 10.7, 4, 80, 'g', 1, 'legumbres'],
+  ['bulgur', 342, 12.29, 75.87, 1.33, 12.5, 3.5, 70, 'g', 1, 'cereales'],
+  ['harina de maiz', 366, 7.21, 80.07, 1.89, 5.34, 2.5, 80, 'g', 1, 'cereales'],
+  ['tahini', 657, 25, 1.2, 59, 11, 14, 15, 'g', 1, 'condimentos'],
+  ['alga nori', 270, 39, 7.5, 0, 40, 150, 1, 'unidad', 2.43, 'conservas'],
   ['aceite de oliva|aceite', 884, 0, 0, 100, 0, 9.5, 12, 'g', 1, 'otros'],
   ['aguacate', 160, 2, 8.5, 14.7, 6.7, 5.5, 70, 'g', 150, 'frutas'],
   ['arroz integral|arroz basmati|arroz', 360, 7.5, 78, 2.7, 2.8, 2.2, 80, 'g', 1, 'cereales'],

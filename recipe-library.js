@@ -1,4 +1,5 @@
-import { DEMO_RECIPES } from './demo-data.js?v=1.7.0';
+import { SPECIAL_RECIPES } from './recipe-specials.js?v=1.9.0';
+import { DEMO_RECIPES } from './demo-data.js?v=1.9.0';
 
 const ingredient = (name, amount, unit, category = 'otros') => ({ name, amount, unit, category });
 const rounded = value => Math.round(value * 10) / 10;
@@ -17,10 +18,10 @@ export const CATALOG_REFERENCES = Object.freeze([
   { title: 'MyPlate Kitchen', url: 'https://www.myplate.gov/myplate-kitchen', note: 'Colección oficial de recetas y planificación alimentaria del USDA.' }
 ]);
 
-function recipe({ id, name, emoji, mealTypes, totalTime, prepTime = 8, cookTime, servings = 2, nutrition, estimatedCost, ingredients, description, steps, traits = [], allergens = [], equipment = [], tags = [], tradition }) {
+function recipe({ id, name, emoji, mealTypes, totalTime, prepTime = 8, cookTime, servings = 2, nutrition, estimatedCost, ingredients, description, steps, traits = [], allergens = [], equipment = [], tags = [], tradition, familyId, familyName }) {
   const seed = [...id].reduce((sum, char) => sum + char.charCodeAt(0), 0);
   return {
-    id, name, emoji, mealTypes, totalTime, prepTime, cookTime: cookTime ?? Math.max(0, totalTime - prepTime), servings,
+    id, name, familyId, familyName, emoji, mealTypes, totalTime, prepTime, cookTime: cookTime ?? Math.max(0, totalTime - prepTime), servings,
     nutrition: Object.fromEntries(Object.entries(nutrition).map(([key, value]) => [key, rounded(value)])),
     estimatedCost: rounded(estimatedCost), ingredients, description, steps, traits: [...new Set(traits)], allergens: [...new Set(allergens)], equipment, tags,
     rating: rounded(4.2 + (seed % 7) / 10), ratingCount: 0, ratingType: 'system_estimate',
@@ -75,7 +76,7 @@ function veganSavoryRecipes() {
     const traits = [...(style.traits || []), ...(main.traits || [])];
     const allergens = [...(style.allergens || []), ...(main.allergens || [])];
     recipes.push(recipe({
-      id: `lib-v-${style.id}-${main.id}-${veg.id}`,
+      familyId: `lib-v-${style.id}`, familyName: style.title, id: `lib-v-${style.id}-${main.id}-${veg.id}`,
       name: `${style.title} de ${main.label} y ${veg.name}`,
       emoji: style.emoji, mealTypes: ['lunch', 'dinner'], totalTime: style.time, prepTime: 8,
       nutrition: { kcal: style.macros.kcal + main.kcal + veg.kcal / 2, protein: style.macros.protein + main.protein + 2, carbs: style.macros.carbs + main.carbs + 4, fat: style.macros.fat + main.fat, fiber: style.macros.fiber + main.fiber + veg.fiber / 2 },
@@ -116,7 +117,7 @@ function veganBreakfastRecipes() {
   const recipes = [];
   for (const base of BREAKFAST_BASES) for (const fruit of FRUITS) for (const topping of TOPPINGS) {
     recipes.push(recipe({
-      id: `lib-v-des-${base.id}-${fruit.id}-${topping.id}`, name: `${base.title} con ${fruit.name} y ${topping.name}`, emoji: base.emoji,
+      familyId: `lib-v-des-${base.id}`, familyName: base.title, id: `lib-v-des-${base.id}-${fruit.id}-${topping.id}`, name: `${base.title} con ${fruit.name} y ${topping.name}`, emoji: base.emoji,
       mealTypes: base.mealTypes, totalTime: base.time, prepTime: base.time, cookTime: base.id === 'avena' ? 5 : 0,
       nutrition: { kcal: base.kcal + fruit.kcal + topping.kcal, protein: base.protein + topping.protein, carbs: base.carbs + 12, fat: base.fat + topping.fat, fiber: base.fiber + 3 },
       estimatedCost: base.cost + fruit.cost + topping.cost,
@@ -153,7 +154,7 @@ function lactoSteps(styleId, main, veg) {
 function lactoRecipes() {
   const result = [];
   for (const style of LACTO_STYLES) for (const main of DAIRY_MAINS) for (const veg of SPECIAL_VEGETABLES) result.push(recipe({
-    id: `lib-lacto-${style.id}-${main.id}-${veg.id}`, name: `${style.title} con ${main.name} y ${veg.name}`, emoji: style.emoji, mealTypes: ['lunch', 'dinner'], totalTime: style.time,
+    familyId: `lib-lacto-${style.id}`, familyName: style.title, id: `lib-lacto-${style.id}-${main.id}-${veg.id}`, name: `${style.title} con ${main.name} y ${veg.name}`, emoji: style.emoji, mealTypes: ['lunch', 'dinner'], totalTime: style.time,
     nutrition: { kcal: 330 + main.kcal, protein: 10 + main.protein, carbs: 48, fat: 7 + main.fat, fiber: 7 + veg.fiber / 2 }, estimatedCost: 2.0 + main.cost + veg.cost,
     ingredients: [style.base, ingredient(main.name, main.amount, 'g', 'refrigerados'), ingredient(veg.name, veg.amount, 'g', 'verduras'), ingredient('limón', 1, 'unidad', 'frutas')],
     description: `Receta lacto-vegetariana con ${main.name}, ${veg.name} y ${style.base.name}.`, steps: lactoSteps(style.id, main, veg), traits: ['dairy', ...(style.traits || [])], allergens: ['lácteos', ...(style.allergens || [])], equipment: style.equipment || [], tags: ['lacto-vegetariana', 'sin huevo', 'receta internacional'], tradition: 'lacto-vegetariana'
@@ -184,7 +185,7 @@ function eggSteps(style, flavor, veg) {
 function ovoRecipes() {
   const result = [];
   for (const style of EGG_STYLES) for (const flavor of EGG_FLAVORS) for (const veg of SPECIAL_VEGETABLES) result.push(recipe({
-    id: `lib-ovo-${style.id}-${flavor.id}-${veg.id}`, name: `${style.title} ${flavor.label} de ${veg.name}`, emoji: style.emoji, mealTypes: ['breakfast', 'lunch', 'dinner'], totalTime: style.time,
+    familyId: `lib-ovo-${style.id}`, familyName: style.title, id: `lib-ovo-${style.id}-${flavor.id}-${veg.id}`, name: `${style.title} ${flavor.label} de ${veg.name}`, emoji: style.emoji, mealTypes: ['breakfast', 'lunch', 'dinner'], totalTime: style.time,
     nutrition: { kcal: 390 + veg.kcal / 2, protein: 25, carbs: style.id === 'revuelto' ? 39 : 48, fat: 17, fiber: 5 + veg.fiber / 2 }, estimatedCost: 2.7 + veg.cost,
     ingredients: [ingredient('huevos', 4, 'unidad', 'refrigerados'), style.base, ingredient(veg.name, veg.amount, 'g', 'verduras'), flavor.extra],
     description: `Preparación ovo-vegetariana ${flavor.label} con huevo, ${veg.name} y ${style.base.name}.`, steps: eggSteps(style, flavor, veg), traits: ['egg', ...(style.traits || []), ...(flavor.traits || [])], allergens: ['huevo', ...(style.allergens || []), ...(flavor.allergens || [])], equipment: style.equipment || [], tags: ['ovo-vegetariana', 'sin lácteos', flavor.label], tradition: flavor.label
@@ -215,7 +216,7 @@ function vegetarianSteps(style, cheese, veg) {
 function vegetarianRecipes() {
   const result = [];
   for (const style of VEGETARIAN_STYLES) for (const cheese of CHEESES) for (const veg of SPECIAL_VEGETABLES) result.push(recipe({
-    id: `lib-veg-${style.id}-${cheese.id}-${veg.id}`, name: `${style.title} de ${veg.name} y ${cheese.name}`, emoji: style.emoji, mealTypes: ['lunch', 'dinner'], totalTime: style.time,
+    familyId: `lib-veg-${style.id}`, familyName: style.title, id: `lib-veg-${style.id}-${cheese.id}-${veg.id}`, name: `${style.title} de ${veg.name} y ${cheese.name}`, emoji: style.emoji, mealTypes: ['lunch', 'dinner'], totalTime: style.time,
     nutrition: { kcal: 420 + cheese.kcal, protein: 24 + cheese.protein, carbs: 42, fat: 18 + cheese.fat, fiber: 5 + veg.fiber / 2 }, estimatedCost: 3.0 + cheese.cost + veg.cost,
     ingredients: [ingredient('huevos', 4, 'unidad', 'refrigerados'), style.base, ingredient(cheese.name, cheese.amount, 'g', 'refrigerados'), ingredient(veg.name, veg.amount, 'g', 'verduras')],
     description: `Receta vegetariana con huevo, ${cheese.name}, ${veg.name} y ${style.base.name}.`, steps: vegetarianSteps(style, cheese, veg), traits: ['egg', 'dairy', ...(style.traits || [])], allergens: ['huevo', 'lácteos', ...(style.allergens || [])], equipment: style.equipment || [], tags: ['vegetariana', 'con huevo', 'con lácteos'], tradition: 'vegetariana internacional'
@@ -246,7 +247,7 @@ function fishSteps(style, main, veg) {
 function pescetarianRecipes() {
   const result = [];
   for (const style of FISH_STYLES) for (const main of FISH_MAINS) for (const veg of SPECIAL_VEGETABLES) result.push(recipe({
-    id: `lib-pesc-${style.id}-${main.id}-${veg.id}`, name: `${style.title} de ${main.name} y ${veg.name}`, emoji: style.emoji, mealTypes: ['lunch', 'dinner'], totalTime: style.time,
+    familyId: `lib-pesc-${style.id}`, familyName: style.title, id: `lib-pesc-${style.id}-${main.id}-${veg.id}`, name: `${style.title} de ${main.name} y ${veg.name}`, emoji: style.emoji, mealTypes: ['lunch', 'dinner'], totalTime: style.time,
     nutrition: { kcal: 310 + main.kcal, protein: 8 + main.protein, carbs: 48, fat: 7 + main.fat, fiber: 5 + veg.fiber / 2 }, estimatedCost: 2.2 + main.cost + veg.cost,
     ingredients: [ingredient(main.name, main.amount, 'g', 'pescados'), style.base, ingredient(veg.name, veg.amount, 'g', 'verduras'), style.extra],
     description: `Plato pescetariano de ${main.name}, ${veg.name} y ${style.base.name}.`, steps: fishSteps(style, main, veg), traits: ['fish', ...(style.traits || [])], allergens: [...main.allergens, ...(style.allergens || [])], equipment: style.equipment || [], tags: ['pescetariana', 'alta proteína', 'sin huevo'], tradition: 'cocinas costeras internacionales'
@@ -277,7 +278,7 @@ function meatSteps(style, main, veg) {
 function omnivoreRecipes() {
   const result = [];
   for (const style of MEAT_STYLES) for (const main of MEAT_MAINS) for (const veg of SPECIAL_VEGETABLES) result.push(recipe({
-    id: `lib-omni-${style.id}-${main.id}-${veg.id}`, name: `${style.title} de ${main.name} y ${veg.name}`, emoji: style.emoji, mealTypes: ['lunch', 'dinner'], totalTime: style.time,
+    familyId: `lib-omni-${style.id}`, familyName: style.title, id: `lib-omni-${style.id}-${main.id}-${veg.id}`, name: `${style.title} de ${main.name} y ${veg.name}`, emoji: style.emoji, mealTypes: ['lunch', 'dinner'], totalTime: style.time,
     nutrition: { kcal: 320 + main.kcal, protein: 8 + main.protein, carbs: 48, fat: 7 + main.fat, fiber: 5 + veg.fiber / 2 }, estimatedCost: 2.1 + main.cost + veg.cost,
     ingredients: [ingredient(main.name, main.amount, 'g', 'carnes'), style.base, ingredient(veg.name, veg.amount, 'g', 'verduras'), style.extra],
     description: `Plato omnívoro de ${main.name}, ${veg.name} y ${style.base.name}.`, steps: meatSteps(style, main, veg), traits: ['meat', ...(style.traits || [])], allergens: [...(style.allergens || [])], equipment: style.equipment || [], tags: ['omnívora', 'alta proteína', 'sin huevo'], tradition: 'cocinas internacionales'
@@ -295,7 +296,7 @@ const GENERATED_RECIPES = [
   ...omnivoreRecipes()
 ];
 
-export const RECIPE_LIBRARY = Object.freeze([...DEMO_RECIPES, ...GENERATED_RECIPES]);
+export const RECIPE_LIBRARY = Object.freeze([...SPECIAL_RECIPES, ...DEMO_RECIPES, ...GENERATED_RECIPES]);
 export const BUILTIN_RECIPE_COUNT = RECIPE_LIBRARY.length;
 
 export const DIET_CATALOG_PROFILES = Object.freeze([

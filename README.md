@@ -8,7 +8,7 @@ NutriHome es una PWA mobile-first que conecta planificación semanal, recetas, o
 - Generación multiobjetivo: equilibrada, rápida, económica, alta en proteína, aprovechamiento de despensa, prioridad a caducidades y modo sorpresa.
 - Bloqueo, repetición e intercambio de comidas, además de un selector tipo Tinder con hasta 100 alternativas compatibles para cada hueco.
 - Restricciones dietéticas reales. Huevo y lácteos se comprueban de forma independiente a la etiqueta vegetariana.
-- Biblioteca de 1.705 recetas únicas en castellano, con más de 1.000 opciones compatibles para cada dieta disponible, búsqueda por nombre/ingrediente/etiqueta, filtros dietéticos completos y carga progresiva de resultados.
+- Biblioteca de 74 platos base en castellano con 1.717 preparaciones incluidas sus variantes. Una tarjeta por familia, desplegables de ingredientes, filtros dietéticos y favoritos agrupados; se conservan los identificadores de las variantes de los menús guardados.
 - Cada receta incorporada tiene ingredientes cuantificados y cuatro pasos propios; las pruebas rechazan instrucciones genéricas, IDs o nombres duplicados y catálogos con menos de 1.000 opciones por dieta.
 - Recetas personales con ingredientes escritos libremente: se infieren cantidades y se calculan automáticamente coste, calorías, proteína, carbohidratos, grasas y fibra.
 - Carátulas únicas construidas con los ingredientes reales de cada receta sobre vajilla generada con IA, sin mostrar alimentos ajenos; carga opcional de una foto propia persistida en IndexedDB y R2 cuando hay sesión.
@@ -65,7 +65,7 @@ npm run check
 npm run build
 ```
 
-Las pruebas cubren conversiones, unidades incompatibles, sinónimos, dietas y alergias, las 1.705 recetas y sus pasos específicos, escalado, resta de despensa, compra neta, generación de 28 comidas, tamaño de la sincronización, bloqueos y estructura PWA.
+Las pruebas cubren conversiones, unidades incompatibles, sinónimos, dietas y alergias, las 1.717 preparaciones y sus pasos específicos, escalado, resta de despensa, compra neta, generación de 28 comidas, tamaño de la sincronización, bloqueos y estructura PWA.
 
 ## Despliegue
 
@@ -91,3 +91,11 @@ El workflow `.github/workflows/pages.yml` compila `dist/client` y publica esa ve
 ## Próximos bloques
 
 La siguiente evolución lógica es modelar hogares, miembros y entidades sincronizables por separado para habilitar lista de compra en tiempo real y conflictos offline. Después: escáner de códigos de barras con una API nutricional legítima, importación asistida por IA mediante backend, notificaciones push y precios reales solo cuando exista una fuente autorizada.
+
+## Fotografías y carga
+
+Cada plato base tiene una imagen WebP individual en `recipe-images/`. `recipe-photos.js` identifica la preparación representada; cuando se selecciona otra variante, la interfaz indica que la foto corresponde a la receta base. No se buscan fotografías externas durante la navegación ni se utilizan cuadrículas o atlas como fondos.
+
+Las fotos se precargan en la caché de la PWA tras la primera visita. La primera descarga depende de la conexión; las aperturas siguientes usan los archivos guardados, mientras el navegador conserve la caché. El estado local se muestra sin esperar a la sincronización.
+
+Al añadir un plato base, añadir su imagen revisada y ejecutar `node scripts/prepare-recipe-images.mjs`. Las pruebas verifican la correspondencia del catálogo, los archivos WebP, su tamaño y el funcionamiento de la caché sin red. La vista local no registra un service worker para evitar cachés antiguas durante el desarrollo.

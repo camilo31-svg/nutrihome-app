@@ -1,3 +1,4 @@
+import { recipeFamilyId, distinctFamilyCandidates } from './recipe-families.js?v=1.9.0';
 export const UNIT_DEFINITIONS = Object.freeze({
   mg: { family: 'weight', factor: 0.001, base: 'g' },
   g: { family: 'weight', factor: 1, base: 'g' },
@@ -250,7 +251,7 @@ function scoreRecipe(recipe, context) {
   score += coverage * 18 + expiring * 9;
   score -= Math.max(0, recipe.totalTime - (profile.maxCookingTime || 35)) * 1.25;
   score -= Math.max(0, estimatedPortionCost - budgetPerMeal) * 3;
-  score -= (used.get(recipe.id) || 0) * 17;
+  score -= (used.get(recipeFamilyId(recipe)) || 0) * 40;
   if (profile.diet === 'flexitarian' && !recipeTraits(recipe).has('meat')) score += 4;
   if (mode === 'quick') score -= recipe.totalTime * .75;
   if (mode === 'economic') score -= estimatedPortionCost * 5;
@@ -266,20 +267,26 @@ function scoreRecipe(recipe, context) {
 export function generateWeek({ recipes, profile, pantry = [], exercise = [], previousMenu = [], mode = 'balanced' }) {
   const used = new Map();
   const previous = new Map(previousMenu.map(entry => [`${entry.day}-${entry.mealType}`, entry]));
+  // Reserve locked meals before selecting earlier days so their families are counted too.
+  for (const entry of previous.values()) {
+    if (!entry.locked || entry.day < 0 || entry.day > 6 || !MEAL_LABELS[entry.mealType]) continue;
+    const recipe = recipes.find(item => item.id === entry.recipeId);
+    const family = recipe ? recipeFamilyId(recipe) : entry.recipeId;
+    used.set(family, (used.get(family) || 0) + 1);
+  }
   const result = [];
   for (let day = 0; day < 7; day += 1) {
     for (const mealType of Object.keys(MEAL_LABELS)) {
       const oldEntry = previous.get(`${day}-${mealType}`);
       if (oldEntry?.locked) {
         result.push({ ...oldEntry });
-        used.set(oldEntry.recipeId, (used.get(oldEntry.recipeId) || 0) + 1);
         continue;
       }
       const candidates = recipes.filter(recipe => recipe.mealTypes.includes(mealType) && isRecipeCompatible(recipe, profile));
       if (!candidates.length) throw new Error(`No hay recetas compatibles para ${MEAL_LABELS[mealType]}.`);
-      const ranked = candidates.map(recipe => ({ recipe, score: scoreRecipe(recipe, { profile, pantry, mode, mealType, used, dayIndex: day, exercise: exercise.find(item => item.day === day) }) })).sort((a, b) => b.score - a.score);
+      const ranked = candidates.map(recipe => ({ recipe, score: scoreRecipe(recipe, { profile, pantry, mode, mealType, used, dayIndex: day, exercise: exercise.find(item => item.day === day) }) })).sort((a, b) => (used.get(recipeFamilyId(a.recipe)) || 0) - (used.get(recipeFamilyId(b.recipe)) || 0) || b.score - a.score);
       const recipe = ranked[0].recipe;
-      used.set(recipe.id, (used.get(recipe.id) || 0) + 1);
+      used.set(recipeFamilyId(recipe), (used.get(recipeFamilyId(recipe)) || 0) + 1);
       result.push({ id: `meal-${day}-${mealType}`, day, mealType, recipeId: recipe.id, servings: profile.people || recipe.servings, locked: false });
     }
   }
@@ -289,7 +296,7 @@ export function generateWeek({ recipes, profile, pantry = [], exercise = [], pre
 export function regenerateMeal({ entry, menu, recipes, profile, pantry, mode = 'balanced' }) {
   if (entry.locked) return menu;
   const used = new Map();
-  menu.forEach(item => used.set(item.recipeId, (used.get(item.recipeId) || 0) + 1));
+  menu.forEach(item => { const recipe = recipes.find(recipe => recipe.id === item.recipeId); const key = recipe ? recipeFamilyId(recipe) : item.recipeId; used.set(key, (used.get(key) || 0) + 1); });
   const candidates = recipes.filter(recipe => recipe.mealTypes.includes(entry.mealType) && recipe.id !== entry.recipeId && isRecipeCompatible(recipe, profile));
   if (!candidates.length) return menu;
   const best = candidates.map(recipe => ({ recipe, score: scoreRecipe(recipe, { profile, pantry, mode, mealType: entry.mealType, used, dayIndex: entry.day }) })).sort((a, b) => b.score - a.score)[0].recipe;
@@ -299,14 +306,14 @@ export function regenerateMeal({ entry, menu, recipes, profile, pantry, mode = '
 export function rankMealCandidates({ entry, menu, recipes, profile, pantry = [], mode = 'balanced', limit = 100, excludedRecipeIds = [] }) {
   if (!entry) return [];
   const used = new Map();
-  for (const item of menu || []) used.set(item.recipeId, (used.get(item.recipeId) || 0) + 1);
+  for (const item of menu || []) { const recipe = recipes.find(recipe => recipe.id === item.recipeId); const key = recipe ? recipeFamilyId(recipe) : item.recipeId; used.set(key, (used.get(key) || 0) + 1); }
   const excluded = new Set([entry.recipeId, ...excludedRecipeIds]);
-  return recipes
+  const ranked = recipes
     .filter(recipe => recipe.mealTypes.includes(entry.mealType) && !excluded.has(recipe.id) && isRecipeCompatible(recipe, profile))
     .map(recipe => ({ recipe, score: scoreRecipe(recipe, { profile, pantry, mode, mealType: entry.mealType, used, dayIndex: entry.day }) }))
     .sort((a, b) => b.score - a.score)
-    .slice(0, Math.max(1, Math.min(100, Number(limit) || 100)))
     .map(item => item.recipe);
+  return distinctFamilyCandidates(ranked, Math.max(1, Math.min(100, Number(limit) || 100)));
 }
 
 function aggregateRequirements(menu, recipes) {

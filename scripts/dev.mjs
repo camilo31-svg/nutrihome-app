@@ -15,7 +15,9 @@ const server = http.createServer(async (request, response) => {
   try {
     if (!(await stat(target)).isFile()) throw new Error('Not a file');
   } catch {
-    target = path.join(root, 'index.html');
+    response.writeHead(404, {'Content-Type': 'text/plain; charset=utf-8'});
+    response.end('Not found');
+    return;
   }
   response.setHeader('Content-Type', mime[path.extname(target)] || 'application/octet-stream');
   response.setHeader('Cache-Control', 'no-store');

@@ -1,0 +1,668 @@
+[
+  {
+    "familyId": "special-falafel",
+    "recipeId": "special-falafel",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "f58909dab5d002acbfa2899baeb6941d7182b4a15330f7d134a2f7ad41163b2b",
+    "review": "Visually inspected: browned herb-flecked falafel with tahini in small bowl on single plate. No grid, text or unlisted garnish. Serving shows fewer than 12 discs."
+  },
+  {
+    "familyId": "special-ratatouille",
+    "recipeId": "special-ratatouille",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "654d6fe41e8578956841bb529db80ddc7e0d9cde8f723de157fa16cd6bb46aa1",
+    "review": "Visually inspected: baked alternating aubergine, zucchini and tomato slices over pepper/onion with thyme. Single dish, no grid or text."
+  },
+  {
+    "familyId": "special-gazpacho",
+    "recipeId": "special-gazpacho",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "3617eca215b22e3e8525d2ba0ea0638c3c2b1da660d87e0b862081eaa9adc824",
+    "review": "Visually inspected: orange-red blended gazpacho topped with cucumber cubes and oil. Single bowl, no grid or text. Cucumber garnish retains some peel."
+  },
+  {
+    "familyId": "special-risotto",
+    "recipeId": "special-risotto",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "0d992d01d77f2fefa4d90e240dd01d7d2fd8f533428f15e189f6c47c2af70311",
+    "review": "Visually inspected: creamy rice with sliced mushrooms and parsley. Single bowl, no grid, text or extra accompaniments."
+  },
+  {
+    "familyId": "special-sushi",
+    "recipeId": "special-sushi",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "c28fc146b4556a6609c140130f97fc797a3d083e5ce45e90f5afe2b2b48ef0f1",
+    "review": "Visually verified: Maki with cucumber and avocado, nori and rice; no dipping bowl or liquid. Previous verification failure resolved. Single continuous photograph, one serving plate/bowl, no grid or text."
+  },
+  {
+    "familyId": "special-tabule",
+    "recipeId": "special-tabule",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "997425448cc03b180a68464088dc67873f5d8bac634433a0a5c57225e19c5e09",
+    "review": "Visually inspected: Bulgur, diced tomato/cucumber, chopped herbs; single bowl; no grid/text or extra accompaniment."
+  },
+  {
+    "familyId": "special-hummus",
+    "recipeId": "special-hummus",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "1fcd768de122e94362f515abba00208dc1b282fe327f79b86725bfda8993d2df",
+    "review": "Visually inspected: Hummus with oil and carrot/cucumber sticks in one bowl; no grid/text."
+  },
+  {
+    "familyId": "special-pancakes",
+    "recipeId": "special-pancakes",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "f7eb2b50541406209f02a96899764b467c950464de6481d50ffc7c85a0edfa53",
+    "review": "Visually inspected: Browned pancakes with banana and cinnamon; one plate; no grid/text. Oat texture coarser than finely milled brief."
+  },
+  {
+    "familyId": "special-arepas",
+    "recipeId": "special-arepas",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "a0d1549d7a9bddccf33c21a1eefbffad1e31dc1815c7b25b68ec1fb27038952a",
+    "review": "Visually inspected: Four arepas stuffed with black beans, avocado and tomato; single plate; no grid/text."
+  },
+  {
+    "familyId": "special-baba-ganoush",
+    "recipeId": "special-baba-ganoush",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "6821833c20f9aa1d5c80da580bb3482a87a12448b5051be160b8e041ef63de5e",
+    "review": "Visually inspected: Textured aubergine dip with olive oil and wholegrain toast; single plate; no grid/text."
+  },
+  {
+    "familyId": "special-lentejas-rojas",
+    "recipeId": "special-lentejas-rojas",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "b5bdab864d9b6009d82d60148083d8d370598c1ec81321a7396a98250254e092",
+    "review": "Visually inspected: orange creamy red-lentil dal with softened tomato and onion; one bowl, no garnish, grid, text or accompaniment."
+  },
+  {
+    "familyId": "special-patata-asada",
+    "recipeId": "special-patata-asada",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "2681b679f797b534229ac10db80f696fc1ff64e22838f71b4f74a458e3996d24",
+    "review": "Visually verified: Roasted sweet potato with browned chickpeas, paprika and tahini sauce; no extra garnish. Single continuous photograph, one serving plate/bowl, no grid or text."
+  },
+  {
+    "familyId": "rec-avena-pera",
+    "recipeId": "rec-avena-pera",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "1613a5225007bdf8b271bc83194dd599c099f2e249da955c415cb6e1513fbf19",
+    "review": "Visually verified: Creamy oatmeal with pear pieces/slices and chia; optional cinnamon from preparation visible. Single continuous photograph, one serving plate/bowl, no grid or text."
+  },
+  {
+    "familyId": "rec-tostada-hummus",
+    "recipeId": "rec-tostada-hummus",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "2f7657697102bf9e967aff0cff03f2bfe3374c7b1b96b5f4c0d29c5dc6001a25",
+    "review": "Visually verified: Wholegrain toast with hummus and tomato slices, optional pepper/oil from preparation. Single continuous photograph, one serving plate/bowl, no grid or text."
+  },
+  {
+    "familyId": "rec-yogur-granola",
+    "recipeId": "rec-yogur-granola",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "c208d964e5e026337067dbdd0ffeec2eec504e8c99560c6b1a1c29347d3911c4",
+    "review": "Visually verified: Yogurt with granola and blueberries only. Single continuous photograph, one serving plate/bowl, no grid or text."
+  },
+  {
+    "familyId": "rec-revuelto-tofu",
+    "recipeId": "rec-revuelto-tofu",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "f92a46ad515ccec69d639cf09b83821578735133f441d160c1dcfc5d989411e4",
+    "review": "Visually verified: Scrambled tofu with wilted spinach, tomato and wholegrain toast; turmeric permitted by preparation. Single continuous photograph, one serving plate/bowl, no grid or text."
+  },
+  {
+    "familyId": "rec-tortilla-espinaca",
+    "recipeId": "rec-tortilla-espinaca",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "3ea47f95a24e13ca50327f0a30cc8b52279ca26214658bf6d908bda825399573",
+    "review": "Visually verified: Browned set tortilla with potato cubes, spinach and onion. One finished dish, single photograph, no grids/text or unlisted accompaniment."
+  },
+  {
+    "familyId": "rec-chia-cacao",
+    "recipeId": "rec-chia-cacao",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "a34af9a52fb1a90142af287cc6efd102f9265dce1d9c69bdc6e79a14f03e3b62",
+    "review": "Visually verified: Cocoa chia pudding topped only with banana slices. One finished dish, single photograph, no grids/text or unlisted accompaniment."
+  },
+  {
+    "familyId": "rec-bowl-garbanzos",
+    "recipeId": "rec-bowl-garbanzos",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "6bf530118afc57dfed3229977921f7b81810a33db3eeb0e2b78cfc3383bfeed3",
+    "review": "Visually verified: Chickpeas, brown rice, diced cucumber and tomato in dressed bowl. One finished dish, single photograph, no grids/text or unlisted accompaniment."
+  },
+  {
+    "familyId": "rec-lentejas-arroz",
+    "recipeId": "rec-lentejas-arroz",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "13aab68b066d1a7a2b662499220c0c7f88211f8e8840e5a0e7bc4cc705181aad",
+    "review": "Visually verified: Lentils in tomato with carrot/onion served over rice. One finished dish, single photograph, no grids/text or unlisted accompaniment."
+  },
+  {
+    "familyId": "rec-pasta-atun",
+    "recipeId": "rec-pasta-atun",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "0e47c28cba34e17dcd4a7037e74ce5121905e08909906ffadede264b3dc85022",
+    "review": "Visually verified: Wholegrain penne with tuna flakes, tomato sauce and wilted spinach. One finished dish, single photograph, no grids/text or unlisted accompaniment."
+  },
+  {
+    "familyId": "rec-pollo-quinoa",
+    "recipeId": "rec-pollo-quinoa",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "056c39fc1231c075bd2d6e9cf11a3fc2289ed88cfe43fb08335d3bb84b924c4f",
+    "review": "Visually verified: Browned chicken strips and zucchini half-moons over quinoa. One finished dish, single photograph, no grids/text or unlisted accompaniment."
+  },
+  {
+    "familyId": "rec-curry-tofu",
+    "recipeId": "rec-curry-tofu",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "25ded2d94cf50efcfa3c1c5fc138327f32091a66b5521b1f41d187a677a45268",
+    "review": "Visually inspected: Browned tofu cubes and spinach in coconut curry with rice. Single photograph; no grid/text."
+  },
+  {
+    "familyId": "rec-pasta-alubias",
+    "recipeId": "rec-pasta-alubias",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "6e37c79eb1ce3aeb4fe2bfc7b948d87e77f0d50b2f3bb4c1993e92937a0972df",
+    "review": "Visually inspected: Wholegrain pasta with white beans, creamy bean sauce and tomato. Single photograph; no grid/text."
+  },
+  {
+    "familyId": "rec-yogur-nueces",
+    "recipeId": "rec-yogur-nueces",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "8fb18b5a3bb569d70bb4631bc91554d7d1f63ea91e0a8702a21eb9d61e09cf76",
+    "review": "Visually inspected: Yogurt with walnuts and blueberries. Single photograph; no grid/text."
+  },
+  {
+    "familyId": "rec-hummus-zanahoria",
+    "recipeId": "rec-hummus-zanahoria",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "29ddd6197736ea5ce892db25fd06c5e19f48600a85d568cc333ebb5364267844",
+    "review": "Visually inspected: Hummus with carrot sticks; optional paprika/oil from preparation; small bowl on serving plate. Single photograph; no grid/text."
+  },
+  {
+    "familyId": "rec-batido-soja",
+    "recipeId": "rec-batido-soja",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "933bdc9a07cb1ab372fb87e67dbfd6c070716c4d94362197dde6e53e34467e84",
+    "review": "Visually inspected: Homogeneous soy-banana-oat smoothie in ONE drinking glass, no props. Owner vessel correction resolved. Single photograph; no grid/text."
+  },
+  {
+    "familyId": "rec-manzana-cacahuete",
+    "recipeId": "rec-manzana-cacahuete",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "d388cf07c865209758ee675e593a7e751167503e7b9c9a127db9406523521e43",
+    "review": "Visually inspected: Cored apple wedges with peanut butter in small bowl on serving plate. Single photograph; no grid/text."
+  },
+  {
+    "familyId": "rec-tostada-queso",
+    "recipeId": "rec-tostada-queso",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "509aec2280421a60b13c75659d23d4329ec2f23afa6d90f7859ea000cdaa4ce3",
+    "review": "Visually inspected: Wholegrain toast with sliced fresh cheese and halved grapes. Single photo/dish, no grid/text."
+  },
+  {
+    "familyId": "rec-bolas-avena",
+    "recipeId": "rec-bolas-avena",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "e36edbfe5b2197288576ade65aabac02f033a377354bae8f083375e0d59b0f75",
+    "review": "Visually inspected: Twelve compact oat-date-almond balls. Single photo/dish, no grid/text."
+  },
+  {
+    "familyId": "rec-tofu-verduras",
+    "recipeId": "rec-tofu-verduras",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "9495b1b5875007a2b9d24320f55f7249dca79957e443078b1ce32204d3a17e17",
+    "review": "Visually inspected: Crisp tofu cubes, broccoli and red pepper strips over rice with soy glaze. Single photo/dish, no grid/text."
+  },
+  {
+    "familyId": "rec-salmon-boniato",
+    "recipeId": "rec-salmon-boniato",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "44034dfe7e2a982f9ada5aba04d7e798676bdf147671cc1abf4675fb3ea097b0",
+    "review": "Visually inspected: Cooked salmon fillet with roasted sweet potato cubes and green beans. Single photo/dish, no grid/text."
+  },
+  {
+    "familyId": "rec-crema-calabacin",
+    "recipeId": "rec-crema-calabacin",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "a8ab44b007ef3eddc7e62f294bdc1cbcd23498962d527938e2a7c227d54691e4",
+    "review": "Visually verified: Smooth pureed zucchini soup with whole white beans only; previous chunks issue resolved. One finished dish, no grid/text or unlisted accompaniment."
+  },
+  {
+    "familyId": "rec-tortilla-patata",
+    "recipeId": "rec-tortilla-patata",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "a2d8ad96eedfeac8c82af3a848945c5c473cef2eb61621b41a1a1c78237d9eb1",
+    "review": "Visually verified: Browned set potato-onion tortilla with thin potato slices. One finished dish, no grid/text or unlisted accompaniment."
+  },
+  {
+    "familyId": "rec-tacos-alubia",
+    "recipeId": "rec-tacos-alubia",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "cfed7271791e866a45b149bbdfdf4d56077ceb893700e5c774b12dcdeb88ba6e",
+    "review": "Visually verified: Two corn tortillas with black beans, corn and diced tomato. One finished dish, no grid/text or unlisted accompaniment."
+  },
+  {
+    "familyId": "rec-wok-tempeh",
+    "recipeId": "rec-wok-tempeh",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "ad86a0c3f8dab4b0b86ffcdb892e240d19f895b8f33d9fe0f53efc8032be518e",
+    "review": "Visually verified: Tempeh strips stir-fried with rice, broccoli and pepper. One finished dish, no grid/text or unlisted accompaniment."
+  },
+  {
+    "familyId": "rec-ensalada-quinoa",
+    "recipeId": "rec-ensalada-quinoa",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "66ab8e66ca67dc3e0bda918d2c9bf2518cbc1c64051ea480a5bdad0bd6b0702c",
+    "review": "Visually verified: Quinoa with shelled edamame, softened spinach and diced tomato. One finished dish, no grid/text or unlisted accompaniment."
+  },
+  {
+    "familyId": "lib-v-mediterraneo",
+    "recipeId": "lib-v-mediterraneo-garbanzos-brocoli",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "67cc483ade1af742e36084d45f1ad06e84bbf719dfce9624ae3c1a5fec2ace05",
+    "review": "Visually inspected: Quinoa topped with chickpeas, broccoli and tomato/oregano sauce. Single photograph; no grid/text."
+  },
+  {
+    "familyId": "lib-v-indio",
+    "recipeId": "lib-v-indio-garbanzos-brocoli",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "dee864eab12a10ed430586b1e1b27a8b8f0e18a37a678adaa7573271b7a756f9",
+    "review": "Visually inspected: Basmati rice with chickpea-broccoli coconut tomato curry. Single photograph; no grid/text."
+  },
+  {
+    "familyId": "lib-v-mexicano",
+    "recipeId": "lib-v-mexicano-garbanzos-brocoli",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "311a94a3a8ab7b1c6413098e3d00f5b1ea67a57dc4ecb54e173620dbc2d8711f",
+    "review": "Visually inspected: Corn tacos with chickpeas, broccoli, tomato and listed lime; lime partly served in wedges. Single photograph; no grid/text."
+  },
+  {
+    "familyId": "lib-v-tailandes",
+    "recipeId": "lib-v-tailandes-garbanzos-brocoli",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "3a55386a676f8088996c1505f3f9abd858f6d03c90399ef326627c8a865be141",
+    "review": "Visually verified: Rice noodles, chickpeas and broccoli in smooth coconut red curry; unwanted garnish removed. Single dish/photo, no grid/text."
+  },
+  {
+    "familyId": "lib-v-japones",
+    "recipeId": "lib-v-japones-garbanzos-brocoli",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "73a6319e1ca1928766be66f63ac35817c97d0c06426ba8deabca43bc786ec070",
+    "review": "Visually inspected: Short-grain rice with soy-glazed chickpeas/broccoli and sesame. Single photograph; no grid/text."
+  },
+  {
+    "familyId": "lib-v-magrebi",
+    "recipeId": "lib-v-magrebi-garbanzos-brocoli",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "6a9b035124b96c942f4fddafbfae257dcb16c27df96e6e9589209475c9399e8c",
+    "review": "Visually verified: Wholegrain couscous with chickpea/broccoli tomato stew and lemon zest. Single dish/photo, no grid/text."
+  },
+  {
+    "familyId": "lib-v-italiano",
+    "recipeId": "lib-v-italiano-garbanzos-brocoli",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "816310c8e1bc644afdaf5660f182c4d4e8b2d179908f0e710352888bac9fb27f",
+    "review": "Visually verified: Wholegrain penne, chickpeas, broccoli, tomato, garlic and basil. Single dish/photo, no grid/text."
+  },
+  {
+    "familyId": "lib-v-espanol",
+    "recipeId": "lib-v-espanol-garbanzos-brocoli",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "aa217e9f34d1fe1d7fca1c5b0764103397afddaec4b40048612d7290da4782ae",
+    "review": "Visually verified: Golden potato cubes with chickpeas, broccoli and onion/paprika. Single dish/photo, no grid/text."
+  },
+  {
+    "familyId": "lib-v-caribeno",
+    "recipeId": "lib-v-caribeno-garbanzos-brocoli",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "a815162a708621ee383aae4e70e20919f701a0b998298c1f9edbd53f8f299d22",
+    "review": "Visually verified: Coconut brown rice topped with chickpeas, broccoli, allspice and lime zest. Single dish/photo, no grid/text."
+  },
+  {
+    "familyId": "lib-v-andino",
+    "recipeId": "lib-v-andino-garbanzos-brocoli",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "40652d42c1b769355c92790ae73b66e2b383249c053c264ebd2bf7c1830fe477",
+    "review": "Visually verified: Brothy quinoa soup with chickpeas, broccoli, tomato and cilantro. Single dish/photo, no grid/text."
+  },
+  {
+    "familyId": "lib-v-levantino",
+    "recipeId": "lib-v-levantino-garbanzos-brocoli",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "1557cfe3923c0e92bf5eacffb30b73c718c623fc249099333d557f9b40678c93",
+    "review": "Visually verified: Bulgur with browned chickpeas/broccoli and tahini-lemon sauce. One finished dish/photo, no collage/grid/text or unlisted accompaniment."
+  },
+  {
+    "familyId": "lib-v-etiope",
+    "recipeId": "lib-v-etiope-garbanzos-brocoli",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "d5f7643b058291a24d62371aceadc4cfe452f5f9f7e474f405eddf16af87ec82",
+    "review": "Visually verified: Loose millet with chickpea/broccoli tomato-onion berbere stew. One finished dish/photo, no collage/grid/text or unlisted accompaniment."
+  },
+  {
+    "familyId": "lib-v-des-avena",
+    "recipeId": "lib-v-des-avena-platano-nueces",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "a56c1d324a2dc745136afd79cc5bb4e7d49e0fecc1d8422267916978368cd6d1",
+    "review": "Visually verified: Creamy cooked oatmeal with banana slices and chopped walnuts. One finished dish, no grid/collage/text or additional garnish."
+  },
+  {
+    "familyId": "lib-v-des-chia",
+    "recipeId": "lib-v-des-chia-platano-nueces",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "9bf2b7f856e3369c0fa9843248db6d877cdb596283ba3363c80d6ef564a47363",
+    "review": "Visually verified: Hydrated chia pudding with banana slices and walnuts. One finished dish, no grid/collage/text or additional garnish."
+  },
+  {
+    "familyId": "lib-v-des-yogur-soja",
+    "recipeId": "lib-v-des-yogur-soja-platano-nueces",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "2b6517b5a24627b6bda2af3d776dd77141917e6bf6b0472bb092ca63300e00f2",
+    "review": "Visually verified: Soy yogurt with uncooked oats, banana slices and walnuts. One finished dish, no grid/collage/text or additional garnish."
+  },
+  {
+    "familyId": "lib-v-des-tostada",
+    "recipeId": "lib-v-des-tostada-platano-nueces",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "6a25887243bcee92fead687adae39fbb543a4f92bdf6781fdd8aa50884e4080d",
+    "review": "Visually verified: Wholegrain toast with peanut butter, banana and chopped walnuts. One finished dish, no grid/collage/text or additional garnish."
+  },
+  {
+    "familyId": "lib-v-des-batido",
+    "recipeId": "lib-v-des-batido-platano-nueces",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "640c03fe44d7278c4c6f166ced9f77627b25fb870a9f16efd7d334136516d260",
+    "review": "Visually verified: Fully blended soy/oat/banana/walnut smoothie in ONE drinking glass, no props. Single dish/photo, no grid/collage/text or extra garnish."
+  },
+  {
+    "familyId": "lib-lacto-quinoa",
+    "recipeId": "lib-lacto-quinoa-queso-fresco-brocoli",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "83a602ecace5709eac00c22f54485160779583403b6c74d84d167e09be666db4",
+    "review": "Visually verified: Quinoa, browned broccoli and crumbled fresh cheese with pepper. Single dish/photo, no grid/collage/text or extra garnish."
+  },
+  {
+    "familyId": "lib-lacto-pasta",
+    "recipeId": "lib-lacto-pasta-queso-fresco-brocoli",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "ffae989512c7645dddfbef15329fb927ed9c02f8c52023e7fce47b4d7cbd8984",
+    "review": "Visually verified: Wholegrain fusilli and broccoli coated with fresh-cheese sauce. Single dish/photo, no grid/collage/text or extra garnish."
+  },
+  {
+    "familyId": "lib-lacto-patata",
+    "recipeId": "lib-lacto-patata-queso-fresco-brocoli",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "c9788dea9985c442567e19ff4e4e706613fdade7715029e37073cbc67bd2ed3f",
+    "review": "Visually verified: Baked potato stuffed with mashed potato, broccoli and fresh cheese, lightly browned. Single dish/photo, no grid/collage/text or extra garnish."
+  },
+  {
+    "familyId": "lib-lacto-crema",
+    "recipeId": "lib-lacto-crema-queso-fresco-brocoli",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "7a6d5856c862c8e592bdab84d2425231e9f883d976f5d66694ad92c29ac4e5e2",
+    "review": "Visually verified: Smooth broccoli soup topped only with fresh cheese. One dish/photo, no grid/collage/text or additional ingredients."
+  },
+  {
+    "familyId": "lib-ovo-tortilla",
+    "recipeId": "lib-ovo-tortilla-mediterraneo-brocoli",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "b047c4e0992528ebe219c5c2d867cf31caacc2a592bea2c056b371e3b32c732f",
+    "review": "Visually verified: Set broccoli-potato tortilla with oregano. One dish/photo, no grid/collage/text or additional ingredients."
+  },
+  {
+    "familyId": "lib-ovo-revuelto",
+    "recipeId": "lib-ovo-revuelto-mediterraneo-brocoli",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "4a32c74e3e88bc7fb4ffa4a998853ce57bf8458a79bf840d2f3b25a709612b30",
+    "review": "Visually verified: Scrambled eggs with broccoli and oregano alongside wholegrain toast. One dish/photo, no grid/collage/text or additional ingredients."
+  },
+  {
+    "familyId": "lib-ovo-arroz",
+    "recipeId": "lib-ovo-arroz-mediterraneo-brocoli",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "492b31b5bd1c2567a589869fbf8623a7ab0bee8a016dc9a2ce2f29b8e0b894ab",
+    "review": "Visually verified: Rice and broccoli topped with two cooked eggs with set whites and oregano. One dish/photo, no grid/collage/text or additional ingredients."
+  },
+  {
+    "familyId": "lib-ovo-horno",
+    "recipeId": "lib-ovo-horno-mediterraneo-brocoli",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "ec33c1ca4b16f74431c5f0fbc7c1fdd8d176c45629656cc266b855b1b66142d5",
+    "review": "Visually verified: Two baked eggs with set whites in tomato and broccoli with oregano. Single prepared dish/photo, no collage/grid/text or extra garnish."
+  },
+  {
+    "familyId": "lib-veg-frittata",
+    "recipeId": "lib-veg-frittata-mozzarella-brocoli",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "4616b7dbff2a1a9edafecc9c752869625170c9c7675625d8e8b0c892d358e3d3",
+    "review": "Visually verified: Set frittata with potato cubes, broccoli and mozzarella; cut section shows cooked interior. Single prepared dish/photo, no collage/grid/text or extra garnish."
+  },
+  {
+    "familyId": "lib-veg-quiche",
+    "recipeId": "lib-veg-quiche-mozzarella-brocoli",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "cdcbbed4da74439c75911c67685a149fc8f64b56287a06b91720a2d8bd9cff0a",
+    "review": "Visually verified: Wholegrain-crust quiche with broccoli, egg and browned mozzarella. Single prepared dish/photo, no collage/grid/text or extra garnish."
+  },
+  {
+    "familyId": "lib-veg-gratin",
+    "recipeId": "lib-veg-gratin-mozzarella-brocoli",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "52600db9ec75862a4f071257f34871aa0a69dacedfabe4ba9aa5d3beb876b60c",
+    "review": "Visually verified: Layered sliced potato/broccoli gratin with set egg and browned mozzarella. Single prepared dish/photo, no collage/grid/text or extra garnish."
+  },
+  {
+    "familyId": "lib-veg-crepe",
+    "recipeId": "lib-veg-crepe-mozzarella-brocoli",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "24098d696dbfa5cee746e50dc4b1f8e1326e76eba05369e6f264ee984979047c",
+    "review": "Owner visually reviewed and approved September 21: single coherent prepared dish matching ingredients and preparation; no collage."
+  },
+  {
+    "familyId": "lib-pesc-horno",
+    "recipeId": "lib-pesc-horno-salmon-brocoli",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "3700e2aa3343268b79bacc2b7664b60eb6c8cec31972c055598d03ca1244ae29",
+    "review": "Owner visually reviewed and approved September 21: single coherent prepared dish matching ingredients and preparation; no collage."
+  },
+  {
+    "familyId": "lib-pesc-arroz",
+    "recipeId": "lib-pesc-arroz-salmon-brocoli",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "3f55dc7120d577e881469c8fff3eea9d0f923ebdc6b4640e40bb06519442bdcc",
+    "review": "Owner visually reviewed and approved September 21: single coherent prepared dish matching ingredients and preparation; no collage."
+  },
+  {
+    "familyId": "lib-pesc-tacos",
+    "recipeId": "lib-pesc-tacos-salmon-brocoli",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "51708afd6755d5c54d072af3344b92346af9f6766e14a94f410cfc4dfce27af6",
+    "review": "Owner visually reviewed and approved September 21: single coherent prepared dish matching ingredients and preparation; no collage."
+  },
+  {
+    "familyId": "lib-pesc-guiso",
+    "recipeId": "lib-pesc-guiso-salmon-brocoli",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "6414ce10fe5ecbaffa54800ed128f44ae0a6ae3d568e9ebf39fef48fbca11d0b",
+    "review": "Visually verified September 21: Two intact cooked salmon portions in tomato and broccoli stew beside wholegrain couscous. Corrected previous four-piece mismatch. Single continuous food photograph, one serving vessel, no grids, text or extra garnish."
+  },
+  {
+    "familyId": "lib-omni-bandeja",
+    "recipeId": "lib-omni-bandeja-pollo-brocoli",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "52887304238b0e0e1067dfaaf7112b3ad2438baaa721287502761ac279dafe37",
+    "review": "Visually verified September 21: Roasted chicken strips, potato chunks and broccoli; lemon incorporated as juice, no citrus garnish. Single continuous food photograph, one serving vessel, no grids, text or extra garnish."
+  },
+  {
+    "familyId": "lib-omni-wok",
+    "recipeId": "lib-omni-wok-pollo-brocoli",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "e305a14beb8ce699d5d857339aabb39b52838cdfc6c5f72687d58528824f69a6",
+    "review": "Visually verified September 21: Cooked chicken strips and broccoli with soy sauce beside rice. Single continuous food photograph, one serving vessel, no grids, text or extra garnish."
+  },
+  {
+    "familyId": "lib-omni-tacos",
+    "recipeId": "lib-omni-tacos-pollo-brocoli",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "c469209279bf16eeceeeb80d1c78dca467b7d05b7856392ab92707e9dfc6d196",
+    "review": "Visually verified September 21: Corn tortillas filled with cumin-seasoned cooked chicken strips and broccoli. Single continuous food photograph, one serving vessel, no grids, text or extra garnish."
+  },
+  {
+    "familyId": "lib-omni-guiso",
+    "recipeId": "lib-omni-guiso-pollo-brocoli",
+    "source": "AI-generated",
+    "width": 640,
+    "height": 480,
+    "sha256": "a0c61a700fdf5486b19104f49fb2ace1d518c0ef62b0fe5ea9496f11da152794",
+    "review": "Visually verified September 21: Cooked chicken strips in tomato and broccoli stew beside wholegrain couscous. Single continuous food photograph, one serving vessel, no grids, text or extra garnish."
+  }
+]

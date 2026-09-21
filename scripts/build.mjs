@@ -11,10 +11,11 @@ await rm(dist, { recursive: true, force: true });
 await mkdir(client, { recursive: true });
 await mkdir(server, { recursive: true });
 
-for (const filename of ['index.html', 'styles.css', 'nutrihome-core.js', 'demo-data.js', 'recipe-library.js', 'recipe-estimator.js', 'storage.js', 'app.js', 'sw.js', 'manifest.webmanifest', 'og.png', 'recipe-photo-atlas-v3.png']) {
+for (const filename of ['index.html', 'styles.css', 'nutrihome-core.js', 'demo-data.js', 'recipe-library.js', 'recipe-specials.js', 'recipe-families.js', 'recipe-photos.js', 'recipe-image-list.js', 'recipe-estimator.js', 'storage.js', 'app.js', 'sw.js', 'manifest.webmanifest', 'og.png']) {
   await cp(path.join(root, filename), path.join(client, filename));
 }
 await cp(path.join(root, 'icons'), path.join(client, 'icons'), { recursive: true });
+await cp(path.join(root, 'recipe-images'), path.join(client, 'recipe-images'), { recursive: true });
 await cp(path.join(root, 'worker', 'index.js'), path.join(server, 'index.js'));
 
 const hostingPath = path.join(root, '.openai', 'hosting.json');

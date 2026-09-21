@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { DEMO_RECIPES, DEFAULT_PROFILE, createDemoPantry } from '../demo-data.js';
 import { DIET_CATALOG_PROFILES, RECIPE_LIBRARY, catalogCounts } from '../recipe-library.js';
 import { createStateSnapshot } from '../storage.js';
+import { groupRecipeFamilies, recipeFamilyId } from '../recipe-families.js';
 import { estimateRecipe, inferRecipeTraits, parseFlexibleIngredients } from '../recipe-estimator.js';
 import {
   buildShoppingList, calculateBMI, calculateGoalProgress, classifyAdultBMI, consumeRecipe, convertQuantity, generateWeek, getExpiryStatus,
@@ -40,6 +41,14 @@ assert.ok(JSON.stringify(compactSnapshot).length < 1_500_000, 'La copia sincroni
 const expandedMenu = generateWeek({ recipes: RECIPE_LIBRARY, profile: { ...DEFAULT_PROFILE, diet: 'vegan', eatsEgg: false, eatsDairy: false }, pantry: createDemoPantry(), exercise: [] });
 assert.equal(expandedMenu.length, 28, 'El generador semanal debe funcionar con el catálogo completo');
 assert.equal(expandedMenu.every(entry => isRecipeCompatible(RECIPE_LIBRARY.find(recipe => recipe.id === entry.recipeId), { ...DEFAULT_PROFILE, diet: 'vegan', eatsEgg: false, eatsDairy: false })), true);
+const familyUses = new Map();
+for (const entry of expandedMenu) {
+  const compatible = RECIPE_LIBRARY.filter(recipe => recipe.mealTypes.includes(entry.mealType) && isRecipeCompatible(recipe, {...DEFAULT_PROFILE, diet: 'vegan', eatsEgg: false, eatsDairy: false}));
+  const chosen = recipeFamilyId(RECIPE_LIBRARY.find(recipe => recipe.id === entry.recipeId));
+  const leastUsed = Math.min(...compatible.map(recipe => familyUses.get(recipeFamilyId(recipe)) || 0));
+  assert.equal(familyUses.get(chosen) || 0, leastUsed, 'No se repite una familia mientras existan platos compatibles menos usados');
+  familyUses.set(chosen, (familyUses.get(chosen) || 0) + 1);
+}
 
 assert.equal(convertQuantity(1, 'kg', 'g'), 1000);
 assert.equal(convertQuantity(1.5, 'l', 'ml'), 1500);
@@ -110,7 +119,9 @@ assert.deepEqual(regenerated.find(entry => entry.id === locked.id), locked);
 const noChange = regenerateMeal({ entry: locked, menu, recipes: DEMO_RECIPES, profile: vegetarianNoEgg, pantry: demoPantry });
 assert.equal(noChange, menu);
 const candidates = rankMealCandidates({ entry: menu[0], menu, recipes: RECIPE_LIBRARY, profile: vegetarianNoEgg, pantry: demoPantry, limit: 100 });
-assert.equal(candidates.length, 100, 'El selector ofrece cien alternativas cuando el catálogo lo permite');
+const eligibleFamilies = groupRecipeFamilies(RECIPE_LIBRARY.filter(recipe => recipe.id !== menu[0].recipeId && recipe.mealTypes.includes(menu[0].mealType) && isRecipeCompatible(recipe, vegetarianNoEgg)));
+assert.equal(candidates.length, Math.min(100, eligibleFamilies.length), 'El selector ofrece todos los platos distintos compatibles');
+assert.equal(new Set(candidates.map(recipeFamilyId)).size, candidates.length, 'Las alternativas no repiten un plato cambiando un ingrediente');
 assert.equal(candidates.every(recipe => recipe.mealTypes.includes(menu[0].mealType) && isRecipeCompatible(recipe, vegetarianNoEgg)), true);
 
 const flexible = parseFlexibleIngredients('arroz integral\ntomate\n2 huevos\n1 cucharada de aceite de oliva', 2);

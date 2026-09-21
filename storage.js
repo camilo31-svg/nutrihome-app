@@ -75,7 +75,7 @@ export async function deleteRecipeImage(recipeId) {
 export async function pullRemoteState() {
   if (!navigator.onLine) return { state: null, status: 'offline' };
   try {
-    const response = await fetch('./api/state', { headers: { accept: 'application/json' } });
+    const response = await fetch('./api/state', { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(4000) });
     if (response.status === 404 || response.status === 401 || response.status === 503) return { state: null, status: 'local' };
     if (!response.headers.get('content-type')?.includes('application/json')) return { state: null, status: 'local' };
     if (!response.ok) throw new Error('No se pudo sincronizar');

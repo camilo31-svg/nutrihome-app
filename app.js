@@ -1,12 +1,14 @@
-import { DEFAULT_PROFILE, DEMO_EXERCISE, createDemoPantry } from './demo-data.js?v=1.8.0';
-import { DIET_CATALOG_PROFILES, RECIPE_LIBRARY } from './recipe-library.js?v=1.8.0';
+import { groupRecipeFamilies, recipeFamilyId } from './recipe-families.js?v=1.9.0';
+import { recipePhoto } from './recipe-photos.js?v=1.9.0';
+import { DEFAULT_PROFILE, DEMO_EXERCISE, createDemoPantry } from './demo-data.js?v=1.9.0';
+import { DIET_CATALOG_PROFILES, RECIPE_LIBRARY } from './recipe-library.js?v=1.9.0';
 import {
   DAY_LABELS, MEAL_LABELS, buildShoppingList, calculateBMI, calculateGoalProgress, classifyAdultBMI, consumeRecipe, generateWeek, getExpiryStatus,
   isRecipeCompatible, menuNutrition, normalizeFoodName, normalizeText, normalizeUnit,
   pantryCoverage, rankMealCandidates, roundQuantity, sameFood, scaleIngredients, upsertBodyMeasurement, upsertPantryItem, validateRecipe
-} from './nutrihome-core.js?v=1.8.0';
-import { estimateRecipe, inferRecipeTraits, parseFlexibleIngredients } from './recipe-estimator.js?v=1.8.0';
-import { clearLocalState, createStateSnapshot, isPersonalRecipe, loadLocalState, loadRecipeImage, newestSnapshot, pullRemoteState, pushRemoteState, saveLocalState, saveRecipeImage } from './storage.js?v=1.8.0';
+} from './nutrihome-core.js?v=1.9.0';
+import { estimateRecipe, inferRecipeTraits, parseFlexibleIngredients } from './recipe-estimator.js?v=1.9.0';
+import { clearLocalState, createStateSnapshot, isPersonalRecipe, loadLocalState, loadRecipeImage, newestSnapshot, pullRemoteState, pushRemoteState, saveLocalState, saveRecipeImage } from './storage.js?v=1.9.0';
 
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
@@ -16,7 +18,7 @@ const number = value => new Intl.NumberFormat('es-ES', { maximumFractionDigits: 
 const LOCATION_LABELS = { fridge: 'Nevera', freezer: 'Congelador', pantry: 'Despensa' };
 const CATEGORY_EMOJI = { verduras: '🥬', frutas: '🍎', refrigerados: '❄️', congelados: '🧊', cereales: '🌾', legumbres: '🫘', conservas: '🥫', bebidas: '🥛', otros: '◌' };
 const DIET_LABELS = { omnivore: 'Omnívora', flexitarian: 'Flexitariana', pescetarian: 'Pescetariana', vegetarian: 'Vegetariana', vegan: 'Vegana', lacto_vegetarian: 'Lacto-vegetariana', ovo_vegetarian: 'Ovo-vegetariana' };
-const APP_VERSION = '1.8.0';
+const APP_VERSION = '1.9.0';
 
 let state;
 let activeDay = Math.max(0, Math.min(6, (new Date().getDay() + 6) % 7));
@@ -28,9 +30,11 @@ let installPrompt = null;
 let recipeVisibleLimit = 36;
 let swipeSession = null;
 const coverObjectUrls = new Map();
-const catalogPhotoCache = new Map();
+const selectedFamilyVariants = new Map();
+let visibleFamilyRecipes = new Map();
 const loadingPhotoNodes = new WeakSet();
 let planningReminderTimer = null;
+let localEditRevision = 0;
 
 function defaultBodyMetrics() {
   return { age: null, heightCm: null, currentWeightKg: null, currentMuscleKg: null, goalType: 'total', goalValueKg: null, history: [] };
@@ -57,11 +61,11 @@ function defaultPlanStart(date = new Date()) {
   return isoDate(value);
 }
 
-function initialState() {
+function initialState(skipMenu = false) {
   const profile = clone(DEFAULT_PROFILE);
   const pantry = createDemoPantry();
   const recipes = clone(RECIPE_LIBRARY);
-  const menu = generateWeek({ recipes, profile, pantry, exercise: DEMO_EXERCISE, mode: 'balanced' });
+  const menu = skipMenu ? [] : generateWeek({ recipes, profile, pantry, exercise: DEMO_EXERCISE, mode: 'balanced' });
   const activeWeekStart = defaultPlanStart();
   return {
     version: 1, updatedAt: new Date().toISOString(), profile, pantry, recipes, activeWeekStart, weekPlans: [{ startDate: activeWeekStart, menu }],
@@ -72,7 +76,7 @@ function initialState() {
 }
 
 function normalizeState(saved) {
-  const fresh = initialState();
+  const fresh = initialState(saved?.version === 1 && (saved.weekPlans?.some(plan => plan.menu?.length === 28) || saved.menu?.length === 28));
   if (!saved || saved.version !== 1) return fresh;
   const merged = { ...fresh, ...saved, profile: { ...fresh.profile, ...(saved.profile || {}) } };
   delete merged.profile.name;
@@ -98,200 +102,58 @@ function escapeHtml(value = '') {
   return String(value).replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char]);
 }
 
-function recipeHash(recipe = {}) {
-  let hash = 0;
-  for (const char of String(recipe.id || recipe.name || 'nutrihome')) hash = (Math.imul(hash, 31) + char.charCodeAt(0)) | 0;
-  return Math.abs(hash);
-}
-
-function coverPosition(recipe) {
-  const name = normalizeText(recipe.name || '');
-  const slot = [/avena/, /tortilla|revuelto/, /yogur|pudin/, /tostada/, /quinoa|bowl|bol /, /gazpacho/, /pasta|espagueti|fideo/, /pollo|paella/, /lenteja|guiso/, /salmon|merluza|pescado/, /atun/, /curry|garbanzo/, /quiche|graten/, /fruta|batido/, /sopa|crema/, /ensalada/].findIndex(pattern => pattern.test(name));
-  const cell = slot < 0 ? 4 : slot;
-  return { x: `${(cell % 4) * 33.333}%`, y: `${Math.floor(cell / 4) * 33.333}%` };
-}
-
-function fitFallbackCover(node) {
-  if (node.classList.contains('photo-cover')) return;
-  const recipe = findRecipe(node.dataset.photoRecipe);
-  if (!recipe) return;
-  const position = coverPosition(recipe);
-  const column = Math.round(parseFloat(position.x) / 33.333);
-  const row = Math.round(parseFloat(position.y) / 33.333);
-  const { width, height } = node.getBoundingClientRect();
-  if (!width || !height) return;
-  const cellSize = Math.max(width, height) * 1.06;
-  node.style.backgroundSize = `${cellSize * 4}px ${cellSize * 4}px`;
-  node.style.backgroundPosition = `${width / 2 - (column + .5) * cellSize}px ${height / 2 - (row + .5) * cellSize}px`;
-}
-
-const fallbackResizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(entries => {
-  for (const { target } of entries) {
-    if (!target.isConnected || target.classList.contains('photo-cover')) fallbackResizeObserver.unobserve(target);
-    else fitFallbackCover(target);
-  }
-});
-
 function coverAttributes(recipe) {
-  const position = coverPosition(recipe);
-  const hash = recipeHash(recipe);
-  const turn = hash % 7 - 3;
-  return `style="--cover-x:${position.x};--cover-y:${position.y};--visual-hue:${hash % 38 - 19};--visual-turn:${turn}deg;--visual-turn-reverse:${-turn}deg" data-photo-recipe="${escapeHtml(recipe.id)}"`;
-}
-
-function coverIngredients(recipe, limit = 4) {
-  const secondary = /^(sal|agua|aceite|pimienta|oregano|comino|perejil|cilantro)/;
-  return [...(recipe.ingredients || [])]
-    .sort((a, b) => Number(secondary.test(normalizeText(a.name))) - Number(secondary.test(normalizeText(b.name))))
-    .slice(0, limit);
+  return `data-photo-recipe="${escapeHtml(recipe.id)}"`;
 }
 
 function recipeVisualInner(recipe, compact = false) {
-  const ingredients = coverIngredients(recipe, compact ? 2 : 4).map(item => item.name).join(' · ');
-  return `<span class="photo-loading" aria-hidden="true"></span><span class="visual-recipe-name">${escapeHtml(recipe.name)}</span><span class="visual-ingredients">${escapeHtml(ingredients)}</span>`;
-}
-
-function recipePhotoQuery(recipe) {
-  const name = normalizeText(recipe.name);
-  const dishTerms = [
-    [/avena/, 'oatmeal'], [/pudin/, 'chia pudding'], [/yogur/, 'yogurt bowl'], [/tostada/, 'toast'], [/batido/, 'smoothie'],
-    [/curry/, 'curry'], [/taco/, 'tacos'], [/fideo/, 'noodles'], [/donburi|bol de arroz/, 'rice bowl'], [/cuscus/, 'couscous'],
-    [/pasta|espagueti|macarron/, 'pasta'], [/cazuela|guiso/, 'stew'], [/sopa|crema/, 'soup'], [/ensalada/, 'salad'], [/bowl|bol /, 'grain bowl'],
-    [/tortilla|frittata/, 'omelette'], [/revuelto/, 'scrambled eggs'], [/huevos al plato/, 'baked eggs'], [/quiche/, 'quiche'], [/graten/, 'gratin'],
-    [/crepe/, 'savory crepes'], [/arroz/, 'rice dish'], [/pollo/, 'chicken dish'], [/pescado|salmon|atun|merluza/, 'fish dish']
-  ];
-  const dish = dishTerms.find(([pattern]) => pattern.test(name))?.[1] || 'prepared food';
-  const translations = [
-    [/garbanzo/, 'chickpeas'], [/lenteja/, 'lentils'], [/alubia|frijol/, 'beans'], [/tofu/, 'tofu'], [/tempeh/, 'tempeh'], [/edamame/, 'edamame'], [/guisante/, 'peas'],
-    [/brocoli/, 'broccoli'], [/calabacin/, 'zucchini'], [/berenjena/, 'eggplant'], [/pimiento/, 'red pepper'], [/espinaca/, 'spinach'], [/champinon|seta/, 'mushrooms'], [/coliflor/, 'cauliflower'], [/judia verde/, 'green beans'], [/zanahoria/, 'carrots'], [/calabaza/, 'pumpkin'], [/boniato|batata/, 'sweet potato'], [/patata/, 'potatoes'],
-    [/platano/, 'banana'], [/manzana/, 'apple'], [/pera/, 'pear'], [/arandano/, 'blueberries'], [/fresa/, 'strawberries'], [/mango/, 'mango'],
-    [/salmon/, 'salmon'], [/atun/, 'tuna'], [/merluza/, 'hake'], [/bacalao/, 'cod'], [/pollo/, 'chicken'], [/pavo/, 'turkey'], [/ternera/, 'beef'], [/cerdo/, 'pork'],
-    [/huevo/, 'eggs'], [/queso|mozzarella|ricotta|feta|manchego/, 'cheese'], [/arroz/, 'rice'], [/quinoa/, 'quinoa'], [/pasta/, 'pasta']
-  ];
-  const ingredients = [...new Set(coverIngredients(recipe, 5).map(item => normalizeText(item.name)).map(value => translations.find(([pattern]) => pattern.test(value))?.[1]).filter(Boolean))].slice(0, 2);
-  return [...new Set([...ingredients, dish])].join(' ').trim();
-}
-
-function setCoverPhoto(node, url, expectedRecipeId) {
-  return new Promise(resolve => {
-    const photo = new Image();
-    photo.onload = () => {
-      if (node.dataset.photoRecipe !== expectedRecipeId) { resolve(false); return; }
-      node.style.backgroundImage = `url("${photo.src}")`;
-      node.style.backgroundSize = 'cover';
-      node.style.backgroundPosition = 'center';
-      node.classList.add('photo-cover');
-      resolve(true);
-    };
-    photo.onerror = () => resolve(false);
-    photo.src = url;
-  });
-}
-
-function decodedHeader(response, name) {
-  try { return decodeURIComponent(response.headers.get(name) || ''); } catch { return response.headers.get(name) || ''; }
-}
-
-function photoMetadataText(value = '') {
-  const documentValue = new DOMParser().parseFromString(String(value), 'text/html');
-  return (documentValue.body.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 220);
-}
-
-async function loadCommonsPhoto(recipe) {
-  const query = recipePhotoQuery(recipe);
-  const queryWords = query.split(' ');
-  const searchTerms = [...new Set([query, queryWords.slice(0, Math.min(3, queryWords.length)).join(' '), queryWords.slice(0, Math.min(2, queryWords.length)).join(' '), queryWords[0]])].filter(term => term.length >= 3);
-  const rejectedTitles = /\b(icon|logo|diagram|map|drawing|illustration|clipart|symbol|flag|collage|montage|mosaic|grid|atlas|contact sheet|compilation|cuadricula|mosaico)\b/i;
-  let candidates = [];
-  for (const term of searchTerms) {
-    const api = new URL('https://commons.wikimedia.org/w/api.php');
-    api.search = new URLSearchParams({ action: 'query', format: 'json', origin: '*', generator: 'search', gsrsearch: term, gsrnamespace: '6', gsrlimit: '8', prop: 'imageinfo', iiprop: 'url|mime|mediatype|extmetadata', iiurlwidth: '960', iiextmetadatalanguage: 'es', iiextmetadatafilter: 'LicenseShortName|Artist|Credit|ImageDescription' }).toString();
-    const response = await fetch(api, { headers: { accept: 'application/json' } });
-    if (!response.ok) continue;
-    const body = await response.json();
-    candidates = Object.values(body?.query?.pages || {}).sort((left, right) => Number(left.index || 999) - Number(right.index || 999)).filter(page => {
-      const info = page.imageinfo?.[0];
-      return info?.thumburl && info.mediatype === 'BITMAP' && /^image\/(jpeg|png|webp)$/i.test(info.mime || '') && !rejectedTitles.test(page.title || '');
-    });
-    if (candidates.length) break;
-  }
-  if (!candidates.length) return null;
-  const meaningfulWords = query.toLowerCase().split(/\s+/).filter(word => word.length >= 4 && !['dish', 'food', 'prepared', 'bowl'].includes(word));
-  const scored = candidates.map(page => ({ page, score: meaningfulWords.filter(word => String(page.title || '').toLowerCase().includes(word)).length }));
-  const bestScore = Math.max(...scored.map(item => item.score));
-  const bestMatches = scored.filter(item => item.score === bestScore).map(item => item.page);
-  const chosen = bestMatches[recipeHash(recipe) % Math.min(3, bestMatches.length)];
-  const info = chosen.imageinfo[0];
-  return { url: info.thumburl, title: chosen.title || '', author: photoMetadataText(info.extmetadata?.Artist?.value) || 'Wikimedia Commons', license: photoMetadataText(info.extmetadata?.LicenseShortName?.value) || 'Consulta el archivo original', page: info.descriptionurl || 'https://commons.wikimedia.org/' };
-}
-
-async function loadCatalogPhoto(recipe, requestUrl) {
-  if (catalogPhotoCache.has(recipe.id)) return catalogPhotoCache.get(recipe.id);
-  const response = await fetch(requestUrl, { headers: { accept: 'image/avif,image/webp,image/jpeg,image/png' } }).catch(() => null);
-  let record = null;
-  if (response?.ok && response.headers.get('content-type')?.startsWith('image/')) {
-    const blob = await response.blob();
-    record = { url: URL.createObjectURL(blob), objectUrl: true, title: decodedHeader(response, 'x-photo-title'), author: decodedHeader(response, 'x-photo-author'), license: decodedHeader(response, 'x-photo-license'), page: response.headers.get('x-photo-page') || 'https://commons.wikimedia.org/' };
-  } else {
-    record = await loadCommonsPhoto(recipe);
-  }
-  if (!record) return null;
-  catalogPhotoCache.set(recipe.id, record);
-  if (catalogPhotoCache.size > 120) {
-    const [oldestId, oldest] = catalogPhotoCache.entries().next().value;
-    if (oldest.objectUrl) URL.revokeObjectURL(oldest.url);
-    catalogPhotoCache.delete(oldestId);
-  }
-  return record;
-}
-
-function updatePhotoCredit(recipeId, photo) {
-  const target = $('#recipe-photo-credit');
-  if (!target || activeRecipeId !== recipeId || !photo) return;
-  const author = photo.author || 'colaborador de Wikimedia Commons';
-  const license = photo.license || 'licencia indicada en el archivo';
-  target.innerHTML = `Foto orientativa: ${escapeHtml(author)} · ${escapeHtml(license)} · <a href="${escapeHtml(photo.page)}" target="_blank" rel="noopener noreferrer">ver archivo original</a>`;
+  const photo = recipePhoto(recipe);
+  if (!photo) return `<span class="photo-unavailable">${recipe.hasCustomCover ? 'Foto personal' : 'Sin foto añadida'}</span>`;
+  const variant = photo.recipeId !== recipe.id;
+  return `<img class="recipe-photo" src="${photo.src}" alt="${escapeHtml(photo.name)}${variant ? ' (receta base)' : ''}" width="640" height="480" loading="eager" decoding="async" />${variant ? `<span class="base-photo-label">Imagen de la receta base</span>` : ''}`;
 }
 
 async function hydrateRecipeCover(node) {
-  if (loadingPhotoNodes.has(node) || node.classList.contains('photo-cover')) return;
-  loadingPhotoNodes.add(node);
+  if (loadingPhotoNodes.has(node)) return;
   const recipeId = node.dataset.photoRecipe;
   const recipe = findRecipe(recipeId);
-  if (!recipe) { loadingPhotoNodes.delete(node); return; }
-  if (recipe.hasCustomCover) {
-    let objectUrl = coverObjectUrls.get(recipeId);
-    if (!objectUrl) {
-      const blob = await loadRecipeImage(recipeId);
-      if (blob) { objectUrl = URL.createObjectURL(blob); coverObjectUrls.set(recipeId, objectUrl); }
-    }
-    if (objectUrl) {
-      await setCoverPhoto(node, objectUrl, recipeId);
-      loadingPhotoNodes.delete(node);
-      return;
-    }
-    if (await setCoverPhoto(node, `./api/recipe-images/${encodeURIComponent(recipeId)}?v=${recipe.coverRevision || 1}`, recipeId)) { loadingPhotoNodes.delete(node); return; }
-  }
-  const query = encodeURIComponent(recipePhotoQuery(recipe));
+  if (!recipe?.hasCustomCover) return;
+  loadingPhotoNodes.add(node);
   try {
-    const requestUrl = `./api/recipe-photos/${encodeURIComponent(recipeId)}?q=${query}&v=4`;
-    const photo = await loadCatalogPhoto(recipe, requestUrl);
-    if (photo) {
-      if (await setCoverPhoto(node, photo.url, recipeId)) updatePhotoCredit(recipeId, photo);
+    let url = coverObjectUrls.get(recipeId);
+    if (!url) {
+      const blob = await loadRecipeImage(recipeId);
+      if (blob) { url = URL.createObjectURL(blob); coverObjectUrls.set(recipeId, url); }
     }
-  } catch { /* the built-in photorealistic fallback remains visible */ }
-  node.classList.add('photo-ready');
-  loadingPhotoNodes.delete(node);
+    if (!url) url = `./api/recipe-images/${encodeURIComponent(recipeId)}?v=${recipe.coverRevision || 1}`;
+    const image = new Image();
+    image.alt = recipe.name;
+    image.className = 'recipe-photo';
+    image.src = url;
+    await image.decode();
+    if (node.dataset.photoRecipe !== recipeId) return;
+    node.querySelector('.photo-unavailable')?.remove();
+    node.querySelector('.recipe-photo')?.remove();
+    node.prepend(image);
+  } catch { /* Never replace a missing personal photo with another dish. */ }
+  finally { loadingPhotoNodes.delete(node); }
 }
 
 function hydrateUploadedCovers(root = document) {
-  const nodes = [...root.querySelectorAll('[data-photo-recipe]')];
-  nodes.forEach(node => { fitFallbackCover(node); fallbackResizeObserver?.observe(node); });
-  if (!('IntersectionObserver' in window)) { nodes.forEach(hydrateRecipeCover); return; }
-  const observer = new IntersectionObserver(entries => {
-    for (const entry of entries) if (entry.isIntersecting) { observer.unobserve(entry.target); hydrateRecipeCover(entry.target); }
-  }, { rootMargin: '240px' });
-  nodes.forEach(node => observer.observe(node));
+  root.querySelectorAll('[data-photo-recipe]').forEach(hydrateRecipeCover);
+}
+
+function photoCredit(recipe) {
+  if (recipe.hasCustomCover) return 'Foto personal subida por el usuario.';
+  const photo = recipePhoto(recipe);
+  if (!photo) return 'Esta receta no tiene una foto añadida.';
+  return `${photo.credit}: ${escapeHtml(photo.name)}.${photo.recipeId !== recipe.id ? ' La variante seleccionada cambia ingredientes; la imagen corresponde a la base indicada.' : ''}`;
+}
+
+function variantSelector(recipe, candidates = compatibleRecipes()) {
+  const variants = candidates.filter(item => recipeFamilyId(item) === recipeFamilyId(recipe));
+  if (variants.length < 2) return '';
+  return `<label class="variant-selector"><span>Variante de ingredientes · ${variants.length} opciones</span><select data-recipe-variant="${escapeHtml(recipeFamilyId(recipe))}" aria-label="Variante de ${escapeHtml(recipe.familyName || recipe.name)}">${variants.map(item => `<option value="${escapeHtml(item.id)}" ${item.id === recipe.id ? 'selected' : ''}>${escapeHtml(item.name)}</option>`).join('')}</select></label>`;
 }
 
 function timeGreeting(date = new Date()) {
@@ -325,6 +187,7 @@ function updateSyncBadge(status) {
 }
 
 function persist({ remote = true } = {}) {
+  localEditRevision += 1;
   clearTimeout(saveTimer);
   updateSyncBadge(navigator.onLine ? 'pending' : 'offline');
   saveTimer = setTimeout(async () => {
@@ -349,7 +212,7 @@ function navigate(viewName, updateHash = true) {
   if (viewName === 'favorites') renderFavorites();
   if (viewName === 'pantry') renderPantry();
   if (viewName === 'shopping') renderShopping();
-  if (viewName === 'more') renderProfile();
+  if (viewName === 'more') { renderProfile(); renderBodyMetrics(); }
 }
 
 function findRecipe(id) { return state.recipes.find(recipe => recipe.id === id); }
@@ -399,10 +262,9 @@ function renderWeek() {
     $('#today-reason').textContent = coverage.missing === 0 ? `Puedes cocinarla ahora · lista en ${currentRecipe.totalTime} min` : `${currentRecipe.totalTime} min · faltan ${coverage.missing} ${coverage.missing === 1 ? 'ingrediente' : 'ingredientes'}`;
     $('#today-macros').innerHTML = `<span><b>${number(currentRecipe.nutrition.kcal)}</b> kcal</span><span><b>${number(currentRecipe.nutrition.protein)} g</b> proteína</span><span><b>${euro(currentRecipe.estimatedCost / currentRecipe.servings)}</b> / ración est.</span>`;
     const hero = $('#today-card .hero-dish');
-    const position = coverPosition(currentRecipe);
     hero.className = 'hero-dish recipe-cover';
     loadingPhotoNodes.delete(hero);
-    hero.style.cssText = `--cover-x:${position.x};--cover-y:${position.y}`;
+    hero.style.cssText = "";
     hero.innerHTML = recipeVisualInner(currentRecipe, true);
     hero.dataset.photoRecipe = currentRecipe.id;
     $('#open-today').dataset.openRecipe = currentRecipe.id;
@@ -498,7 +360,7 @@ function compatibleRecipes() { return state.recipes.filter(recipe => isRecipeCom
 
 function renderCatalogCounts() {
   $('#diet-catalog-counts').innerHTML = DIET_CATALOG_PROFILES.map(profile => {
-    const count = state.recipes.filter(item => isRecipeCompatible(item, { ...profile, allergies: [], restrictions: [], dislikes: [], equipment: [] })).length;
+    const count = groupRecipeFamilies(state.recipes.filter(item => isRecipeCompatible(item, { ...profile, allergies: [], restrictions: [], dislikes: [], equipment: [] }))).length;
     return `<span><b>${number(count)}</b> ${profile.label}</span>`;
   }).join('');
 }
@@ -516,28 +378,32 @@ function renderRecipes() {
     const haystack = normalizeText([recipe.name, recipe.description, ...recipe.tags, ...recipe.ingredients.map(item => item.name)].join(' '));
     const dietMatch = !selectedDiet || isRecipeCompatible(recipe, { ...selectedDiet, allergies: [], restrictions: [], dislikes: [], equipment: [] });
     return (!search || haystack.includes(search)) && (!meal || recipe.mealTypes.includes(meal)) && dietMatch && recipe.totalTime <= maxTime && recipe.nutrition.protein >= minProtein && (!pantryOnly || pantryCoverage(recipe, state.pantry, state.profile.people).missing === 0);
-  }).sort((a, b) => Number(state.favorites.includes(b.id)) - Number(state.favorites.includes(a.id)) || b.rating - a.rating);
-  const visibleRecipes = recipes.slice(0, recipeVisibleLimit);
-  $('#recipe-count').textContent = compatible.length;
-  $('#recipe-summary').textContent = recipes.length ? `Mostrando ${visibleRecipes.length} de ${recipes.length} ${recipes.length === 1 ? 'resultado' : 'resultados'} · incompatibles con tu perfil ocultas` : 'No hay recetas que cumplan todos esos filtros.';
+  }).sort((a, b) => Number(state.favorites.includes(b.id)) - Number(state.favorites.includes(a.id)) || Number(b.id.startsWith('special-')) - Number(a.id.startsWith('special-')) || b.rating - a.rating);
+  const groups = groupRecipeFamilies(recipes);
+  visibleFamilyRecipes = new Map(groups.map(group => [group.id, group.recipes]));
+  const visibleRecipes = groups.slice(0, recipeVisibleLimit).map(group => group.recipes.find(item => item.id === selectedFamilyVariants.get(group.id)) || group.recipes.find(item => recipePhoto(item)?.recipeId === item.id) || group.recipes[0]);
+  $('#recipe-count').textContent = groupRecipeFamilies(compatible).length;
+  $('#recipe-summary').textContent = recipes.length ? `Mostrando ${visibleRecipes.length} de ${groups.length} recetas base · ${recipes.length} preparaciones incluidas sus variantes · compatibles con tus filtros` : 'No hay recetas que cumplan todos esos filtros.';
   $('#recipe-grid').innerHTML = visibleRecipes.map(recipe => {
     const coverage = pantryCoverage(recipe, state.pantry, state.profile.people);
     const userRating = state.ratings[recipe.id];
     const rating = userRating || recipe.rating;
     const ratingLabel = userRating ? 'tu valoración' : recipe.ratingType === 'real' ? `${recipe.ratingCount} valoraciones` : 'estimación del sistema';
-    return `<article class="recipe-card" data-open-recipe="${recipe.id}" tabindex="0" role="button" aria-label="Ver receta ${escapeHtml(recipe.name)}"><div class="recipe-art recipe-cover" ${coverAttributes(recipe)}>${recipeVisualInner(recipe)}<button class="favorite-btn ${state.favorites.includes(recipe.id) ? 'active' : ''}" type="button" data-favorite="${recipe.id}" aria-label="${state.favorites.includes(recipe.id) ? 'Quitar de favoritos' : 'Guardar en favoritos'}">${state.favorites.includes(recipe.id) ? '♥' : '♡'}</button></div><div class="recipe-card-body"><p class="eyebrow">${recipe.mealTypes.map(type => MEAL_LABELS[type]).join(' · ')}</p><h2>${escapeHtml(recipe.name)}</h2><div class="recipe-meta"><span><b>${recipe.totalTime} min</b></span><span>${number(recipe.nutrition.kcal)} kcal</span><span>${number(recipe.nutrition.protein)} g prot.</span></div><div class="recipe-tags"><span>${coverage.missing === 0 ? 'puedo cocinar' : `faltan ${coverage.missing}`}</span>${recipe.tags.slice(0, 2).map(tag => `<span>${escapeHtml(tag)}</span>`).join('')}</div><div class="recipe-rating">★ ${number(rating)} <small>· ${ratingLabel}</small></div></div></article>`;
+    return `<article class="recipe-card" data-family-card="${escapeHtml(recipeFamilyId(recipe))}"><div class="recipe-art recipe-cover" ${coverAttributes(recipe)}><button class="recipe-image-open" type="button" data-open-recipe="${recipe.id}" aria-label="Ver receta ${escapeHtml(recipe.name)}"></button>${recipeVisualInner(recipe)}<button class="favorite-btn ${state.favorites.includes(recipe.id) ? 'active' : ''}" type="button" data-favorite="${recipe.id}" aria-label="${state.favorites.includes(recipe.id) ? 'Quitar de favoritos' : 'Guardar en favoritos'}">${state.favorites.includes(recipe.id) ? '♥' : '♡'}</button></div><div class="recipe-card-body"><p class="eyebrow">${recipe.mealTypes.map(type => MEAL_LABELS[type]).join(' · ')}</p><h2><button class="recipe-title-open" type="button" data-open-recipe="${recipe.id}">${escapeHtml(recipe.familyName || recipe.name)}</button></h2>${recipe.familyName && recipe.familyName !== recipe.name ? `<p class="selected-variant-name">${escapeHtml(recipe.name)}</p>` : ""}<div class="recipe-meta"><span><b>${recipe.totalTime} min</b></span><span>${number(recipe.nutrition.kcal)} kcal</span><span>${number(recipe.nutrition.protein)} g prot.</span></div><div class="recipe-tags"><span>${coverage.missing === 0 ? 'puedo cocinar' : `faltan ${coverage.missing}`}</span>${recipe.tags.slice(0, 2).map(tag => `<span>${escapeHtml(tag)}</span>`).join('')}</div><div class="recipe-rating">★ ${number(rating)} <small>· ${ratingLabel}</small></div>${variantSelector(recipe, visibleFamilyRecipes.get(recipeFamilyId(recipe)) || [])}</div></article>`;
   }).join('');
-  $('#recipe-load-more').hidden = visibleRecipes.length >= recipes.length;
-  $('#recipe-load-more').textContent = `Mostrar ${Math.min(36, recipes.length - visibleRecipes.length)} más`;
+  $('#recipe-load-more').hidden = visibleRecipes.length >= groups.length;
+  $('#recipe-load-more').textContent = `Mostrar ${Math.min(36, groups.length - visibleRecipes.length)} más`;
   renderCatalogCounts();
   hydrateUploadedCovers($('#view-recipes'));
 }
 
 function renderFavorites() {
-  const recipes = state.favorites.map(findRecipe).filter(recipe => isRecipeCompatible(recipe, state.profile));
+  const savedRecipes = state.favorites.map(findRecipe).filter(recipe => recipe && isRecipeCompatible(recipe, state.profile));
+  const groups = groupRecipeFamilies(savedRecipes);
+  const recipes = groups.map(group => group.recipes.find(item => item.id === selectedFamilyVariants.get(group.id)) || group.recipes[0]);
   $('#favorite-count').textContent = recipes.length;
   $('#favorites-empty').hidden = recipes.length > 0;
-  $('#favorite-grid').innerHTML = recipes.map(recipe => `<article class="recipe-card" data-open-recipe="${recipe.id}" tabindex="0" role="button" aria-label="Ver receta ${escapeHtml(recipe.name)}"><div class="recipe-art recipe-cover" ${coverAttributes(recipe)}>${recipeVisualInner(recipe)}<button class="favorite-btn active" type="button" data-favorite="${recipe.id}" aria-label="Quitar de favoritos">♥</button></div><div class="recipe-card-body"><p class="eyebrow">${recipe.mealTypes.map(type => MEAL_LABELS[type]).join(' · ')}</p><h2>${escapeHtml(recipe.name)}</h2><div class="recipe-meta"><span><b>${recipe.totalTime} min</b></span><span>${number(recipe.nutrition.kcal)} kcal</span><span>${number(recipe.nutrition.protein)} g prot.</span></div></div><button class="favorite-plan" type="button" data-plan-favorite="${recipe.id}">＋ Añadir a mi planificación</button></article>`).join('');
+  $('#favorite-grid').innerHTML = recipes.map(recipe => `<article class="recipe-card" data-family-card="${escapeHtml(recipeFamilyId(recipe))}"><div class="recipe-art recipe-cover" ${coverAttributes(recipe)}><button class="recipe-image-open" type="button" data-open-recipe="${recipe.id}" aria-label="Ver receta ${escapeHtml(recipe.name)}"></button>${recipeVisualInner(recipe)}<button class="favorite-btn active" type="button" data-favorite="${recipe.id}" aria-label="Quitar de favoritos">♥</button></div><div class="recipe-card-body"><p class="eyebrow">${recipe.mealTypes.map(type => MEAL_LABELS[type]).join(' · ')}</p><h2><button class="recipe-title-open" type="button" data-open-recipe="${recipe.id}">${escapeHtml(recipe.familyName || recipe.name)}</button></h2>${recipe.familyName && recipe.familyName !== recipe.name ? `<p class="selected-variant-name">${escapeHtml(recipe.name)}</p>` : ""}<div class="recipe-meta"><span><b>${recipe.totalTime} min</b></span><span>${number(recipe.nutrition.kcal)} kcal</span><span>${number(recipe.nutrition.protein)} g prot.</span></div>${variantSelector(recipe, savedRecipes)}</div><button class="favorite-plan" type="button" data-plan-favorite="${recipe.id}">＋ Añadir a mi planificación</button></article>`).join('');
   hydrateUploadedCovers($('#view-favorites'));
 }
 
@@ -550,8 +416,8 @@ function showRecipe(id, servings) {
   const userRating = state.ratings[id] || 0;
   const coverage = pantryCoverage(recipe, state.pantry, recipeServings);
   $('#recipe-dialog-content').innerHTML = `<button class="close-btn" type="button" data-close-dialog="recipe-dialog" aria-label="Cerrar">×</button>
-    <section class="recipe-detail-hero"><div><p class="eyebrow">${recipe.mealTypes.map(type => MEAL_LABELS[type]).join(' · ')}</p><h2 id="recipe-dialog-title">${escapeHtml(recipe.name)}</h2><p>${escapeHtml(recipe.description)}</p><div class="detail-actions"><button type="button" data-favorite="${id}">${state.favorites.includes(id) ? '♥ Favorita' : '♡ Guardar'}</button><button type="button" data-cook-recipe="${id}">✓ Receta preparada</button></div></div><div class="recipe-detail-emoji recipe-cover" ${coverAttributes(recipe)} aria-hidden="true">${recipeVisualInner(recipe, true)}</div></section>
-    <div class="detail-grid"><div><div class="nutrition-grid"><div><b>${number(recipe.nutrition.kcal)}</b><span>kcal</span></div><div><b>${number(recipe.nutrition.protein)} g</b><span>proteína</span></div><div><b>${number(recipe.nutrition.carbs)} g</b><span>carbos</span></div><div><b>${number(recipe.nutrition.fat)} g</b><span>grasas</span></div><div><b>${number(recipe.nutrition.fiber)} g</b><span>fibra</span></div><div><b>${euro(recipe.estimatedCost / recipe.servings)}</b><span>ración · est.</span></div></div><h3>Valoración</h3><div class="rating-control" aria-label="Valorar receta">${[1,2,3,4,5].map(value => `<button class="${value <= userRating ? 'active' : ''}" type="button" data-rate="${value}" aria-label="${value} estrellas">★</button>`).join('')}</div><small>${userRating ? `Tu valoración: ${userRating}/5` : recipe.ratingType === 'real' ? `Valoración pública: ${recipe.rating}/5 (${recipe.ratingCount})` : `Recomendación estimada: ${recipe.rating}/5. No es una valoración pública real.`}</small><h3>Información</h3><p>${recipe.totalTime} min · ${recipe.prepTime} min preparación · ${recipe.cookTime} min cocción</p><p>Alérgenos declarados: ${recipe.allergens.length ? recipe.allergens.join(', ') : 'ninguno en los datos de demostración'}.</p><p><small>Fuente: ${escapeHtml(recipe.source)}</small></p><p><small id="recipe-photo-credit">${recipe.hasCustomCover ? 'Foto personal subida por el usuario.' : 'Imagen orientativa de la categoría, generada con IA. No representa los ingredientes exactos.'}</small></p></div>
+    <section class="recipe-detail-hero"><div><p class="eyebrow">${recipe.mealTypes.map(type => MEAL_LABELS[type]).join(' · ')}</p><h2 id="recipe-dialog-title">${escapeHtml(recipe.name)}</h2><p>${escapeHtml(recipe.description)}</p>${variantSelector(recipe)}<div class="detail-actions"><button type="button" data-favorite="${id}">${state.favorites.includes(id) ? '♥ Favorita' : '♡ Guardar'}</button><button type="button" data-cook-recipe="${id}">✓ Receta preparada</button></div></div><div class="recipe-detail-emoji recipe-cover" ${coverAttributes(recipe)} aria-hidden="true">${recipeVisualInner(recipe, true)}</div></section>
+    <div class="detail-grid"><div><div class="nutrition-grid"><div><b>${number(recipe.nutrition.kcal)}</b><span>kcal</span></div><div><b>${number(recipe.nutrition.protein)} g</b><span>proteína</span></div><div><b>${number(recipe.nutrition.carbs)} g</b><span>carbos</span></div><div><b>${number(recipe.nutrition.fat)} g</b><span>grasas</span></div><div><b>${number(recipe.nutrition.fiber)} g</b><span>fibra</span></div><div><b>${euro(recipe.estimatedCost / recipe.servings)}</b><span>ración · est.</span></div></div><h3>Valoración</h3><div class="rating-control" aria-label="Valorar receta">${[1,2,3,4,5].map(value => `<button class="${value <= userRating ? 'active' : ''}" type="button" data-rate="${value}" aria-label="${value} estrellas">★</button>`).join('')}</div><small>${userRating ? `Tu valoración: ${userRating}/5` : recipe.ratingType === 'real' ? `Valoración pública: ${recipe.rating}/5 (${recipe.ratingCount})` : `Recomendación estimada: ${recipe.rating}/5. No es una valoración pública real.`}</small><h3>Información</h3><p>${recipe.totalTime} min · ${recipe.prepTime} min preparación · ${recipe.cookTime} min cocción</p><p>Alérgenos declarados: ${recipe.allergens.length ? recipe.allergens.join(', ') : 'ninguno en los datos de demostración'}.</p><p><small>Fuente: ${escapeHtml(recipe.source)}</small></p><p><small id="recipe-photo-credit">${photoCredit(recipe)}</small></p></div>
     <div><div class="serving-control"><h3>Ingredientes</h3><label><span class="sr-only">Raciones</span><input id="recipe-servings" type="number" min="1" max="24" value="${recipeServings}" /></label><span>raciones</span></div><p><small>${coverage.missing === 0 ? 'Tienes todo en casa.' : `Te faltan ${coverage.missing} ingredientes para estas raciones.`} Puedes excluir cualquier ingrediente para que no vuelva a aparecer en ninguna propuesta.</small></p><ul class="ingredient-list">${scaled.map(item => `<li><span>${escapeHtml(item.name)}</span><span class="ingredient-actions"><b>${number(item.amount)} ${item.unit}</b><button type="button" data-exclude-ingredient="${escapeHtml(item.name)}" aria-label="Excluir ${escapeHtml(item.name)} de todas las recetas">Excluir</button></span></li>`).join('')}</ul><h3>Pasos</h3><ol class="step-list">${recipe.steps.map(step => `<li>${escapeHtml(step)}</li>`).join('')}</ol></div></div>`;
   const dialog = $('#recipe-dialog');
   if (!dialog.open) dialog.showModal();
@@ -879,7 +745,15 @@ function saveWeightLog(form) {
   persist(); form.elements.weightKg.value = ''; form.elements.muscleKg.value = ''; renderBodyMetrics(); showToast('Registro corporal guardado');
 }
 
-function renderAll() { renderWeek(); renderRecipes(); renderFavorites(); renderPantry(); renderShopping(); renderProfile(); renderBodyMetrics(); }
+function renderAll() {
+  renderWeek();
+  const active = $('.view.active')?.dataset.view;
+  if (active === 'recipes') renderRecipes();
+  if (active === 'favorites') renderFavorites();
+  if (active === 'pantry') renderPantry();
+  if (active === 'shopping') renderShopping();
+  if (active === 'more') { renderProfile(); renderBodyMetrics(); }
+}
 
 function openPantryForm(item) {
   const form = $('#pantry-form');
@@ -1199,7 +1073,29 @@ function previewRecipeCover(file) {
 }
 
 function bindEvents() {
+  document.addEventListener('change', event => {
+    const picker = event.target.closest('[data-recipe-variant]');
+    if (!picker) return;
+    const recipe = findRecipe(picker.value);
+    if (!recipe || !isRecipeCompatible(recipe, state.profile)) return;
+    selectedFamilyVariants.set(recipeFamilyId(recipe), recipe.id);
+    if (picker.closest('#recipe-dialog')) showRecipe(recipe.id, recipeServings);
+    else {
+      const scope = picker.closest('#view-favorites') ? '#view-favorites' : '#view-recipes';
+      if (scope === '#view-favorites') renderFavorites(); else renderRecipes();
+      const replacement = [...document.querySelectorAll(`${scope} [data-recipe-variant]`)].find(node => node.dataset.recipeVariant === recipeFamilyId(recipe));
+      replacement?.focus({ preventScroll: true });
+    }
+  });
+  document.addEventListener('error', event => {
+    if (!event.target.matches?.('.recipe-photo')) return;
+    const cover = event.target.closest('.recipe-cover');
+    event.target.remove();
+    cover?.insertAdjacentHTML('afterbegin', '<span class="photo-unavailable">Imagen no disponible</span>');
+  }, true);
+
   document.addEventListener('click', event => {
+    if (event.target.closest('.variant-selector')) return;
     const nav = event.target.closest('[data-nav]'); if (nav) { navigate(nav.dataset.nav); return; }
     const day = event.target.closest('[data-day]'); if (day) { activeDay = Number(day.dataset.day); renderWeek(); return; }
     const weekShift = event.target.closest('[data-week-shift]'); if (weekShift) { switchWeek(weekShift.dataset.weekShift); return; }
@@ -1273,21 +1169,36 @@ function bindEvents() {
 
 async function init() {
   const local = await loadLocalState();
-  const remote = await pullRemoteState();
-  state = normalizeState(newestSnapshot(local, remote.state));
+  const remoteRequest = pullRemoteState();
+  state = normalizeState(local);
   if (state.weekPlans.some(plan => plan.menu.length !== 28 || plan.menu.some(entry => !isRecipeCompatible(findRecipe(entry.recipeId), state.profile)))) {
     repairPlansForProfile();
     recalculateShopping();
   }
   const todayIndex = weekDates().findIndex(date => isoDate(date) === isoDate(new Date()));
   activeDay = todayIndex >= 0 ? todayIndex : 0;
-  const snapshot = await saveLocalState(createStateSnapshot(state));
-  state.updatedAt = snapshot.updatedAt;
-  updateSyncBadge(remote.status);
+  updateSyncBadge(navigator.onLine ? 'local' : 'offline');
   bindEvents(); renderAll();
   const route = location.hash.slice(1); if (['week','recipes','favorites','pantry','shopping','more'].includes(route)) navigate(route, false);
-  if (!state.profile.configured) { prefillProfileForm(); setTimeout(() => $('#onboarding-dialog').showModal(), 250); }
-  if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').then(() => checkPlanningReminder()).catch(() => updateSyncBadge('offline')));
+  const initialRevision = localEditRevision;
+  remoteRequest.then(async remote => {
+    if (localEditRevision === initialRevision) {
+      if (remote.state && newestSnapshot(local, remote.state) === remote.state) {
+        state = normalizeState(remote.state);
+        if (state.weekPlans.some(plan => plan.menu.length !== 28 || plan.menu.some(entry => !isRecipeCompatible(findRecipe(entry.recipeId), state.profile)))) {
+          repairPlansForProfile(); recalculateShopping();
+        }
+        renderAll();
+      }
+      const snapshot = await saveLocalState(createStateSnapshot(state));
+      state.updatedAt = snapshot.updatedAt;
+      updateSyncBadge(remote.status);
+    }
+    if (!state.profile.configured) { prefillProfileForm(); $('#onboarding-dialog').showModal(); }
+  }).catch(() => updateSyncBadge('local'));
+  if ('serviceWorker' in navigator && !['localhost', '127.0.0.1', '[::1]'].includes(location.hostname)) {
+    navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).then(() => checkPlanningReminder()).catch(() => updateSyncBadge('offline'));
+  }
   checkPlanningReminder();
   clearInterval(planningReminderTimer);
   planningReminderTimer = setInterval(checkPlanningReminder, 15 * 60 * 1000);

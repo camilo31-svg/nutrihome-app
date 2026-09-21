@@ -1,18 +1,19 @@
-const CACHE_NAME = 'nutrihome-v8';
+importScripts('./recipe-image-list.js?v=1.9.0');
+const CACHE_NAME = 'nutrihome-v9';
 const APP_SHELL = [
-  './', './index.html', './styles.css?v=1.8.0', './nutrihome-core.js?v=1.8.0', './demo-data.js?v=1.8.0', './recipe-library.js?v=1.8.0', './recipe-estimator.js?v=1.8.0', './storage.js?v=1.8.0', './app.js?v=1.8.0', './manifest.webmanifest',
+  './', './index.html', './styles.css?v=1.9.0', './nutrihome-core.js?v=1.9.0', './demo-data.js?v=1.9.0', './recipe-library.js?v=1.9.0', './recipe-estimator.js?v=1.9.0', './storage.js?v=1.9.0', './app.js?v=1.9.0', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-192-maskable.png',
-  './icons/icon-512.png', './icons/icon-512-maskable.png', './og.png', './recipe-photo-atlas-v3.png'
+  './icons/icon-512.png', './icons/icon-512-maskable.png', './og.png', './recipe-families.js?v=1.9.0', './recipe-specials.js?v=1.9.0', './recipe-photos.js?v=1.9.0', './recipe-image-list.js?v=1.9.0'
 ];
 
 self.addEventListener('install', event => {
-  event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL)).then(() => self.skipWaiting()));
+  event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll([...APP_SHELL, ...self.RECIPE_IMAGE_URLS])).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))))
+      .then(keys => Promise.all(keys.filter(key => key.startsWith('nutrihome-') && key !== CACHE_NAME).map(key => caches.delete(key))))
       .then(() => self.clients.claim())
   );
 });
