@@ -18,14 +18,14 @@
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="icons/icon-192.png" />
     <link rel="apple-touch-icon" href="icons/icon-192.png" />
-    <link rel="stylesheet" href="styles.css?v=1.9.0" />
+    <link rel="stylesheet" href="styles.css?v=1.9.1" />
     <title>NutriHome · Come bien, compra justo</title>
   </head>
   <body>
     <a class="skip-link" href="#main-content">Saltar al contenido</a>
     <div class="app-shell">
       <header class="topbar">
-        <button class="brand" type="button" data-nav="week" aria-label="NutriHome, ir al inicio"><span class="brand-mark" aria-hidden="true">N</span><span>NutriHome</span><small class="app-version-label">v1.9.0</small></button>
+        <button class="brand" type="button" data-nav="week" aria-label="NutriHome, ir al inicio"><span class="brand-mark" aria-hidden="true">N</span><span>NutriHome</span><small class="app-version-label">v1.9.1</small></button>
         <div class="topbar-actions">
           <span class="sync-badge" id="sync-badge"><i></i><span>Guardado</span></span>
           <button class="icon-btn" id="notifications" type="button" aria-label="Ver avisos"><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg></span><i></i></button>
@@ -167,7 +167,7 @@
             <section class="settings-card"><h2>Preferencias</h2><button class="setting-row" id="reset-preferences" type="button"><span><b>Reiniciar aprendizaje</b><small>Borra favoritos, valoraciones e historial.</small></span><span>→</span></button><button class="setting-row danger-text" id="delete-data" type="button"><span><b>Eliminar mis datos</b><small>Restablece NutriHome en este dispositivo.</small></span><span>→</span></button></section>
             <section class="settings-card reminder-card"><div><p class="eyebrow">CADA DOMINGO</p><h2>Recordatorio para preparar la semana</h2><p id="planning-reminder-status">Desactivado. Puedes activar el aviso y añadir una alarma semanal a tu calendario.</p></div><label><span>Hora</span><select id="planning-reminder-hour"><option value="16">16:00</option><option value="17">17:00</option><option value="18" selected>18:00</option><option value="19">19:00</option><option value="20">20:00</option></select></label><div class="button-row"><button class="secondary-btn" id="toggle-planning-reminder" type="button">Activar aviso en la app</button><button class="primary-btn" id="download-calendar-reminder" type="button">Añadir alarma al calendario</button></div></section>
             <section class="settings-card"><h2>Sincronización</h2><p id="sync-detail">Tus cambios se guardan offline en este dispositivo.</p><div class="privacy-note"><span aria-hidden="true">⌾</span><span>Los datos del hogar se envían al servidor solo cuando hay una sesión autenticada disponible.</span></div></section>
-            <section class="settings-card app-info"><p class="eyebrow">VERSIÓN PÚBLICA</p><h2>NutriHome <span class="app-version-label">v1.9.0</span></h2><p>Este número permite comprobar rápidamente que todos los usuarios están viendo la misma actualización.</p></section>
+            <section class="settings-card app-info"><p class="eyebrow">VERSIÓN PÚBLICA</p><h2>NutriHome <span class="app-version-label">v1.9.1</span></h2><p>Este número permite comprobar rápidamente que todos los usuarios están viendo la misma actualización.</p></section>
           </div>
         </section>
       </main>
@@ -215,6 +215,6 @@
 
     <dialog class="sheet-dialog compact-dialog" id="simple-dialog"><form method="dialog" id="simple-form"><button class="close-btn" type="button" data-close-dialog="simple-dialog" aria-label="Cerrar">×</button><div id="simple-dialog-content"></div></form></dialog>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script type="module" src="app.js?v=1.9.0"></script>
+    <script type="module" src="app.js?v=1.9.1"></script>
   </body>
 </html>

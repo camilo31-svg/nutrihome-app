@@ -1,4 +1,4 @@
-import { estimateRecipe } from './recipe-estimator.js?v=1.9.0';
+import { estimateRecipe } from './recipe-estimator.js?v=1.9.1';
 const i = (name, amount, unit = 'g', category = 'verduras') => ({ name, amount, unit, category });
 const definitions = [
   ['falafel', 'Falafel al horno con salsa de tahini', 40, ['lunch','dinner'], [i('garbanzos secos (peso antes del remojo)',250,'g','legumbres'),i('cebolla',80),i('ajo',2,'unidad'),i('perejil',15),i('comino',3),i('tahini',30,'g','condimentos'),i('limón',1,'unidad','frutas')], ['Escurre los garbanzos después de 12 horas de remojo; no los cuezas. Seca bien con un paño.', 'Tritura los garbanzos con cebolla, ajo, perejil y comino en pulsos hasta obtener una textura granulada que se compacte.', 'Forma 12 discos, colócalos sobre papel de horno y hornea a 200 °C durante 25–30 minutos, girando a mitad, hasta que estén firmes y cocinados en el centro.', 'Mezcla el tahini con zumo de limón y agua hasta obtener una salsa fluida. Sirve junto al falafel.'], [], ['sésamo'], ['oven'], 'levantina'],

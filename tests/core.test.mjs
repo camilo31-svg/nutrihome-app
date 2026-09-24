@@ -22,11 +22,11 @@ for (const recipe of DEMO_RECIPES) {
 }
 assert.equal(new Set(DEMO_RECIPES.map(recipe => recipe.steps.join('\n'))).size, DEMO_RECIPES.length, 'Cada receta debe tener instrucciones propias');
 
-assert.equal(RECIPE_LIBRARY.length > 1600, true, 'El catálogo debe contener más de 1.600 recetas únicas');
+assert.equal(RECIPE_LIBRARY.length > 1600, true, 'El catálogo contiene más de 1.600 preparaciones incluyendo alternativas');
 assert.equal(new Set(RECIPE_LIBRARY.map(recipe => recipe.id)).size, RECIPE_LIBRARY.length, 'Los IDs del catálogo deben ser únicos');
 assert.equal(new Set(RECIPE_LIBRARY.map(recipe => recipe.name)).size, RECIPE_LIBRARY.length, 'Los nombres del catálogo deben ser únicos');
 const dietCounts = catalogCounts(isRecipeCompatible);
-for (const profile of DIET_CATALOG_PROFILES) assert.ok(dietCounts[profile.key] > 1000, `${profile.label} debe ofrecer más de 1.000 recetas`);
+assert.deepEqual(dietCounts, { vegan: 45, lacto_vegetarian: 52, ovo_vegetarian: 52, vegetarian: 63, pescetarian: 69, flexitarian: 74, omnivore: 74 }, 'Se cuentan platos distintos, no alternativas de ingredientes');
 for (const recipe of RECIPE_LIBRARY) {
   assert.deepEqual(validateRecipe(recipe), [], `${recipe.name} debe tener ingredientes y cantidades válidos`);
   assert.ok(recipe.steps.length >= 4, `${recipe.name} debe tener al menos cuatro pasos`);

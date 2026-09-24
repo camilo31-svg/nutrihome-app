@@ -1,9 +1,9 @@
-importScripts('./recipe-image-list.js?v=1.9.0');
-const CACHE_NAME = 'nutrihome-v9';
+importScripts('./recipe-image-list.js?v=1.9.1');
+const CACHE_NAME = 'nutrihome-v10';
 const APP_SHELL = [
-  './', './index.html', './styles.css?v=1.9.0', './nutrihome-core.js?v=1.9.0', './demo-data.js?v=1.9.0', './recipe-library.js?v=1.9.0', './recipe-estimator.js?v=1.9.0', './storage.js?v=1.9.0', './app.js?v=1.9.0', './manifest.webmanifest',
+  './', './index.html', './styles.css?v=1.9.1', './nutrihome-core.js?v=1.9.1', './demo-data.js?v=1.9.1', './recipe-library.js?v=1.9.1', './recipe-estimator.js?v=1.9.1', './storage.js?v=1.9.1', './app.js?v=1.9.1', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-192-maskable.png',
-  './icons/icon-512.png', './icons/icon-512-maskable.png', './og.png', './recipe-families.js?v=1.9.0', './recipe-specials.js?v=1.9.0', './recipe-photos.js?v=1.9.0', './recipe-image-list.js?v=1.9.0'
+  './icons/icon-512.png', './icons/icon-512-maskable.png', './og.png', './recipe-families.js?v=1.9.1', './recipe-specials.js?v=1.9.1', './recipe-photos.js?v=1.9.1', './recipe-image-list.js?v=1.9.1'
 ];
 
 self.addEventListener('install', event => {

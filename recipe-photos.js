@@ -1,5 +1,5 @@
-import { RECIPE_LIBRARY } from './recipe-library.js?v=1.9.0';
-import { groupRecipeFamilies, recipeFamilyId } from './recipe-families.js?v=1.9.0';
+import { RECIPE_LIBRARY } from './recipe-library.js?v=1.9.1';
+import { groupRecipeFamilies, recipeFamilyId } from './recipe-families.js?v=1.9.1';
 
 // One reviewed, local file per base recipe. Never search or guess an image at runtime.
 export const RECIPE_PHOTOS = Object.freeze(Object.fromEntries(groupRecipeFamilies(RECIPE_LIBRARY).map(group => [group.id, Object.freeze({

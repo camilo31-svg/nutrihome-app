@@ -19,7 +19,7 @@ const context = {
   },
   caches: {
     open: async () => ({addAll: async urls => urls.forEach(url => saved.set(url, {url}))}),
-    keys: async () => ['nutrihome-v8', 'nutrihome-v9', 'unrelated-app'],
+    keys: async () => ['nutrihome-v8', 'nutrihome-v9', 'nutrihome-v10', 'unrelated-app'],
     delete: async key => {deleted.push(key);},
     match: async request => saved.get(typeof request === 'string' ? request : request.path),
   },
@@ -32,7 +32,7 @@ await pending;
 assert.ok(images.self.RECIPE_IMAGE_URLS.every(url => saved.has(url)), 'Todas las fotos se precargan');
 handlers.get('activate')({waitUntil: promise => {pending = promise;}});
 await pending;
-assert.deepEqual(deleted, ['nutrihome-v8'], 'Solo se elimina la caché antigua de NutriHome');
+assert.deepEqual(deleted, ['nutrihome-v8', 'nutrihome-v9'], 'Solo se elimina la caché antigua de NutriHome');
 for (const path of images.self.RECIPE_IMAGE_URLS) {
   handlers.get('fetch')({request: {method: 'GET', url: `https://nutrihome.test/${path.slice(2)}`, path}, respondWith: promise => {pending = promise;}});
   assert.equal((await pending).url, path, 'La imagen sigue disponible sin conexión');

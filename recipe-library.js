@@ -1,5 +1,6 @@
-import { SPECIAL_RECIPES } from './recipe-specials.js?v=1.9.0';
-import { DEMO_RECIPES } from './demo-data.js?v=1.9.0';
+import { SPECIAL_RECIPES } from './recipe-specials.js?v=1.9.1';
+import { DEMO_RECIPES } from './demo-data.js?v=1.9.1';
+import { groupRecipeFamilies } from './recipe-families.js?v=1.9.1';
 
 const ingredient = (name, amount, unit, category = 'otros') => ({ name, amount, unit, category });
 const rounded = value => Math.round(value * 10) / 10;
@@ -310,5 +311,5 @@ export const DIET_CATALOG_PROFILES = Object.freeze([
 ]);
 
 export function catalogCounts(isCompatible) {
-  return Object.fromEntries(DIET_CATALOG_PROFILES.map(profile => [profile.key, RECIPE_LIBRARY.filter(item => isCompatible(item, { ...profile, allergies: [], restrictions: [], dislikes: [], equipment: [] })).length]));
+  return Object.fromEntries(DIET_CATALOG_PROFILES.map(profile => [profile.key, groupRecipeFamilies(RECIPE_LIBRARY.filter(item => isCompatible(item, { ...profile, allergies: [], restrictions: [], dislikes: [], equipment: [] }))).length]));
 }

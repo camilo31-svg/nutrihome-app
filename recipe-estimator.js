@@ -1,4 +1,4 @@
-import { normalizeText, roundQuantity } from './nutrihome-core.js?v=1.9.0';
+import { normalizeText, roundQuantity } from './nutrihome-core.js?v=1.9.1';
 
 // Valores orientativos por 100 g y precios medios configurados solo para estimar.
 // NutriHome los presenta como una ayuda editable, nunca como información de etiqueta.
