@@ -8,11 +8,11 @@ NutriHome es una PWA mobile-first que conecta planificación semanal, recetas, o
 - Generación multiobjetivo: equilibrada, rápida, económica, alta en proteína, aprovechamiento de despensa, prioridad a caducidades y modo sorpresa.
 - Bloqueo, repetición e intercambio de comidas, además de un selector tipo Tinder con hasta 100 alternativas compatibles para cada hueco.
 - Restricciones dietéticas reales. Huevo y lácteos se comprueban de forma independiente a la etiqueta vegetariana.
-- Biblioteca de 74 platos base en castellano con 1.717 preparaciones incluidas sus alternativas de ingredientes. Las alternativas se ofrecen aparte de los pasos y no se cuentan como platos diferentes. Los favoritos tienen su propia pestaña y no alteran el orden del catálogo.
-- El catálogo contiene 45 platos base compatibles con la dieta vegana, 52 con las dietas lacto y ovo vegetarianas, 63 con la vegetariana, 69 con la pescetariana y 74 con las flexitariana y omnívora. El objetivo de más de 1.000 platos distintos por dieta sigue pendiente; los recuentos anteriores de más de 1.000 incluían alternativas de ingredientes.
-- Cada preparación incorporada tiene ingredientes cuantificados y cuatro pasos; las pruebas rechazan instrucciones genéricas, IDs o nombres duplicados.
+- Biblioteca de 147 platos base, incluidos 73 adaptados de Wikilibros/Wikibooks. Las alternativas de ingredientes se ofrecen dentro de su receta base y no se cuentan como platos diferentes. Los favoritos tienen su propia pestaña y no alteran el orden del catálogo. Las recetas importadas conservan el idioma original y enlazan a su fuente y licencia CC BY-SA 4.0.
+- El catálogo contiene 64 platos base compatibles con la dieta vegana, 87 con la lacto-vegetariana, 81 con la ovo-vegetariana, 118 con la vegetariana, 128 con la pescetariana y 147 con las flexitariana y omnívora. El objetivo de más de 1.000 platos distintos por dieta sigue pendiente.
+- Las recetas incorporadas tienen ingredientes cuantificados y pasos de elaboración. Las pruebas rechazan instrucciones genéricas, IDs o nombres duplicados.
 - Recetas personales con ingredientes escritos libremente: se infieren cantidades y se calculan automáticamente coste, calorías, proteína, carbohidratos, grasas y fibra.
-- Carátulas únicas construidas con los ingredientes reales de cada receta sobre vajilla generada con IA, sin mostrar alimentos ajenos; carga opcional de una foto propia persistida en IndexedDB y R2 cuando hay sesión.
+- Las 74 fotos revisadas se precargan y corresponden a sus platos base. Las recetas importadas sin foto verificada muestran un indicador explícito. Se puede añadir una foto propia, persistida en IndexedDB y R2 cuando hay sesión.
 - Pestaña independiente de favoritos, asignación directa a un día y comida concretos, escalado de raciones, valoración personal e historial de recetas preparadas.
 - Despensa con cantidades, unidades, ubicación, stock mínimo, caducidad, precio registrado y código de barras.
 - Descuento FIFO del inventario al preparar una receta y aviso de ingredientes no registrados.
@@ -78,7 +78,7 @@ Las pruebas cubren conversiones, unidades incompatibles, sinónimos, dietas y al
 
 La carpeta `drizzle/` contiene la migración de D1 y se empaqueta al crear una versión de Sites. No se necesitan claves en el frontend. Para otro proveedor compatible, configura un binding D1 llamado `DB` y sirve `dist/client` mediante el Worker.
 
-El workflow `.github/workflows/pages.yml` compila `dist/client` y publica esa versión estática en GitHub Pages. En Pages, la aplicación conserva el guardado local y el modo offline; las rutas de servidor y la sincronización D1 siguen disponibles únicamente en el despliegue de Sites.
+El workflow `.github/workflows/pages.yml` compila `dist/client` y publica esa versión estática en GitHub Pages. En Pages, la aplicación conserva el guardado local y el modo offline, y consulta precios públicos de Mercadona y ALDI directamente desde el navegador. Consum requiere el proxy del Worker de Sites porque su catálogo no permite CORS desde GitHub Pages. Las rutas de servidor y la sincronización D1 siguen disponibles únicamente en el despliegue de Sites.
 
 ## Privacidad y seguridad
 
@@ -95,7 +95,7 @@ La siguiente evolución lógica es modelar hogares, miembros y entidades sincron
 
 ## Fotografías y carga
 
-Cada plato base tiene una imagen WebP individual en `recipe-images/`. `recipe-photos.js` identifica la preparación representada; cuando se selecciona otra variante, la interfaz indica que la foto corresponde a la receta base. No se buscan fotografías externas durante la navegación ni se utilizan cuadrículas o atlas como fondos.
+Los 74 platos base originales tienen una imagen WebP individual en `recipe-images/`. `recipe-photos.js` identifica la preparación representada; cuando se selecciona otra variante, la interfaz indica que la foto corresponde a la receta base. Las recetas importadas sin imagen verificada no reciben una foto ajena. No se buscan fotografías externas durante la navegación ni se utilizan cuadrículas o atlas como fondos.
 
 Las fotos se precargan en la caché de la PWA tras la primera visita. La primera descarga depende de la conexión; las aperturas siguientes usan los archivos guardados, mientras el navegador conserve la caché. El estado local se muestra sin esperar a la sincronización.
 

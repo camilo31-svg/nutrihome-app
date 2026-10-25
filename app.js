@@ -1,14 +1,15 @@
-import { groupRecipeFamilies, recipeFamilyId } from './recipe-families.js?v=1.9.1';
-import { recipePhoto } from './recipe-photos.js?v=1.9.1';
-import { DEFAULT_PROFILE, DEMO_EXERCISE, createDemoPantry } from './demo-data.js?v=1.9.1';
-import { DIET_CATALOG_PROFILES, RECIPE_LIBRARY } from './recipe-library.js?v=1.9.1';
+import { groupRecipeFamilies, recipeFamilyId } from './recipe-families.js?v=1.10.1';
+import { recipePhoto } from './recipe-photos.js?v=1.10.1';
+import { DEFAULT_PROFILE, DEMO_EXERCISE, createDemoPantry } from './demo-data.js?v=1.10.1';
+import { DIET_CATALOG_PROFILES, RECIPE_LIBRARY } from './recipe-library.js?v=1.10.1';
 import {
   DAY_LABELS, MEAL_LABELS, buildShoppingList, calculateBMI, calculateGoalProgress, classifyAdultBMI, consumeRecipe, generateWeek, getExpiryStatus,
   isRecipeCompatible, menuNutrition, normalizeFoodName, normalizeText, normalizeUnit,
   pantryCoverage, rankMealCandidates, roundQuantity, sameFood, scaleIngredients, upsertBodyMeasurement, upsertPantryItem, validateRecipe
-} from './nutrihome-core.js?v=1.9.1';
-import { estimateRecipe, inferRecipeTraits, parseFlexibleIngredients } from './recipe-estimator.js?v=1.9.1';
-import { clearLocalState, createStateSnapshot, isPersonalRecipe, loadLocalState, loadRecipeImage, newestSnapshot, pullRemoteState, pushRemoteState, saveLocalState, saveRecipeImage } from './storage.js?v=1.9.1';
+} from './nutrihome-core.js?v=1.10.1';
+import { estimateRecipe, inferRecipeTraits, parseFlexibleIngredients } from './recipe-estimator.js?v=1.10.1';
+import { clearLocalState, createStateSnapshot, isPersonalRecipe, loadLocalState, loadRecipeImage, newestSnapshot, pullRemoteState, pushRemoteState, saveLocalState, saveRecipeImage } from './storage.js?v=1.10.1';
+import { searchPublicStore } from './worker/store-prices.js?v=1.10.1';
 
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
@@ -18,7 +19,8 @@ const number = value => new Intl.NumberFormat('es-ES', { maximumFractionDigits: 
 const LOCATION_LABELS = { fridge: 'Nevera', freezer: 'Congelador', pantry: 'Despensa' };
 const CATEGORY_EMOJI = { verduras: '🥬', frutas: '🍎', refrigerados: '❄️', congelados: '🧊', cereales: '🌾', legumbres: '🫘', conservas: '🥫', bebidas: '🥛', otros: '◌' };
 const DIET_LABELS = { omnivore: 'Omnívora', flexitarian: 'Flexitariana', pescetarian: 'Pescetariana', vegetarian: 'Vegetariana', vegan: 'Vegana', lacto_vegetarian: 'Lacto-vegetariana', ovo_vegetarian: 'Ovo-vegetariana' };
-const APP_VERSION = '1.9.1';
+const APP_VERSION = '1.10.1';
+const IS_GITHUB_PAGES = location.hostname.endsWith('.github.io');
 
 let state;
 let activeDay = Math.max(0, Math.min(6, (new Date().getDay() + 6) % 7));
@@ -35,6 +37,10 @@ let visibleFamilyRecipes = new Map();
 const loadingPhotoNodes = new WeakSet();
 let planningReminderTimer = null;
 let localEditRevision = 0;
+let storeProducts = [];
+let storeCheckedAt = '';
+let selectedShoppingItemId = null;
+let storeRequestId = 0;
 
 function defaultBodyMetrics() {
   return { age: null, heightCm: null, currentWeightKg: null, currentMuscleKg: null, goalType: 'total', goalValueKg: null, history: [] };
@@ -70,7 +76,7 @@ function initialState(skipMenu = false) {
   return {
     version: 1, updatedAt: new Date().toISOString(), profile, pantry, recipes, activeWeekStart, weekPlans: [{ startDate: activeWeekStart, menu }],
     exercise: clone(DEMO_EXERCISE), favorites: [], ratings: {}, cookedHistory: [], dismissedRecipes: [],
-    shopping: buildShoppingList(menu, recipes, pantry), manualShopping: [], generationMode: 'balanced', bodyMetrics: defaultBodyMetrics(),
+    shopping: buildShoppingList(menu, recipes, pantry), manualShopping: [], shoppingStore: 'mercadona', shoppingProducts: {}, generationMode: 'balanced', bodyMetrics: defaultBodyMetrics(),
     planningReminder: { enabled: false, hour: 18, lastShown: '' }
   };
 }
@@ -422,7 +428,7 @@ function showRecipe(id, servings) {
   const coverage = pantryCoverage(recipe, state.pantry, recipeServings);
   $('#recipe-dialog-content').innerHTML = `<button class="close-btn" type="button" data-close-dialog="recipe-dialog" aria-label="Cerrar">×</button>
     <section class="recipe-detail-hero"><div><p class="eyebrow">${recipe.mealTypes.map(type => MEAL_LABELS[type]).join(' · ')}</p><h2 id="recipe-dialog-title">${escapeHtml(recipe.name)}</h2><p>${escapeHtml(recipe.description)}</p><div class="detail-actions"><button type="button" data-favorite="${id}">${state.favorites.includes(id) ? '♥ Favorita' : '♡ Guardar'}</button><button type="button" data-cook-recipe="${id}">✓ Receta preparada</button></div></div><div class="recipe-detail-emoji recipe-cover" ${coverAttributes(recipe)} aria-hidden="true">${recipeVisualInner(recipe, true)}</div></section>
-    <div class="detail-grid"><div><div class="nutrition-grid"><div><b>${number(recipe.nutrition.kcal)}</b><span>kcal</span></div><div><b>${number(recipe.nutrition.protein)} g</b><span>proteína</span></div><div><b>${number(recipe.nutrition.carbs)} g</b><span>carbos</span></div><div><b>${number(recipe.nutrition.fat)} g</b><span>grasas</span></div><div><b>${number(recipe.nutrition.fiber)} g</b><span>fibra</span></div><div><b>${euro(recipe.estimatedCost / recipe.servings)}</b><span>ración · est.</span></div></div><h3>Valoración</h3><div class="rating-control" aria-label="Valorar receta">${[1,2,3,4,5].map(value => `<button class="${value <= userRating ? 'active' : ''}" type="button" data-rate="${value}" aria-label="${value} estrellas">★</button>`).join('')}</div><small>${userRating ? `Tu valoración: ${userRating}/5` : recipe.ratingType === 'real' ? `Valoración pública: ${recipe.rating}/5 (${recipe.ratingCount})` : `Recomendación estimada: ${recipe.rating}/5. No es una valoración pública real.`}</small><h3>Información</h3><p>${recipe.totalTime} min · ${recipe.prepTime} min preparación · ${recipe.cookTime} min cocción</p><p>Alérgenos declarados: ${recipe.allergens.length ? recipe.allergens.join(', ') : 'ninguno en los datos de demostración'}.</p><p><small>Fuente: ${escapeHtml(recipe.source)}</small></p><p><small id="recipe-photo-credit">${photoCredit(recipe)}</small></p></div>
+    <div class="detail-grid"><div><div class="nutrition-grid"><div><b>${number(recipe.nutrition.kcal)}</b><span>kcal</span></div><div><b>${number(recipe.nutrition.protein)} g</b><span>proteína</span></div><div><b>${number(recipe.nutrition.carbs)} g</b><span>carbos</span></div><div><b>${number(recipe.nutrition.fat)} g</b><span>grasas</span></div><div><b>${number(recipe.nutrition.fiber)} g</b><span>fibra</span></div><div><b>${euro(recipe.estimatedCost / recipe.servings)}</b><span>ración · est.</span></div></div><h3>Valoración</h3><div class="rating-control" aria-label="Valorar receta">${[1,2,3,4,5].map(value => `<button class="${value <= userRating ? 'active' : ''}" type="button" data-rate="${value}" aria-label="${value} estrellas">★</button>`).join('')}</div><small>${userRating ? `Tu valoración: ${userRating}/5` : recipe.ratingType === 'real' ? `Valoración pública: ${recipe.rating}/5 (${recipe.ratingCount})` : `Recomendación estimada: ${recipe.rating}/5. No es una valoración pública real.`}</small><h3>Información</h3><p>${recipe.totalTime} min · ${recipe.prepTime} min preparación · ${recipe.cookTime} min cocción</p><p>Alérgenos declarados: ${recipe.allergens.length ? recipe.allergens.join(', ') : 'ninguno en los datos de demostración'}.</p><p><small>Fuente: ${recipe.sourceUrl ? `<a href="${escapeHtml(recipe.sourceUrl)}" target="_blank" rel="noopener noreferrer">Wikilibros · texto original ${recipe.sourceLanguage === 'en' ? 'en inglés' : 'en español'}</a> · <a href="${escapeHtml(recipe.licenseUrl)}" target="_blank" rel="noopener noreferrer">CC BY-SA 4.0</a> · Adaptación y cantidades estimadas por NutriHome.` : escapeHtml(recipe.source)}</small></p><p><small id="recipe-photo-credit">${photoCredit(recipe)}</small></p></div>
     <div><div class="serving-control"><h3>Ingredientes</h3><label><span class="sr-only">Raciones</span><input id="recipe-servings" type="number" min="1" max="24" value="${recipeServings}" /></label><span>raciones</span></div><p><small>${coverage.missing === 0 ? 'Tienes todo en casa.' : `Te faltan ${coverage.missing} ingredientes para estas raciones.`} Puedes excluir cualquier ingrediente para que no vuelva a aparecer en ninguna propuesta.</small></p><ul class="ingredient-list">${scaled.map(item => `<li><span>${escapeHtml(item.name)}</span><span class="ingredient-actions"><b>${number(item.amount)} ${item.unit}</b><button type="button" data-exclude-ingredient="${escapeHtml(item.name)}" aria-label="Excluir ${escapeHtml(item.name)} de todas las recetas">Excluir</button></span></li>`).join('')}</ul><h3>Pasos</h3><ol class="step-list">${recipe.steps.map(step => `<li>${escapeHtml(step)}</li>`).join('')}</ol>${variantSuggestions(recipe, compatibleRecipes())}</div></div>`;
   const dialog = $('#recipe-dialog');
   if (!dialog.open) dialog.showModal();
@@ -472,7 +478,46 @@ function renderShopping() {
   $('#shopping-saving').textContent = discountedProducts > 0 ? `Hemos descontado existencias de ${discountedProducts} ${discountedProducts === 1 ? 'producto' : 'productos'}. Solo mostramos las cantidades que faltan.` : 'Esta lista contiene únicamente lo que falta para el menú.';
   $('#shopping-empty').hidden = items.length > 0;
   const groups = Map.groupBy ? Map.groupBy(items, item => item.category || 'otros') : items.reduce((map, item) => map.set(item.category || 'otros', [...(map.get(item.category || 'otros') || []), item]), new Map());
-  $('#shopping-list').innerHTML = [...groups].map(([category, group]) => `<section class="shopping-group"><h2>${escapeHtml(category)}</h2>${group.map(item => `<article class="shopping-item ${item.checked ? 'checked' : ''}"><button class="shopping-check ${item.checked ? 'checked' : ''}" type="button" data-check-shopping="${item.id}" aria-label="${item.checked ? 'Desmarcar' : 'Marcar comprado'} ${escapeHtml(item.name)}">${item.checked ? '✓' : ''}</button><div class="shopping-copy"><b>${escapeHtml(item.name)}</b><small>${item.source === 'manual' ? 'Añadido manualmente' : `Menú: ${number(item.required)} ${item.unit} · en casa: ${number(item.available)} ${item.unit}`}</small></div><div><b>${number(item.quantity)} ${item.unit}</b><button class="row-menu" type="button" data-delete-shopping="${item.id}" aria-label="Eliminar ${escapeHtml(item.name)}">×</button></div></article>`).join('')}</section>`).join('');
+  const consumOption = $('#shopping-store option[value="consum"]');
+  consumOption.hidden = consumOption.disabled = IS_GITHUB_PAGES;
+  if (IS_GITHUB_PAGES && state.shoppingStore === 'consum') state.shoppingStore = 'mercadona';
+  $('#shopping-store').value = ['mercadona', 'consum', 'aldi'].includes(state.shoppingStore) ? state.shoppingStore : 'mercadona';
+  $('#store-note').textContent = IS_GITHUB_PAGES
+    ? 'En GitHub Pages puedes consultar Mercadona y ALDI. Precios por envase; pueden variar según tienda, zona y fecha. Elige el producto exacto para asociarlo a tu lista.'
+    : 'Precios por envase publicados por cada cadena; pueden variar según tienda, zona y fecha. Elige el producto exacto para asociarlo a tu lista.';
+  $('#shopping-list').innerHTML = [...groups].map(([category, group]) => `<section class="shopping-group"><h2>${escapeHtml(category)}</h2>${group.map(item => {
+    const chosen = state.shoppingProducts?.[`${state.shoppingStore}|${item.id}`];
+    return `<article class="shopping-item ${item.checked ? 'checked' : ''}"><button class="shopping-check ${item.checked ? 'checked' : ''}" type="button" data-check-shopping="${escapeHtml(item.id)}" aria-label="${item.checked ? 'Desmarcar' : 'Marcar comprado'} ${escapeHtml(item.name)}">${item.checked ? '✓' : ''}</button><div class="shopping-copy"><b>${escapeHtml(item.name)}</b><small>${item.source === 'manual' ? 'Añadido manualmente' : `Menú: ${number(item.required)} ${escapeHtml(item.unit)} · en casa: ${number(item.available)} ${escapeHtml(item.unit)}`}</small>${chosen ? `<span class="store-chosen">${escapeHtml(chosen.name)} · ${euro(chosen.price)} / envase${chosen.checkedAt ? ` · consultado ${escapeHtml(new Date(chosen.checkedAt).toLocaleDateString('es-ES'))}` : ''}${chosen.url ? ` · <a href="${escapeHtml(chosen.url)}" target="_blank" rel="noopener noreferrer">Ver producto</a>` : ''}</span>` : '<span class="store-unpriced">Sin precio asociado en este supermercado</span>'}</div><div class="shopping-end"><b>${number(item.quantity)} ${escapeHtml(item.unit)}</b><button class="store-lookup" type="button" data-store-lookup="${escapeHtml(item.id)}">Ver precios</button><button class="row-menu" type="button" data-delete-shopping="${escapeHtml(item.id)}" aria-label="Eliminar ${escapeHtml(item.name)}">×</button></div></article>`;
+  }).join('')}</section>`).join('');
+}
+
+function renderStoreProducts() {
+  $('#store-results').innerHTML = storeProducts.map((product, index) => `<article class="store-product"><div><b>${escapeHtml(product.name)}</b><small>${escapeHtml(product.pack || '')}${product.unitPrice && product.unitLabel ? ` · ${euro(product.unitPrice)}/${escapeHtml(product.unitLabel)}` : ''}</small></div><strong>${euro(product.price)}</strong><div class="store-product-actions">${product.url ? `<a href="${escapeHtml(product.url)}" target="_blank" rel="noopener noreferrer">Ficha</a>` : ''}${selectedShoppingItemId ? `<button type="button" data-store-pick="${index}">Elegir</button>` : ''}</div></article>`).join('');
+}
+
+async function searchStore(query) {
+  const store = state.shoppingStore;
+  const requestId = ++storeRequestId;
+  storeProducts = [];
+  renderStoreProducts();
+  $('#store-status').textContent = `Buscando «${query}» en ${$('#shopping-store').selectedOptions[0].textContent}…`;
+  try {
+    let data;
+    if (IS_GITHUB_PAGES) data = await searchPublicStore(store, query);
+    else {
+      const response = await fetch(`/api/store-search?store=${encodeURIComponent(store)}&q=${encodeURIComponent(query)}`);
+      if (!response.ok) throw new Error('price_unavailable');
+      data = await response.json();
+    }
+    if (requestId !== storeRequestId) return;
+    storeProducts = data.products || [];
+    storeCheckedAt = data.checkedAt || '';
+    $('#store-status').textContent = storeProducts.length ? `${storeProducts.length} productos · consulta ${new Date(storeCheckedAt).toLocaleString('es-ES')}${selectedShoppingItemId ? ' · elige el artículo que corresponda a tu lista' : ''}.` : 'No hay productos con precio para esa búsqueda. Prueba con otro término.';
+    renderStoreProducts();
+  } catch {
+    if (requestId !== storeRequestId) return;
+    $('#store-status').textContent = 'Ahora mismo no se pueden consultar los precios de esta cadena. Inténtalo de nuevo.';
+  }
 }
 
 function renderProfile() {
@@ -1120,6 +1165,8 @@ function bindEvents() {
     const delta = event.target.closest('[data-pantry-delta]'); if (delta) { const item = state.pantry.find(row => row.id === delta.dataset.pantryId); item.quantity = roundQuantity(Math.max(0, item.quantity + Number(delta.dataset.pantryDelta))); state.pantry = state.pantry.filter(row => row.quantity > 0); recalculateShopping(); persist(); renderAll(); return; }
     const edit = event.target.closest('[data-edit-pantry]'); if (edit) { openPantryForm(state.pantry.find(item => item.id === edit.dataset.editPantry)); return; }
     const check = event.target.closest('[data-check-shopping]'); if (check) { toggleShopping(check.dataset.checkShopping); return; }
+    const lookup = event.target.closest('[data-store-lookup]'); if (lookup) { const item = state.shopping.find(row => row.id === lookup.dataset.storeLookup); if (!item) return; selectedShoppingItemId = item.id; $('#store-search').value = item.name; $('#store-search').focus(); searchStore(item.name); $('#store-title').scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
+    const pick = event.target.closest('[data-store-pick]'); if (pick) { const item = state.shopping.find(row => row.id === selectedShoppingItemId); const product = storeProducts[Number(pick.dataset.storePick)]; if (!item || !product) return; state.shoppingProducts ||= {}; state.shoppingProducts[`${state.shoppingStore}|${item.id}`] = { id: product.id, name: product.name, price: product.price, url: product.url, checkedAt: storeCheckedAt }; persist(); renderShopping(); showToast('Producto y precio asociados a la lista'); return; }
     const removeShopping = event.target.closest('[data-delete-shopping]'); if (removeShopping) { state.shopping = state.shopping.filter(item => item.id !== removeShopping.dataset.deleteShopping); state.manualShopping = state.manualShopping.filter(item => item.id !== removeShopping.dataset.deleteShopping); persist(); renderShopping(); return; }
     const removeWeight = event.target.closest('[data-delete-weight-entry]'); if (removeWeight) { if (!confirm('¿Eliminar este registro corporal?')) return; state.bodyMetrics.history = state.bodyMetrics.history.filter(item => item.id !== removeWeight.dataset.deleteWeightEntry); const latest = state.bodyMetrics.history.at(-1); state.bodyMetrics.currentWeightKg = latest?.weightKg || null; state.bodyMetrics.currentMuscleKg = latest?.muscleKg || null; persist(); renderBodyMetrics(); showToast('Registro eliminado'); return; }
     const close = event.target.closest('[data-close-dialog]'); if (close) { $(`#${close.dataset.closeDialog}`).close(); return; }
@@ -1141,6 +1188,8 @@ function bindEvents() {
   $('#what-can-cook').addEventListener('click', () => { navigate('recipes'); $('#filter-pantry').checked = true; resetRecipeResults(); });
   $('#pantry-search').addEventListener('input', renderPantry); $('#pantry-location').addEventListener('change', renderPantry);
   $('#add-pantry').addEventListener('click', () => openPantryForm()); $('#pantry-form').addEventListener('submit', event => { event.preventDefault(); savePantryForm(event.currentTarget); });
+  $('#shopping-store').addEventListener('change', event => { state.shoppingStore = event.target.value; selectedShoppingItemId = null; storeRequestId++; storeProducts = []; $('#store-results').innerHTML = ''; $('#store-status').textContent = 'Busca un producto o pulsa «Ver precios» en un artículo de la lista.'; persist(); renderShopping(); });
+  $('#store-search-form').addEventListener('submit', event => { event.preventDefault(); searchStore($('#store-search').value.trim()); });
   $('#add-recipe').addEventListener('click', () => { $('#recipe-form').reset(); $('#recipe-form-error').textContent = ''; resetRecipeCoverPreview(); updateRecipeEstimatePreview(); $('#recipe-form-dialog').showModal(); }); $('#recipe-form').addEventListener('submit', event => { event.preventDefault(); saveRecipeForm(event.currentTarget); });
   $('#recipe-form').elements.ingredients.addEventListener('input', updateRecipeEstimatePreview);
   $('#recipe-form').elements.servings.addEventListener('input', updateRecipeEstimatePreview);

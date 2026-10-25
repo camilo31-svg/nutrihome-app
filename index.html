@@ -18,14 +18,14 @@
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="icons/icon-192.png" />
     <link rel="apple-touch-icon" href="icons/icon-192.png" />
-    <link rel="stylesheet" href="styles.css?v=1.9.1" />
+    <link rel="stylesheet" href="styles.css?v=1.10.1" />
     <title>NutriHome · Come bien, compra justo</title>
   </head>
   <body>
     <a class="skip-link" href="#main-content">Saltar al contenido</a>
     <div class="app-shell">
       <header class="topbar">
-        <button class="brand" type="button" data-nav="week" aria-label="NutriHome, ir al inicio"><span class="brand-mark" aria-hidden="true">N</span><span>NutriHome</span><small class="app-version-label">v1.9.1</small></button>
+        <button class="brand" type="button" data-nav="week" aria-label="NutriHome, ir al inicio"><span class="brand-mark" aria-hidden="true">N</span><span>NutriHome</span><small class="app-version-label">v1.10.1</small></button>
         <div class="topbar-actions">
           <span class="sync-badge" id="sync-badge"><i></i><span>Guardado</span></span>
           <button class="icon-btn" id="notifications" type="button" aria-label="Ver avisos"><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg></span><i></i></button>
@@ -80,7 +80,7 @@
           <div class="recipe-grid" id="recipe-grid" aria-live="polite"></div>
           <div class="recipe-load-more"><button class="secondary-btn" id="recipe-load-more" type="button" hidden>Mostrar más</button></div>
           <aside class="catalog-note">
-            <div><p class="eyebrow">BIBLIOTECA AMPLIADA</p><h2>Recetas distintas, variantes a tu gusto</h2><p>Cada tarjeta es una receta base. Abre el desplegable para cambiar ingredientes y consultar sus cantidades y pasos. Las imágenes muestran la receta base indicada y se guardan en tu dispositivo.</p></div>
+            <div><p class="eyebrow">BIBLIOTECA AMPLIADA</p><h2>Recetas distintas, variantes a tu gusto</h2><p>Cada tarjeta es una receta base. Abre el desplegable para cambiar ingredientes y consultar sus cantidades y pasos. Las 74 fotos revisadas se precargan; las nuevas recetas de Wikilibros conservan el idioma de origen y muestran «Sin foto añadida» hasta tener una imagen verificada.</p></div>
             <div class="diet-catalog-counts" id="diet-catalog-counts" aria-label="Recetas disponibles por dieta"></div>
             <details><summary>Referencias consultadas</summary><p><a href="https://www.gutenberg.org/ebooks/13887" target="_blank" rel="noreferrer">Allinson’s Cookery Book</a> · <a href="https://www.gutenberg.org/ebooks/14594" target="_blank" rel="noreferrer">Cassell’s Vegetarian Cookery</a> · <a href="https://www.gutenberg.org/ebooks/27639" target="_blank" rel="noreferrer">New Vegetarian Dishes</a> · <a href="https://www.gutenberg.org/ebooks/43879" target="_blank" rel="noreferrer">Substitutes for Flesh Foods</a> · <a href="https://www.gutenberg.org/ebooks/69370" target="_blank" rel="noreferrer">Leaves from Our Tuscan Kitchen</a> · <a href="https://www.gutenberg.org/ebooks/45863" target="_blank" rel="noreferrer">The Khaki Kook Book</a> · <a href="https://www.gutenberg.org/ebooks/75027" target="_blank" rel="noreferrer">La Cuisine Creole</a> · <a href="https://www.gutenberg.org/ebooks/29728" target="_blank" rel="noreferrer">Apicius</a> · <a href="https://www.myplate.gov/myplate-kitchen" target="_blank" rel="noreferrer">USDA MyPlate Kitchen</a>.</p></details>
           </aside>
@@ -106,6 +106,7 @@
         <section class="view" id="view-shopping" data-view="shopping" aria-labelledby="shopping-title">
           <div class="page-heading"><div><p class="eyebrow">COMPRA SOLO LO QUE FALTA</p><h1 id="shopping-title">Lista de compra</h1><p class="intro" id="shopping-subtitle">Calculada desde tu menú y tu despensa.</p></div><div class="heading-actions"><button class="secondary-btn" id="share-shopping" type="button">Compartir</button><button class="primary-btn" id="add-shopping" type="button">＋ Añadir</button></div></div>
           <section class="shopping-hero"><div><span>Progreso de compra</span><strong id="shopping-progress-label">0 de 0</strong></div><div class="progress-track light"><i id="shopping-progress"></i></div><p id="shopping-saving">Comprobando lo que ya tienes…</p><button class="text-btn" id="refresh-shopping" type="button">↻ Recalcular desde el menú</button></section>
+          <section class="store-panel" aria-labelledby="store-title"><div class="store-heading"><div><p class="eyebrow">PRECIOS PÚBLICOS EN ESPAÑA</p><h2 id="store-title">Productos por supermercado</h2></div><label>Supermercado<select id="shopping-store"><option value="mercadona">Mercadona · Barcelona</option><option value="consum">Consum · catálogo público</option><option value="aldi">ALDI · Península</option></select></label></div><form id="store-search-form" class="store-search"><label class="sr-only" for="store-search">Buscar producto en el supermercado</label><input id="store-search" type="search" minlength="2" maxlength="60" placeholder="Buscar arroz, leche, tomates…" required /><button class="secondary-btn" type="submit">Buscar precios</button></form><p class="store-note" id="store-note">Precios por envase publicados por cada cadena; pueden variar según tienda, zona y fecha. Elige el producto exacto para asociarlo a tu lista.</p><div id="store-status" class="store-status" aria-live="polite">Busca un producto o pulsa «Ver precios» en un artículo de la lista.</div><div id="store-results" class="store-results"></div></section>
           <div class="shopping-list" id="shopping-list" aria-live="polite"></div>
           <div class="empty-state" id="shopping-empty" hidden><span>✓</span><h2>Ya está todo</h2><p>No falta ningún ingrediente para el menú actual.</p></div>
         </section>
@@ -167,7 +168,7 @@
             <section class="settings-card"><h2>Preferencias</h2><button class="setting-row" id="reset-preferences" type="button"><span><b>Reiniciar aprendizaje</b><small>Borra favoritos, valoraciones e historial.</small></span><span>→</span></button><button class="setting-row danger-text" id="delete-data" type="button"><span><b>Eliminar mis datos</b><small>Restablece NutriHome en este dispositivo.</small></span><span>→</span></button></section>
             <section class="settings-card reminder-card"><div><p class="eyebrow">CADA DOMINGO</p><h2>Recordatorio para preparar la semana</h2><p id="planning-reminder-status">Desactivado. Puedes activar el aviso y añadir una alarma semanal a tu calendario.</p></div><label><span>Hora</span><select id="planning-reminder-hour"><option value="16">16:00</option><option value="17">17:00</option><option value="18" selected>18:00</option><option value="19">19:00</option><option value="20">20:00</option></select></label><div class="button-row"><button class="secondary-btn" id="toggle-planning-reminder" type="button">Activar aviso en la app</button><button class="primary-btn" id="download-calendar-reminder" type="button">Añadir alarma al calendario</button></div></section>
             <section class="settings-card"><h2>Sincronización</h2><p id="sync-detail">Tus cambios se guardan offline en este dispositivo.</p><div class="privacy-note"><span aria-hidden="true">⌾</span><span>Los datos del hogar se envían al servidor solo cuando hay una sesión autenticada disponible.</span></div></section>
-            <section class="settings-card app-info"><p class="eyebrow">VERSIÓN PÚBLICA</p><h2>NutriHome <span class="app-version-label">v1.9.1</span></h2><p>Este número permite comprobar rápidamente que todos los usuarios están viendo la misma actualización.</p></section>
+            <section class="settings-card app-info"><p class="eyebrow">VERSIÓN PÚBLICA</p><h2>NutriHome <span class="app-version-label">v1.10.1</span></h2><p>Este número permite comprobar rápidamente que todos los usuarios están viendo la misma actualización.</p></section>
           </div>
         </section>
       </main>
@@ -215,6 +216,6 @@
 
     <dialog class="sheet-dialog compact-dialog" id="simple-dialog"><form method="dialog" id="simple-form"><button class="close-btn" type="button" data-close-dialog="simple-dialog" aria-label="Cerrar">×</button><div id="simple-dialog-content"></div></form></dialog>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script type="module" src="app.js?v=1.9.1"></script>
+    <script type="module" src="app.js?v=1.10.1"></script>
   </body>
 </html>

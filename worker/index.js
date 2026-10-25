@@ -1,3 +1,5 @@
+import { storeSearchApi } from './store-prices.js';
+
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
 
 async function ensureStateTable(db) {
@@ -201,6 +203,7 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (url.pathname === '/api/state') return stateApi(request, env);
+    if (url.pathname === '/api/store-search') return secure(await storeSearchApi(request));
     const imageMatch = url.pathname.match(/^\/api\/recipe-images\/([^/]+)$/);
     if (imageMatch) return secure(await recipeImageApi(request, env, decodeURIComponent(imageMatch[1])));
     const photoMatch = url.pathname.match(/^\/api\/recipe-photos\/([^/]+)$/);

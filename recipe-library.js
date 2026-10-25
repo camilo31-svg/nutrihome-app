@@ -1,6 +1,7 @@
-import { SPECIAL_RECIPES } from './recipe-specials.js?v=1.9.1';
-import { DEMO_RECIPES } from './demo-data.js?v=1.9.1';
-import { groupRecipeFamilies } from './recipe-families.js?v=1.9.1';
+import { SPECIAL_RECIPES } from './recipe-specials.js?v=1.10.1';
+import { DEMO_RECIPES } from './demo-data.js?v=1.10.1';
+import { groupRecipeFamilies } from './recipe-families.js?v=1.10.1';
+import { IMPORTED_RECIPES } from './recipe-imports.js?v=1.10.1';
 
 const ingredient = (name, amount, unit, category = 'otros') => ({ name, amount, unit, category });
 const rounded = value => Math.round(value * 10) / 10;
@@ -297,7 +298,7 @@ const GENERATED_RECIPES = [
   ...omnivoreRecipes()
 ];
 
-export const RECIPE_LIBRARY = Object.freeze([...SPECIAL_RECIPES, ...DEMO_RECIPES, ...GENERATED_RECIPES]);
+export const RECIPE_LIBRARY = Object.freeze([...SPECIAL_RECIPES, ...DEMO_RECIPES, ...GENERATED_RECIPES, ...IMPORTED_RECIPES]);
 export const BUILTIN_RECIPE_COUNT = RECIPE_LIBRARY.length;
 
 export const DIET_CATALOG_PROFILES = Object.freeze([

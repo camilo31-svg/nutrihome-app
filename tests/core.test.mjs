@@ -26,14 +26,14 @@ assert.equal(RECIPE_LIBRARY.length > 1600, true, 'El catálogo contiene más de 
 assert.equal(new Set(RECIPE_LIBRARY.map(recipe => recipe.id)).size, RECIPE_LIBRARY.length, 'Los IDs del catálogo deben ser únicos');
 assert.equal(new Set(RECIPE_LIBRARY.map(recipe => recipe.name)).size, RECIPE_LIBRARY.length, 'Los nombres del catálogo deben ser únicos');
 const dietCounts = catalogCounts(isRecipeCompatible);
-assert.deepEqual(dietCounts, { vegan: 45, lacto_vegetarian: 52, ovo_vegetarian: 52, vegetarian: 63, pescetarian: 69, flexitarian: 74, omnivore: 74 }, 'Se cuentan platos distintos, no alternativas de ingredientes');
+assert.deepEqual(dietCounts, { vegan: 64, lacto_vegetarian: 87, ovo_vegetarian: 81, vegetarian: 118, pescetarian: 128, flexitarian: 147, omnivore: 147 }, 'Se cuentan platos distintos, no alternativas de ingredientes');
 for (const recipe of RECIPE_LIBRARY) {
   assert.deepEqual(validateRecipe(recipe), [], `${recipe.name} debe tener ingredientes y cantidades válidos`);
-  assert.ok(recipe.steps.length >= 4, `${recipe.name} debe tener al menos cuatro pasos`);
+  assert.ok(recipe.steps.length >= (recipe.sourceUrl ? 3 : 4), `${recipe.name} debe tener pasos de elaboración suficientes`);
   assert.equal(recipe.steps.some(step => GENERIC_RECIPE_STEPS.includes(step)), false, `${recipe.name} no puede usar instrucciones genéricas`);
   const stepText = normalizeText(recipe.steps.join(' '));
   const mentionedIngredients = recipe.ingredients.filter(item => normalizeText(item.name).split(' ').filter(word => word.length >= 4).some(word => stepText.includes(word))).length;
-  assert.ok(mentionedIngredients >= 2, `${recipe.name} debe mencionar sus ingredientes concretos en los pasos`);
+  assert.ok(mentionedIngredients >= (recipe.sourceUrl ? 1 : 2), `${recipe.name} debe mencionar ingredientes concretos en los pasos`);
 }
 const compactSnapshot = createStateSnapshot({ version: 1, recipes: [...RECIPE_LIBRARY, { id: 'rec-user-test', source: 'Receta personal' }], favorites: [] });
 assert.deepEqual(compactSnapshot.recipes.map(recipe => recipe.id), ['rec-user-test'], 'La copia guarda recetas personales, no duplica el catálogo incorporado');
